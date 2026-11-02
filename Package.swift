@@ -51,7 +51,9 @@ let package = Package(
                     name: "Tokenizers",
                     package: "swift-transformers"
                 )
-            ]
+            ],
+            path: "Sources",
+            sources: ["Noctis", "NoctisCLI"]
         ),
         .testTarget(
             name: "NoctisTests",
