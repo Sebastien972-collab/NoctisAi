@@ -6,11 +6,7 @@
 //
 
 import Foundation
-import MLXLMCommon
-import MLXVLM
-import HuggingFace
-import Tokenizers
-import MLXHuggingFace
+import Noctis
 
 final class NoctisApplication {
 

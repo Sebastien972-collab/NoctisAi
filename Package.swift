@@ -8,9 +8,13 @@ let package = Package(
         .macOS(.v15)
     ],
     products: [
-        .executable(
+        .library(
             name: "Noctis",
             targets: ["Noctis"]
+        ),
+        .executable(
+            name: "NoctisCLI",
+            targets: ["NoctisCLI"]
         )
     ],
     dependencies: [
@@ -37,7 +41,7 @@ let package = Package(
         )
     ],
     targets: [
-        .executableTarget(
+        .target(
             name: "Noctis",
             dependencies: [
                 .product(name: "SafeURLKit", package: "SafeURLKit"),
@@ -69,13 +73,15 @@ let package = Package(
                     name: "SwiftReadability",
                     package: "swift-readability"
                 )
-            ],
-            path: "Sources",
-            sources: ["Noctis", "NoctisCLI"]
+            ]
+        ),
+        .executableTarget(
+            name: "NoctisCLI",
+            dependencies: ["Noctis"]
         ),
         .testTarget(
             name: "NoctisTests",
-            dependencies: ["Noctis"]
+            dependencies: ["Noctis", "NoctisCLI"]
         )
     ]
 )

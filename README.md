@@ -6,6 +6,8 @@ Noctis est un assistant IA personnel en ligne de commande, développé en Swift 
 
 Le projet comprend une conversation en streaming et un outil `web_search` connecté à SearXNG. La mémoire persistante et une API Vapor ne sont pas encore implémentées.
 
+Le package expose la bibliothèque `Noctis`, importable dans une application, et l’exécutable `NoctisCLI` pour le terminal.
+
 ## Fonctionnalités présentes
 
 - Chargement d’un modèle depuis son identifiant Hugging Face avec MLX Swift LM.
@@ -37,10 +39,10 @@ Depuis la racine du dépôt :
 swift --version
 swift package resolve
 swift build
-swift run Noctis
+swift run NoctisCLI
 ```
 
-`swift run Noctis` lance réellement l’assistant : son point d’entrée instancie `MLXModelService`, puis appelle `NoctisApplication.run()`. Cette commande peut donc provoquer le téléchargement et le chargement du modèle. Elle n’est pas utilisée par les tests unitaires.
+`swift run NoctisCLI` lance réellement l’assistant : son point d’entrée instancie `MLXModelService`, puis appelle `NoctisApplication.run()`. Cette commande peut donc provoquer le téléchargement et le chargement du modèle. Elle n’est pas utilisée par les tests unitaires.
 
 Une fois le message `Tout est prêt !` affiché, saisir une question après `Vous >`. Les réponses sont affichées après `Noctis 🌙 >`. Saisir `exit` pour terminer.
 
@@ -48,7 +50,7 @@ Pour une compilation optimisée :
 
 ```sh
 swift build -c release
-swift run -c release Noctis
+swift run -c release NoctisCLI
 ```
 
 Aucun argument de ligne de commande ni fichier de configuration utilisateur n’est actuellement interprété par le programme.
@@ -72,7 +74,6 @@ Modifier ces constantes ou les instructions nécessite une recompilation. Aucun 
 ```text
 Sources/
 ├── Noctis/
-│   ├── Noctis.swift
 │   ├── Features/Web/              # Services, outils et lecture de pages Web
 │   └── Core/
 │       ├── AI/
@@ -85,6 +86,7 @@ Sources/
 │           ├── MLXModelServiceError.swift
 │           └── NoctisIdentity.swift
 └── NoctisCLI/
+    ├── NoctisCLI.swift
     ├── Domain/
     │   └── NoctisApplication.swift
     └── Interface/
@@ -101,7 +103,8 @@ Tests/
 
 | Élément | Responsabilité réelle |
 | --- | --- |
-| `Noctis` | Point d’entrée asynchrone ; assemble l’application avec le moteur MLX |
+| `Noctis` | Bibliothèque contenant le moteur IA et les outils Web |
+| `NoctisCLI` | Point d’entrée asynchrone ; assemble l’application console avec le moteur de la bibliothèque |
 | `NoctisApplication` | Charge le moteur injecté, lit et filtre les entrées, consomme les flux et affiche les erreurs |
 | `AIModelService` | Contrat d’inférence `Sendable` : chargement, génération, consommation et annulation |
 | `MLXModelService` | Acteur qui coordonne le chargement et réserve une seule génération à la fois |
@@ -110,7 +113,7 @@ Tests/
 | `NoctisConfiguration` | Constantes de configuration compilées avec l’application |
 | `NoctisIdentity` | Instructions système transmises à la session |
 
-Les dossiers `Noctis` et `NoctisCLI` sont compilés ensemble dans **une seule cible exécutable `Noctis`**, grâce aux propriétés `path` et `sources` de `Package.swift`. `NoctisCLI` n’est pas un module Swift distinct.
+Les dossiers `Noctis` et `NoctisCLI` constituent **deux modules distincts**. La cible exécutable `NoctisCLI` dépend de la bibliothèque `Noctis` et l’utilise avec `import Noctis`. Les dépendances MLX et Web sont déclarées dans la bibliothèque ; la console dépend uniquement de `Noctis`.
 
 **Il n’existe pas de `ChatService` dans cette révision.** La gestion des échanges est portée par `NoctisApplication`. Les tests couvrent ce code existant ; aucun service ni découpage supplémentaire n’a été ajouté pour les besoins des tests.
 
@@ -161,7 +164,7 @@ La présence de `MLXVLM` dans les dépendances ne constitue pas une interface de
 
 ## Tests
 
-La cible `NoctisTests` dépend de `Noctis` et utilise `@testable import Noctis`. La suite utilise exclusivement **Swift Testing** pour les tests et les assertions, sans dépendance de test supplémentaire et sans XCTest.
+La cible `NoctisTests` dépend de `Noctis` et de `NoctisCLI`. Les tests du moteur utilisent `@testable import Noctis` et les tests de la console importent aussi `NoctisCLI`. La suite utilise exclusivement **Swift Testing** pour les tests et les assertions, sans dépendance de test supplémentaire et sans XCTest.
 
 Exécuter toute la suite :
 

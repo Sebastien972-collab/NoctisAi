@@ -1,10 +1,14 @@
-// The Swift Programming Language
-// https://docs.swift.org/swift-book
-import Foundation
+//
+//  NoctisCLI.swift
+//  Noctis
+//
+//  Created by Sébastien DAGUIN on 03/11/2026.
+//
 
+import Noctis
 
 @main
-struct Noctis {
+struct NoctisCLI {
 
     static func main() async {
         let application = NoctisApplication(

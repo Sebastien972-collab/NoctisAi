@@ -9,6 +9,7 @@ import Darwin
 import Foundation
 import Testing
 @testable import Noctis
+@testable import NoctisCLI
 
 @Suite("Conversation console", .timeLimit(.minutes(1)))
 struct NoctisApplicationTests {
