@@ -13,31 +13,46 @@ import HuggingFace
 import Tokenizers
 
 
-final class MLXModelService: AIModelService {
-
+actor MLXModelService: AIModelService {
     private var session: ChatSession?
-
+    private let webToolDispatcher: WebToolDispatcher
+    
+    init(
+        webSearchService: any WebSearchService = SearXNGService()
+    ) {
+        self.webToolDispatcher = WebToolDispatcher(
+            searchService: webSearchService
+        )
+    }
+    
     func load() async throws {
         let model = try await loadModel(
             from: #hubDownloader,
             using: #huggingFaceTokenizerLoader(),
             id: NoctisConfiguration.modelID
         )
-
+        
+        let dispatcher = webToolDispatcher
+        
         session = ChatSession(
             model,
-            instructions: NoctisIdentity.systemPrompt
+            instructions: NoctisIdentity.systemPrompt,
+            tools: [
+                WebSearchTool.schema
+            ], toolDispatch: { call in
+                try await dispatcher.execute(call)
+            }
         )
     }
-
+    
     func generate(
         prompt: String
-    ) throws -> AsyncThrowingStream<String, Error> {
-
+    ) async throws -> AsyncThrowingStream<String, Error> {
+        
         guard let session else {
             throw MLXModelServiceError.modelNotLoaded
         }
-
+        
         return session.streamResponse(to: prompt)
     }
 }

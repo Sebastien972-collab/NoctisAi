@@ -69,7 +69,7 @@ final class NoctisApplication {
 
     private func generateResponse(for prompt: String) async {
         do {
-            let stream = try modelService.generate(prompt: prompt)
+            let stream = try await modelService.generate(prompt: prompt)
 
             print()
             print("Noctis 🌙 > ", terminator: "")
