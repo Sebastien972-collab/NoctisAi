@@ -1,0 +1,18 @@
+# Created by Sébastien DAGUIN
+
+name: noctis
+
+services:
+  searxng:
+    image: searxng/searxng:latest
+    container_name: noctis-searxng
+    restart: unless-stopped
+
+    ports:
+      - "127.0.0.1:${SEARXNG_PORT:-8888}:8080"
+
+    environment:
+      SEARXNG_SECRET: "${SEARXNG_SECRET_KEY:?Définir SEARXNG_SECRET_KEY dans .env}"
+
+    volumes:
+      - ./infrastructure/searxng:/etc/searxng:rw

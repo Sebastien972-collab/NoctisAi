@@ -55,7 +55,17 @@ final class MockAIModelService: AIModelService, Sendable {
         }
     }
 
-    func generate(prompt: String) throws -> AsyncThrowingStream<String, Error> {
+    func cancelGeneration() async {}
+
+    func withResponse(
+        prompt: String,
+        consume: @Sendable (AsyncThrowingStream<String, Error>) async throws -> Void
+    ) async throws {
+        let stream = try await generate(prompt: prompt)
+        try await consume(stream)
+    }
+
+    func generate(prompt: String) async throws -> AsyncThrowingStream<String, Error> {
         let index = state.withLock { state in
             state.calls.append(.generate(prompt))
             let index = state.responseIndex

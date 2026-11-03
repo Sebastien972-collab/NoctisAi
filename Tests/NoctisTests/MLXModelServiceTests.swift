@@ -13,11 +13,11 @@ import Testing
 struct MLXModelServiceTests {
     @Test("Refuse la génération tant que le modèle n’est pas chargé",
           arguments: ["Bonjour", "", " \t\n "])
-    func generateBeforeLoadingThrows(prompt: String) throws {
+    func generateBeforeLoadingThrows(prompt: String) async throws {
         let service = MLXModelService()
 
-        let error = #expect(throws: MLXModelServiceError.self) {
-            _ = try service.generate(prompt: prompt)
+        let error = await #expect(throws: MLXModelServiceError.self) {
+            _ = try await service.generate(prompt: prompt)
         }
 
         let failure = try #require(error)

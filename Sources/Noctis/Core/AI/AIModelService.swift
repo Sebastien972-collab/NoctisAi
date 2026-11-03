@@ -5,11 +5,18 @@
 //  Created by Sébastien DAGUIN on 03/11/2026.
 //
 
+import Foundation
 
-protocol AIModelService {
+protocol AIModelService: Sendable {
     func load() async throws
+    func cancelGeneration() async
+
+    func withResponse(
+        prompt: String,
+        consume: @Sendable (AsyncThrowingStream<String, Error>) async throws -> Void
+    ) async throws
 
     func generate(
         prompt: String
-    ) throws -> AsyncThrowingStream<String, Error>
+    ) async throws -> AsyncThrowingStream<String, Error>
 }

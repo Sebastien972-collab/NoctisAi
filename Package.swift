@@ -25,6 +25,10 @@ let package = Package(
         .package(
             url: "https://github.com/huggingface/swift-transformers.git",
             from: "1.3.0"
+        ),
+        .package(
+            url: "https://github.com/scinfu/SwiftSoup.git",
+            from: "2.0.0"
         )
     ],
     targets: [
@@ -50,6 +54,10 @@ let package = Package(
                 .product(
                     name: "Tokenizers",
                     package: "swift-transformers"
+                ),
+                .product(
+                    name: "SwiftSoup",
+                    package: "SwiftSoup"
                 )
             ],
             path: "Sources",
