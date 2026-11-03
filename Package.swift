@@ -14,6 +14,7 @@ let package = Package(
         )
     ],
     dependencies: [
+        .package(url: "https://github.com/adamtheturtle/SafeURLKit.git", exact: "0.2.0"),
         .package(
             url: "https://github.com/ml-explore/mlx-swift-lm.git",
             branch: "main"
@@ -39,6 +40,7 @@ let package = Package(
         .executableTarget(
             name: "Noctis",
             dependencies: [
+                .product(name: "SafeURLKit", package: "SafeURLKit"),
                 .product(
                     name: "MLXLMCommon",
                     package: "mlx-swift-lm"

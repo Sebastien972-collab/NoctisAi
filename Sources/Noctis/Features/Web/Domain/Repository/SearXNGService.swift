@@ -1,59 +1,46 @@
-//
-//  SearXNGService.swift
-//  Noctis
-//
-//  Created by Sébastien DAGUIN on 03/11/2026.
-//
-
-
 import Foundation
 
 struct SearXNGService: WebSearchService {
+    private let baseURL: URL?
+    private let limits: HTTPResponseLimits?
+    // Injection is only for deterministic URLProtocol tests; no session with shared credentials.
+    private let protocolClasses: [AnyClass]?
 
-    private let baseURL: URL
-    private let session: URLSession
-
-    init(
-        baseURL: URL = URL(string: "http://127.0.0.1:8888")!,
-        session: URLSession = .shared
-    ) {
+    init(baseURL: URL? = URL(string: "http://127.0.0.1:8888"),
+         limits: HTTPResponseLimits? = nil,
+         protocolClasses: [AnyClass]? = nil) {
         self.baseURL = baseURL
-        self.session = session
+        self.limits = limits
+        self.protocolClasses = protocolClasses
     }
 
     func search(query: String) async throws -> [SearchResult] {
-        let endpoint = baseURL.appendingPathComponent("search")
-
-        var components = URLComponents(
-            url: endpoint,
-            resolvingAgainstBaseURL: false
-        )
-
-        components?.queryItems = [
-            URLQueryItem(name: "q", value: query),
-            URLQueryItem(name: "format", value: "json")
-        ]
-
-        guard let url = components?.url else {
-            throw URLError(.badURL)
+        try Task.checkCancellation()
+        guard !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              query.count <= 300, query.utf8.count <= 1_200,
+              !query.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }) else {
+            throw WebToolError.invalidArguments
         }
-
-        var request = URLRequest(url: url)
-        request.timeoutInterval = 15
-
-        let (data, response) = try await session.data(for: request)
-
-        guard let response = response as? HTTPURLResponse,
-              (200...299).contains(response.statusCode) else {
-            throw URLError(.badServerResponse)
+        // The model never controls this endpoint. Only canonical IPv4 loopback is
+        // accepted, so this internal exception needs no DNS and cannot migrate hosts.
+        guard let baseURL, let base = URLComponents(url: baseURL, resolvingAgainstBaseURL: false),
+              base.scheme == "http", base.percentEncodedHost == "127.0.0.1",
+              let port = base.port, (1...65535).contains(port),
+              base.user == nil, base.password == nil, base.query == nil, base.fragment == nil,
+              base.path.isEmpty || base.path == "/" else {
+            throw WebPageError.invalidConfiguration
         }
-
-        let decoded = try JSONDecoder().decode(
-            SearXNGResponse.self,
-            from: data
-        )
-
-        return decoded.results
+        var components = base
+        components.path = "/search"
+        components.queryItems = [URLQueryItem(name: "q", value: query), URLQueryItem(name: "format", value: "json")]
+        guard let url = components.url else { throw WebPageError.invalidConfiguration }
+        let client = BoundedHTTPClient(limits: try limits ?? HTTPResponseLimits())
+        let (data, _) = try await client.get(url, mimeTypes: ["application/json"], protocolClasses: protocolClasses)
+        do {
+            return try JSONDecoder().decode(SearXNGResponse.self, from: data).results
+        } catch {
+            throw WebPageError.invalidResponse
+        }
     }
 }
 

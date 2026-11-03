@@ -1,5 +1,5 @@
 {
-  "originHash" : "bf566139335f78108a4fecd4d29f012aed6389a025b128a4722cc74ceda73718",
+  "originHash" : "7b1ca87fdad53a64b44fbef2f3caa2af6591eb429d0facd987eb15c04b39f67a",
   "pins" : [
     {
       "identity" : "eventsource",
@@ -26,6 +26,15 @@
       "state" : {
         "branch" : "main",
         "revision" : "b8d4935ab152169ac8cb0da5414b51447e78efb1"
+      }
+    },
+    {
+      "identity" : "safeurlkit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/adamtheturtle/SafeURLKit.git",
+      "state" : {
+        "revision" : "e9c4eddcfd3e16669a19f46142f487d9b74fbc14",
+        "version" : "0.2.0"
       }
     },
     {
