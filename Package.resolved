@@ -1,5 +1,5 @@
 {
-  "originHash" : "0e8940dc5c17922c95ca0fa5e66a29ea04c99a87c28b3a79406df5dbeb811c76",
+  "originHash" : "7b1ca87fdad53a64b44fbef2f3caa2af6591eb429d0facd987eb15c04b39f67a",
   "pins" : [
     {
       "identity" : "eventsource",
@@ -26,6 +26,15 @@
       "state" : {
         "branch" : "main",
         "revision" : "b8d4935ab152169ac8cb0da5414b51447e78efb1"
+      }
+    },
+    {
+      "identity" : "safeurlkit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/adamtheturtle/SafeURLKit.git",
+      "state" : {
+        "revision" : "e9c4eddcfd3e16669a19f46142f487d9b74fbc14",
+        "version" : "0.2.0"
       }
     },
     {
@@ -83,12 +92,30 @@
       }
     },
     {
+      "identity" : "swift-readability",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/wolfyy970/swift-readability.git",
+      "state" : {
+        "revision" : "531c4adbb342def2904440df13da06ee2258d697",
+        "version" : "0.3.3"
+      }
+    },
+    {
       "identity" : "swift-syntax",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/swiftlang/swift-syntax.git",
       "state" : {
         "revision" : "79e4b74a295b6eb74a8b585e3a39d29e70c1dbd1",
         "version" : "603.0.2"
+      }
+    },
+    {
+      "identity" : "swift-system",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-system.git",
+      "state" : {
+        "revision" : "869129b7bf4ecc57b97d0193ad29690ca2134750",
+        "version" : "1.8.1"
       }
     },
     {
@@ -101,12 +128,21 @@
       }
     },
     {
+      "identity" : "swift-url",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/karwa/swift-url.git",
+      "state" : {
+        "revision" : "9306a962396a50d7d88e924afcd7ec67226763db",
+        "version" : "0.4.2"
+      }
+    },
+    {
       "identity" : "swiftsoup",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/scinfu/SwiftSoup.git",
       "state" : {
-        "revision" : "e7f85f4d3dd91ca9a1e94d3328aa1ed5120a8c0f",
-        "version" : "2.14.3"
+        "revision" : "ead56133a693d0184d8c2db1a6d6394410cacfd6",
+        "version" : "2.13.6"
       }
     },
     {

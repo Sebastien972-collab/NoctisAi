@@ -8,8 +8,14 @@
 
 import Foundation
 
-struct SearchResult: Decodable, Sendable {
-    let title: String
-    let url: URL
-    let content: String?
+public struct SearchResult: Decodable, Sendable {
+    public let title: String
+    public let url: URL
+    public let content: String?
+
+    public init(title: String, url: URL, content: String? = nil) {
+        self.title = title
+        self.url = url
+        self.content = content
+    }
 }

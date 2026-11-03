@@ -27,19 +27,23 @@ private final class MLXChatSession: ModelSession {
     }
 }
 
-actor MLXModelService: AIModelService {
-    enum LoadState: Equatable, Sendable {
+public actor MLXModelService: AIModelService {
+    public enum LoadState: Equatable, Sendable {
         case notLoaded, loading, loaded, failed
     }
 
-    private(set) var loadState = LoadState.notLoaded
+    public private(set) var loadState = LoadState.notLoaded
     private let factory: ModelSessionWorker.Factory
     private var worker: ModelSessionWorker?
     private var generation: Task<Void, Never>?
     private var cancellation: GenerationCancellation?
 
-    init(webSearchService: any WebSearchService = SearXNGService()) {
-        let dispatcher = WebToolDispatcher(searchService: webSearchService)
+    public init() {
+        self.init(webSearchService: SearXNGService())
+    }
+
+    public init(webSearchService: any WebSearchService) {
+        let dispatcher = WebToolDispatcher(searchService: webSearchService, pasgeService: HTTPWebPageService())
         factory = {
             let model = try await loadModel(
                 from: #hubDownloader,
@@ -59,7 +63,7 @@ actor MLXModelService: AIModelService {
         factory = sessionFactory
     }
 
-    func load() async throws {
+    public func load() async throws {
         try Task.checkCancellation()
         switch loadState {
         case .loaded:
@@ -82,13 +86,13 @@ actor MLXModelService: AIModelService {
         }
     }
 
-    func generate(prompt: String) async throws -> AsyncThrowingStream<String, Error> {
+    public func generate(prompt: String) async throws -> AsyncThrowingStream<String, Error> {
         try startGeneration(prompt: prompt).stream
     }
 
     /// Scoped consumption guarantees cleanup on early return, thrown errors and
     /// cancellation, even if the caller retains a copy of the stream.
-    func withResponse(
+    public func withResponse(
         prompt: String,
         consume: @Sendable (AsyncThrowingStream<String, Error>) async throws -> Void
     ) async throws {
@@ -138,7 +142,7 @@ actor MLXModelService: AIModelService {
     }
 
     /// Waits for MLX's cache transaction to end before permitting another turn.
-    func cancelGeneration() async {
+    public func cancelGeneration() async {
         let current = generation
         cancellation?.cancel()
         await current?.value

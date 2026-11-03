@@ -1,11 +1,11 @@
 import Foundation
 
-enum MLXModelServiceError: LocalizedError, Equatable {
+public enum MLXModelServiceError: LocalizedError, Equatable {
     case modelNotLoaded
     case modelLoading
     case generationInProgress
 
-    var errorDescription: String? {
+    public var errorDescription: String? {
         switch self {
         case .modelNotLoaded:
             return "Le modèle Noctis n'est pas encore chargé."

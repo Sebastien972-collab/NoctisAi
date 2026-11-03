@@ -8,12 +8,17 @@ let package = Package(
         .macOS(.v15)
     ],
     products: [
-        .executable(
+        .library(
             name: "Noctis",
             targets: ["Noctis"]
+        ),
+        .executable(
+            name: "NoctisCLI",
+            targets: ["NoctisCLI"]
         )
     ],
     dependencies: [
+        .package(url: "https://github.com/adamtheturtle/SafeURLKit.git", exact: "0.2.0"),
         .package(
             url: "https://github.com/ml-explore/mlx-swift-lm.git",
             branch: "main"
@@ -29,12 +34,17 @@ let package = Package(
         .package(
             url: "https://github.com/scinfu/SwiftSoup.git",
             from: "2.0.0"
+        ),
+        .package(
+            url: "https://github.com/wolfyy970/swift-readability.git",
+            .upToNextMinor(from: "0.3.3")
         )
     ],
     targets: [
-        .executableTarget(
+        .target(
             name: "Noctis",
             dependencies: [
+                .product(name: "SafeURLKit", package: "SafeURLKit"),
                 .product(
                     name: "MLXLMCommon",
                     package: "mlx-swift-lm"
@@ -58,14 +68,20 @@ let package = Package(
                 .product(
                     name: "SwiftSoup",
                     package: "SwiftSoup"
+                ),
+                .product(
+                    name: "SwiftReadability",
+                    package: "swift-readability"
                 )
-            ],
-            path: "Sources",
-            sources: ["Noctis", "NoctisCLI"]
+            ]
+        ),
+        .executableTarget(
+            name: "NoctisCLI",
+            dependencies: ["Noctis"]
         ),
         .testTarget(
             name: "NoctisTests",
-            dependencies: ["Noctis"]
+            dependencies: ["Noctis", "NoctisCLI"]
         )
     ]
 )

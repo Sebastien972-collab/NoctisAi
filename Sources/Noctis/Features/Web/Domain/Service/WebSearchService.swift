@@ -6,6 +6,6 @@
 //
 
 
-protocol WebSearchService: Sendable {
+public protocol WebSearchService: Sendable {
     func search(query: String) async throws -> [SearchResult]
 }

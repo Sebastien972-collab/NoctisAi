@@ -6,11 +6,11 @@
 //
 
 
-enum NoctisConfiguration {
+public enum NoctisConfiguration {
     static let modelID =
         "mlx-community/Ministral-3-14B-Instruct-2512-4bit"
 
-    static let assistantName = "Noctis"
+    public static let assistantName = "Noctis"
 
-    static let exitCommand = "exit"
+    public static let exitCommand = "exit"
 }
