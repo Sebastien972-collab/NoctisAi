@@ -7,6 +7,7 @@
 
 import Foundation
 import SwiftSoup
+import SwiftReadability
 
 struct HTTPWebPageService: WebPageService {
     
@@ -20,7 +21,7 @@ struct HTTPWebPageService: WebPageService {
     ) {
         
         self.session = session
-        self.maximumCharacters = maximumCharacters
+        self.maximumCharacters = max(1, maximumCharacters)
     }
     
     func open(url: URL) async throws -> WebPage {
@@ -50,16 +51,21 @@ struct HTTPWebPageService: WebPageService {
             throw WebPageError.invalidEncoding
         }
         
-        let document = try SwiftSoup.parse(html)
+        let reader = Readability(
+            html: html,
+            url: response.url ?? url,
+            options: ReadabilityOptions(
+                extensions: [.imageCarouselRecovery, .publisherChromeCleanup]
+            )
+        )
         
-        try document.select(
-            "script, style, nav, footer, header, noscript"
-            
-        ).remove()
+        guard let article = try reader.parse() else {
+            throw WebPageError.invalidResponse
+        }
         
-        let title = try document.title()
+        let title =  article.title ?? "Pas de titre trouvé pour cette page"
         
-        let text = try document.body()?.text() ?? ""
+        let text = article.textContent
         
         let truncated = text.count > maximumCharacters
         

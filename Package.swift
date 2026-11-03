@@ -29,6 +29,10 @@ let package = Package(
         .package(
             url: "https://github.com/scinfu/SwiftSoup.git",
             from: "2.0.0"
+        ),
+        .package(
+            url: "https://github.com/wolfyy970/swift-readability.git",
+            .upToNextMinor(from: "0.3.3")
         )
     ],
     targets: [
@@ -58,6 +62,10 @@ let package = Package(
                 .product(
                     name: "SwiftSoup",
                     package: "SwiftSoup"
+                ),
+                .product(
+                    name: "SwiftReadability",
+                    package: "swift-readability"
                 )
             ],
             path: "Sources",

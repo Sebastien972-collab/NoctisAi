@@ -11,9 +11,14 @@ import MLXLMCommon
 struct WebToolDispatcher: Sendable {
 
     private let searchService: any WebSearchService
+    private let pageService: any WebPageService
 
-    init(searchService: any WebSearchService) {
+    init(
+        searchService: any WebSearchService,
+        pasgeService: any WebPageService
+    ) {
         self.searchService = searchService
+        self.pageService = pasgeService
     }
 
     func execute(_ call: ToolCall) async throws -> String {

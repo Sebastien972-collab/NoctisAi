@@ -39,7 +39,7 @@ actor MLXModelService: AIModelService {
     private var cancellation: GenerationCancellation?
 
     init(webSearchService: any WebSearchService = SearXNGService()) {
-        let dispatcher = WebToolDispatcher(searchService: webSearchService)
+        let dispatcher = WebToolDispatcher(searchService: webSearchService, pasgeService: HTTPWebPageService())
         factory = {
             let model = try await loadModel(
                 from: #hubDownloader,
