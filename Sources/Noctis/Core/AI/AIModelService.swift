@@ -9,6 +9,12 @@ import Foundation
 
 protocol AIModelService: Sendable {
     func load() async throws
+    func cancelGeneration() async
+
+    func withResponse(
+        prompt: String,
+        consume: @Sendable (AsyncThrowingStream<String, Error>) async throws -> Void
+    ) async throws
 
     func generate(
         prompt: String

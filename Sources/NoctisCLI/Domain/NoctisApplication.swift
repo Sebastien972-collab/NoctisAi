@@ -69,15 +69,15 @@ final class NoctisApplication {
 
     private func generateResponse(for prompt: String) async {
         do {
-            let stream = try await modelService.generate(prompt: prompt)
-
-            print()
-            print("Noctis 🌙 > ", terminator: "")
-            fflush(stdout)
-
-            for try await chunk in stream {
-                print(chunk, terminator: "")
+            try await modelService.withResponse(prompt: prompt) { stream in
+                print()
+                print("Noctis 🌙 > ", terminator: "")
                 fflush(stdout)
+
+                for try await chunk in stream {
+                    print(chunk, terminator: "")
+                    fflush(stdout)
+                }
             }
 
             print("\n")

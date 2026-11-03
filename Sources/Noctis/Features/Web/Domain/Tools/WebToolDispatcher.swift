@@ -17,7 +17,8 @@ struct WebToolDispatcher: Sendable {
     }
 
     func execute(_ call: ToolCall) async throws -> String {
-
+        print("🔧 [Noctis Tool] \(call.function.name)")
+        
         switch call.function.name {
 
         case WebSearchTool.name:
@@ -35,7 +36,7 @@ struct WebToolDispatcher: Sendable {
             guard !query.isEmpty, query.count <= 300 else {
                 throw WebToolError.invalidArguments
             }
-
+            print("🔎 [SearXNG] Recherche : \(query)")
             let results = try await searchService.search(
                 query: query
             )
