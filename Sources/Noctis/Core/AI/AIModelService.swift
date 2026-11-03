@@ -7,7 +7,7 @@
 
 import Foundation
 
-protocol AIModelService: Sendable {
+public protocol AIModelService: Sendable {
     func load() async throws
     func cancelGeneration() async
 
