@@ -1,5 +1,5 @@
 //
-//  MLXChatSession.swift
+//  MLXModelService.swift
 //  Noctis
 //
 //  Created by Sébastien DAGUIN on 03/11/2026.
@@ -12,7 +12,7 @@ import Tokenizers
 import MLXHuggingFace
 
 private final class MLXChatSession: ModelSession {
-    private let session: ChatSession
+    private var session: ChatSession
 
     init(session: ChatSession) {
         self.session = session
@@ -24,6 +24,88 @@ private final class MLXChatSession: ModelSession {
 
     func synchronize() async {
         await session.synchronize()
+    }
+
+    func reset(history: [AIChatMessage]) async throws {
+        var instructions = [NoctisIdentity.systemPrompt]
+        let messages: [Chat.Message] = history.compactMap {
+            switch $0.role {
+            case .user: return .user($0.content)
+            case .assistant: return .assistant($0.content)
+            case .system:
+                instructions.append($0.content)
+                return nil
+            }
+        }
+        session = await session.fork(history: messages)
+        // ChatSession prepends instructions itself; Ministral accepts one system message.
+        session.instructions = instructions.joined(separator: "\n\n")
+    }
+}
+
+/// Resolve the installed snapshot before allowing any request to the Hub.
+struct CachedModelDownloader: Downloader {
+    let client: HubClient
+    let phase: @Sendable (AIModelLoadPhase) -> Void
+
+    func download(
+        id: String, revision: String?, matching patterns: [String], useLatest: Bool,
+        progressHandler: @escaping @Sendable (Progress) -> Void
+    ) async throws -> URL {
+        guard let repo = Repo.ID(rawValue: id) else { throw CocoaError(.fileReadInvalidFileName) }
+        let cached: URL?
+        do {
+            cached = try await client.downloadSnapshot(
+                of: repo, revision: revision ?? "main", matching: patterns, localFilesOnly: true
+            )
+        } catch HubCacheError.cachedPathResolutionFailed {
+            cached = nil
+        }
+        if let cached, Self.isCompleteModel(at: cached) {
+            phase(.loading)
+            return cached
+        }
+        try Task.checkCancellation()
+        phase(.downloading)
+        let directory = try await client.downloadSnapshot(
+            of: repo, revision: revision ?? "main", matching: patterns,
+            progressHandler: { progressHandler($0) }
+        )
+        guard Self.isCompleteModel(at: directory) else { throw CocoaError(.fileReadCorruptFile) }
+        phase(.loading)
+        return directory
+    }
+
+    // A local-only Hub lookup can return a partially downloaded snapshot.
+    static func isCompleteModel(at directory: URL) -> Bool {
+        let files = FileManager.default
+        func exists(_ name: String) -> Bool {
+            let path = directory.appendingPathComponent(name).path
+            return files.isReadableFile(atPath: path)
+                && ((try? files.attributesOfItem(atPath: path)[.size] as? NSNumber)?.intValue ?? 0) > 0
+        }
+        guard ["config.json", "tokenizer_config.json", "tokenizer.json"].allSatisfy(exists) else {
+            return false
+        }
+        let index = directory.appendingPathComponent("model.safetensors.index.json")
+        if let data = try? Data(contentsOf: index),
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let weights = json["weight_map"] as? [String: String], !weights.isEmpty,
+           Set(weights.values).allSatisfy(exists) {
+            return true
+        }
+        // Quantized repositories can retain an index from the unquantized model.
+        // Accept their conventional shards only when the whole numbered set exists.
+        let weights = (try? files.contentsOfDirectory(atPath: directory.path))?
+            .filter { $0.hasPrefix("model") && $0.hasSuffix(".safetensors") } ?? []
+        if weights == ["model.safetensors"] { return exists("model.safetensors") }
+        guard let first = weights.first else { return false }
+        let parts = first.replacingOccurrences(of: ".safetensors", with: "").split(separator: "-")
+        guard parts.count == 4, parts[0] == "model", parts[2] == "of",
+              let count = Int(parts[3]), count > 0, count == weights.count else { return false }
+        return (1...count).allSatisfy {
+            exists(String(format: "model-%05d-of-%05d.safetensors", $0, count))
+        }
     }
 }
 
@@ -37,6 +119,7 @@ public actor MLXModelService: AIModelService {
     private var worker: ModelSessionWorker?
     private var generation: Task<Void, Never>?
     private var cancellation: GenerationCancellation?
+    private var isResetting = false
 
     public init() {
         self.init(webSearchService: SearXNGService())
@@ -44,9 +127,9 @@ public actor MLXModelService: AIModelService {
 
     public init(webSearchService: any WebSearchService) {
         let dispatcher = WebToolDispatcher(searchService: webSearchService, pasgeService: HTTPWebPageService())
-        factory = {
+        factory = { progress in
             let model = try await loadModel(
-                from: #hubDownloader,
+                from: CachedModelDownloader(client: HubClient(), phase: progress),
                 using: #huggingFaceTokenizerLoader(),
                 id: NoctisConfiguration.modelID
             )
@@ -64,9 +147,14 @@ public actor MLXModelService: AIModelService {
     }
 
     public func load() async throws {
+        try await load(progress: { _ in })
+    }
+
+    public func load(progress: @escaping @Sendable (AIModelLoadPhase) -> Void) async throws {
         try Task.checkCancellation()
         switch loadState {
         case .loaded:
+            progress(.ready)
             return
         case .loading:
             throw MLXModelServiceError.modelLoading
@@ -74,9 +162,11 @@ public actor MLXModelService: AIModelService {
             break
         }
         loadState = .loading
+        progress(.loading)
         do {
-            worker = try await ModelSessionWorker.load(factory: factory)
+            worker = try await ModelSessionWorker.load(factory: factory, progress: progress)
             loadState = .loaded
+            progress(.ready)
             // Loading is shared service state: once started, it completes even
             // if its caller cancels, avoiding an overlapping replacement load.
             try Task.checkCancellation()
@@ -84,6 +174,16 @@ public actor MLXModelService: AIModelService {
             if worker == nil { loadState = .failed }
             throw error
         }
+    }
+
+    public func resetConversation(history: [AIChatMessage]) async throws {
+        guard let worker else { throw MLXModelServiceError.modelNotLoaded }
+        guard !isResetting else { throw MLXModelServiceError.generationInProgress }
+        isResetting = true
+        defer { isResetting = false }
+        await cancelGeneration()
+        try Task.checkCancellation()
+        try await worker.reset(history: history)
     }
 
     public func generate(prompt: String) async throws -> AsyncThrowingStream<String, Error> {
@@ -116,7 +216,7 @@ public actor MLXModelService: AIModelService {
     ) {
         try Task.checkCancellation()
         guard let worker else { throw MLXModelServiceError.modelNotLoaded }
-        guard generation == nil else { throw MLXModelServiceError.generationInProgress }
+        guard generation == nil, !isResetting else { throw MLXModelServiceError.generationInProgress }
 
         let (stream, output) = AsyncThrowingStream<String, Error>.makeStream()
         let cancellation = GenerationCancellation()

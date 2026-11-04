@@ -57,6 +57,8 @@ final class MockAIModelService: AIModelService, Sendable {
 
     func cancelGeneration() async {}
 
+    func resetConversation(history: [AIChatMessage]) async throws {}
+
     func withResponse(
         prompt: String,
         consume: @Sendable (AsyncThrowingStream<String, Error>) async throws -> Void
