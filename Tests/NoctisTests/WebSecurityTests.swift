@@ -78,15 +78,47 @@ struct WebSecurityTests {
         #expect(output.utf8.count < 1_000)
     }
 
+    @Test(arguments: [
+        "swift concurrency", "  swift concurrency  ", "\nswift concurrency\n",
+        "\r\nswift concurrency\r\n", "\tswift concurrency\t", " \t\r\nswift concurrency\n\t "
+    ])
+    func dispatcherTrimsSearchQuery(_ rawQuery: String) async throws {
+        let search = RecordingSearch()
+        let dispatcher = WebToolDispatcher(searchService: search, pasgeService: PageTrap())
+        _ = try await dispatcher.execute(call("web_search", ["query": rawQuery]))
+        #expect(await search.queries == ["swift concurrency"])
+    }
+
+    @Test func dispatcherAcceptsSearchQueryLimits() async throws {
+        let search = RecordingSearch()
+        let dispatcher = WebToolDispatcher(searchService: search, pasgeService: PageTrap())
+        let maximumQuery = String(repeating: "x", count: 300)
+        let maximumRawQuery = String(repeating: " ", count: 1_195) + "Swift"
+        for query in [maximumQuery, maximumRawQuery] {
+            _ = try await dispatcher.execute(call("web_search", ["query": query]))
+        }
+        #expect(await search.queries == [maximumQuery, "Swift"])
+    }
+
     @Test func dispatcherRejectsArgumentsAndOpen() async throws {
-        let dispatcher = WebToolDispatcher(searchService: SearchStub(), pasgeService: PageTrap())
+        let search = RecordingSearch()
+        let dispatcher = WebToolDispatcher(searchService: search, pasgeService: PageTrap())
         for arguments: [String: any Sendable] in [[:], ["query": ""], ["query": 42],
                                                   ["query": String(repeating: "x", count: 301)],
+                                                  ["query": " \t\r\n "],
+                                                  ["query": "swift\nconcurrency"],
+                                                  ["query": "swift\rconcurrency"],
+                                                  ["query": "swift\tconcurrency"],
+                                                  ["query": "swift\u{0000}concurrency"],
+                                                  ["query": "\u{0000}Swift"],
+                                                  ["query": "Swift\u{0000}"],
+                                                  ["query": String(repeating: " ", count: 1_196) + "Swift"],
                                                   ["query": "a\nb"], ["query": "a", "url": "b"]] {
             await #expect(throws: WebToolError.self) {
                 try await dispatcher.execute(call("web_search", arguments))
             }
         }
+        #expect(await search.queries.isEmpty)
         await #expect(throws: WebPageError.publicAccessDisabled) {
             try await dispatcher.execute(call("web_open", ["url": "https://www.swift.org"]))
         }
@@ -111,6 +143,15 @@ struct WebSecurityTests {
 
     private func call(_ name: String, _ arguments: [String: any Sendable]) -> ToolCall {
         ToolCall(function: .init(name: name, arguments: arguments))
+    }
+}
+
+private actor RecordingSearch: WebSearchService {
+    private(set) var queries: [String] = []
+
+    func search(query: String) async throws -> [SearchResult] {
+        queries.append(query)
+        return []
     }
 }
 

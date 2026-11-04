@@ -25,16 +25,20 @@ struct WebToolDispatcher: Sendable {
 
     func execute(_ call: ToolCall) async throws -> String {
         try Task.checkCancellation()
+        
         switch call.function.name {
         case WebSearchTool.name:
             guard call.function.arguments.count == 1,
                   case .string(let rawQuery) = call.function.arguments["query"],
-                  rawQuery.utf8.count <= 1_200,
-                  !rawQuery.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }) else {
+                  rawQuery.utf8.count <= 1_200 else {
                 throw WebToolError.invalidArguments
             }
+            
             let query = rawQuery.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !query.isEmpty, query.count <= 300 else { throw WebToolError.invalidArguments }
+            guard !query.isEmpty, query.count <= 300,
+                  !query.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }) else {
+                throw WebToolError.invalidArguments
+            }
             let results: [SearchResult]
             do {
                 results = try await searchService.search(query: query)
@@ -73,16 +77,4 @@ struct WebToolDispatcher: Sendable {
             throw WebToolError.unsupportedTool("unsupported")
         }
     }
-}
-
-private struct ExternalResults: Encodable {
-    let trust: String
-    let instructions: String
-    let results: [ExternalResult]
-}
-
-private struct ExternalResult: Encodable {
-    let title: String
-    let url: String
-    let description: String
 }
