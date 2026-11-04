@@ -19,7 +19,12 @@ Le package expose la bibliothèque `Noctis`, importable dans une application, et
 - Affichage des erreurs de chargement, de génération et de lecture du flux.
 - Recherche Web via `web_search`, `WebToolDispatcher` et le service SearXNG local.
 
-L’inférence est locale. Le chargement initial peut toutefois télécharger les fichiers du modèle depuis Hugging Face. Le code actuel ne configure pas de mode hors ligne strict ; la disponibilité du cache et les accès réseau au chargement dépendent du chargeur des bibliothèques utilisées.
+L’inférence est locale. Le chargeur recherche d’abord une installation complète dans le cache
+Hugging Face avec `localFilesOnly: true`, sans vérification réseau. Si des fichiers manquent, le
+client Hugging Face télécharge les éléments nécessaires en réutilisant le cache. Les fichiers du
+tokenizer et tous les shards de poids doivent être présents ; les index hérités d’un modèle non
+quantifié sont acceptés lorsque le jeu de shards quantifiés est complet. Un modèle installé peut
+être rechargé sans réseau. Les outils Web restent dépendants de leurs propres services.
 
 ## Prérequis
 
@@ -123,6 +128,8 @@ Le protocole `AIModelService` expose :
 
 ```swift
 func load() async throws
+func load(progress: @escaping @Sendable (AIModelLoadPhase) -> Void) async throws
+func resetConversation(history: [AIChatMessage]) async throws
 func cancelGeneration() async
 func withResponse(
     prompt: String,
@@ -162,6 +169,17 @@ Le manifeste déclare les packages suivants :
 
 La présence de `MLXVLM` dans les dépendances ne constitue pas une interface de saisie d’images : la CLI actuelle transmet uniquement des prompts textuels.
 
+### Réinitialiser sans recharger les poids
+
+`resetConversation(history:)` restaure les messages structurés (`user`, `assistant`, `system`)
+en conservant le modèle. L’acteur réserve cette opération, annule une éventuelle génération et
+attend son nettoyage avant de transmettre la commande au worker. Une nouvelle génération est
+refusée pendant la réinitialisation. Les instructions système sont regroupées dans le message
+système unique attendu par Ministral ; les autres messages conservent leur rôle et leur contenu.
+
+`load(progress:)` expose les phases `downloading`, `loading` et `ready`. `load()` reste disponible
+et idempotent sur un moteur déjà chargé. Ces phases ne concernent que le modèle, pas les requêtes Web.
+
 ## Tests
 
 La cible `NoctisTests` dépend de `Noctis` et de `NoctisCLI`. Les tests du moteur utilisent `@testable import Noctis` et les tests de la console importent aussi `NoctisCLI`. La suite utilise exclusivement **Swift Testing** pour les tests et les assertions, sans dépendance de test supplémentaire et sans XCTest.
@@ -193,6 +211,11 @@ swift test --filter MLXModelServiceTests
 - Les scénarios de `NoctisApplication` utilisent les [processus isolés de Swift Testing](https://docs.swift.org/latest/documentation/testing/exit-testing/). Chaque processus reçoit une entrée standard en mémoire ; les sorties nécessaires sont capturées par Swift Testing. Le processus principal des tests conserve son entrée standard.
 - La suite console a une limite d’une minute par test pour signaler une régression qui bloquerait la boucle de lecture.
 - `MLXModelServiceTests` vérifie le refus de générer avant tout chargement. `ModelConcurrencyTests` injecte une fabrique de sessions simulées pour tester le véritable service sans créer de session MLX réelle.
+
+Les tests de réinitialisation vérifient l’historique structuré, l’absence de rechargement, les
+échecs et l’attente du nettoyage. Les tests de cache créent une installation temporaire et un
+transport sans réseau : deux clients successifs la réutilisent sans aucune requête, tandis
+qu’un cache incomplet déclenche le parcours de téléchargement.
 
 **Aucun test unitaire ne charge ni ne télécharge Ministral.** La première compilation des tests peut néanmoins récupérer et compiler les packages Swift déclarés par le projet, y compris les dépendances MLX : isolation du modèle à l’exécution ne signifie pas suppression des dépendances de compilation.
 
