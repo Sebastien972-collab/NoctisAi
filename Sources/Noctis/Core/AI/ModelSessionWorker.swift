@@ -1,7 +1,7 @@
 // Created by Sébastien DAGUIN
 
 import Foundation
-import Synchronization
+import os
 
 /// Created and used exclusively by the worker task; intentionally not Sendable.
 protocol ModelSession: AnyObject {
@@ -16,7 +16,8 @@ final class GenerationCancellation: Sendable {
         var armed = false
         var reader: Task<Void, Error>?
     }
-    private let state = Mutex(State())
+    // Keep state synchronized on iOS 17, where Synchronization.Mutex is unavailable.
+    private let state = OSAllocatedUnfairLock(initialState: State())
 
     func install(_ reader: Task<Void, Error>) {
         state.withLock {

@@ -1,5 +1,5 @@
 import Foundation
-import Synchronization
+import os
 
 struct HTTPResponseLimits: Sendable {
     let maximumBytes: Int
@@ -66,7 +66,8 @@ final class BoundedResponseDelegate: NSObject, URLSessionDataDelegate, Sendable 
         var continuation: CheckedContinuation<(Data, HTTPURLResponse), any Error>?
         var finished = false
     }
-    private let state = Mutex(State())
+    // Keep state synchronized on iOS 17, where Synchronization.Mutex is unavailable.
+    private let state = OSAllocatedUnfairLock(initialState: State())
     private let url: URL
     private let mimeTypes: Set<String>
     private let limits: HTTPResponseLimits

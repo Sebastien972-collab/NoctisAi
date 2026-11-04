@@ -5,7 +5,8 @@ import PackageDescription
 let package = Package(
     name: "Noctis",
     platforms: [
-        .macOS(.v15)
+        .macOS(.v15),
+        .iOS(.v17)
     ],
     products: [
         .library(
