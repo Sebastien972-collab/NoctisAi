@@ -4,6 +4,7 @@ import PackageDescription
 
 let package = Package(
     name: "Noctis",
+    defaultLocalization: "fr",
     platforms: [
         .macOS(.v15),
         .iOS(.v17)
@@ -74,11 +75,13 @@ let package = Package(
                     name: "SwiftReadability",
                     package: "swift-readability"
                 )
-            ]
+            ],
+            resources: [.process("Resources")]
         ),
         .executableTarget(
             name: "NoctisCLI",
-            dependencies: ["Noctis"]
+            dependencies: ["Noctis"],
+            resources: [.process("Resources")]
         ),
         .testTarget(
             name: "NoctisTests",

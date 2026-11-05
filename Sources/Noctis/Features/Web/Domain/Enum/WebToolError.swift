@@ -15,9 +15,9 @@ enum WebToolError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .unsupportedTool:
-            return "Outil Web non pris en charge."
+            return String(localized: "error.web_tool.unsupported", defaultValue: "Outil Web non pris en charge.", bundle: .module, comment: "Description d’une erreur affichée à l’utilisateur.")
         case .invalidArguments:
-            return "Arguments invalides pour l'outil Web."
+            return String(localized: "error.web_tool.invalid_arguments", defaultValue: "Arguments invalides pour l'outil Web.", bundle: .module, comment: "Description d’une erreur affichée à l’utilisateur.")
         }
         
     }

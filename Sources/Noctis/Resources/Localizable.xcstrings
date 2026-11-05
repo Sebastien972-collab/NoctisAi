@@ -1,0 +1,380 @@
+{
+  "sourceLanguage" : "fr",
+  "strings" : {
+    "error.model.generation_in_progress" : {
+      "comment" : "Description d’une erreur affichée à l’utilisateur.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "A Noctis generation is already in progress."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Une génération Noctis est déjà en cours."
+          }
+        }
+      }
+    },
+    "error.model.loading" : {
+      "comment" : "Description d’une erreur affichée à l’utilisateur.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "The Noctis model is already loading."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le chargement du modèle Noctis est déjà en cours."
+          }
+        }
+      }
+    },
+    "error.model.not_loaded" : {
+      "comment" : "Description d’une erreur affichée à l’utilisateur.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "The Noctis model isn’t loaded yet."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le modèle Noctis n'est pas encore chargé."
+          }
+        }
+      }
+    },
+    "error.network.invalid_configuration" : {
+      "comment" : "Description d’une erreur affichée à l’utilisateur.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Invalid network configuration."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Configuration réseau invalide."
+          }
+        }
+      }
+    },
+    "error.network.invalid_encoding" : {
+      "comment" : "Description d’une erreur affichée à l’utilisateur.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "This page encoding isn’t supported."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Encodage de la page non pris en charge."
+          }
+        }
+      }
+    },
+    "error.network.invalid_response" : {
+      "comment" : "Description d’une erreur affichée à l’utilisateur.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "The server returned an invalid response."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le serveur a retourné une réponse invalide."
+          }
+        }
+      }
+    },
+    "error.network.invalid_url" : {
+      "comment" : "Description d’une erreur affichée à l’utilisateur.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Invalid URL or destination not allowed."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "URL invalide ou destination non autorisée."
+          }
+        }
+      }
+    },
+    "error.network.public_access_disabled" : {
+      "comment" : "Description d’une erreur affichée à l’utilisateur.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Opening web pages is disabled: secure transport for public web access is unavailable."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouverture Web désactivée : transport public sécurisé indisponible."
+          }
+        }
+      }
+    },
+    "error.network.redirect_denied" : {
+      "comment" : "Description d’une erreur affichée à l’utilisateur.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Redirect denied."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Redirection refusée."
+          }
+        }
+      }
+    },
+    "error.network.response_too_large" : {
+      "comment" : "Description d’une erreur affichée à l’utilisateur.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "The response exceeds the allowed size limit."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La réponse dépasse la limite autorisée."
+          }
+        }
+      }
+    },
+    "error.network.timeout" : {
+      "comment" : "Description d’une erreur affichée à l’utilisateur.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "The web request timed out."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le délai de la requête Web est dépassé."
+          }
+        }
+      }
+    },
+    "error.network.transport_failure" : {
+      "comment" : "Description d’une erreur affichée à l’utilisateur.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "The web request failed."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La requête Web a échoué."
+          }
+        }
+      }
+    },
+    "error.network.unsupported_compression" : {
+      "comment" : "Description d’une erreur affichée à l’utilisateur.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Compressed responses aren’t allowed."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Réponse compressée non autorisée."
+          }
+        }
+      }
+    },
+    "error.network.unsupported_content_type" : {
+      "comment" : "Description d’une erreur affichée à l’utilisateur.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "This content type isn’t allowed."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Type de contenu non autorisé."
+          }
+        }
+      }
+    },
+    "error.searxng.busy" : {
+      "comment" : "Description d’une erreur affichée à l’utilisateur.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "A SearXNG search or shutdown is already in progress."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Une recherche SearXNG ou son arrêt est déjà en cours."
+          }
+        }
+      }
+    },
+    "error.searxng.invalid_configuration" : {
+      "comment" : "Description d’une erreur affichée à l’utilisateur.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Invalid SearXNG runtime configuration."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Configuration du runtime SearXNG invalide."
+          }
+        }
+      }
+    },
+    "error.searxng.runtime_unavailable" : {
+      "comment" : "Description d’une erreur affichée à l’utilisateur.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "The SearXNG Python runtime is missing or isn’t executable."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Runtime Python SearXNG absent ou non exécutable."
+          }
+        }
+      }
+    },
+    "error.searxng.startup_failed" : {
+      "comment" : "Le nombre est le code de sortie du processus, pas une quantité.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "The SearXNG process failed (code %d). Check the runtime and its dependencies."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le processus SearXNG a échoué (code %d). Vérifiez le runtime et ses dépendances."
+          }
+        }
+      }
+    },
+    "error.searxng.startup_timeout" : {
+      "comment" : "Description d’une erreur affichée à l’utilisateur.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "SearXNG startup timed out."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le démarrage de SearXNG a dépassé le délai autorisé."
+          }
+        }
+      }
+    },
+    "error.web_page.no_content" : {
+      "comment" : "Description d’une erreur affichée à l’utilisateur.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "No usable main content found."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucun contenu principal exploitable."
+          }
+        }
+      }
+    },
+    "error.web_tool.invalid_arguments" : {
+      "comment" : "Description d’une erreur affichée à l’utilisateur.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Invalid arguments for the web tool."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Arguments invalides pour l'outil Web."
+          }
+        }
+      }
+    },
+    "error.web_tool.unsupported" : {
+      "comment" : "Description d’une erreur affichée à l’utilisateur.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "This web tool isn’t supported."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Outil Web non pris en charge."
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.3"
+}

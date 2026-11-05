@@ -8,6 +8,34 @@ Le projet comprend une conversation en streaming et un outil `web_search` connec
 
 Le package expose la bibliothèque `Noctis`, importable dans une application, et l’exécutable `NoctisCLI` pour le terminal.
 
+## Localisation
+
+Le français est la langue de référence (`defaultLocalization: "fr"`) ; l’anglais est
+également disponible. Chaque target utilise un seul `Resources/Localizable.xcstrings`
+et son propre `Bundle.module` : erreurs pour `Noctis`, messages du terminal pour `NoctisCLI`.
+
+Utiliser des clés sémantiques hiérarchiques en snake_case, jamais le texte affiché :
+`error.network.timeout`, `console.status.ready`, `console.error.details`.
+Dans ce package Foundation, écrire la clé littérale avec sa valeur française et un commentaire :
+
+```swift
+String(
+    localized: "error.network.timeout",
+    defaultValue: "Le délai de la requête Web est dépassé.",
+    bundle: .module,
+    comment: "La requête Web a dépassé le délai autorisé."
+)
+```
+
+Conserver les variables dans `defaultValue` par interpolation native, sans concaténation.
+Pour une quantité, utiliser les variantes de pluriel du catalogue ; un code de sortie
+n’est pas une quantité et ne nécessite pas de pluriel.
+Compiler dans Xcode pour extraire les nouvelles clés, puis vérifier les valeurs françaises
+et anglaises dans les catalogues. Les instructions du modèle, les identifiants techniques
+et les commandes comme `exit` ne sont pas traduits.
+L’application hôte doit déclarer les langues prises en charge. Les previews SwiftUI et
+la validation visuelle de Fullmoon se font dans son dépôt hôte.
+
 ## Fonctionnalités présentes
 
 - Chargement d’un modèle depuis son identifiant Hugging Face avec MLX Swift LM.

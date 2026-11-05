@@ -12,18 +12,18 @@ struct ConsoleInterface {
 
     func displayWelcome() {
         print("🌙 Noctis")
-        print("Hello, Sebby!")
+        print(String(localized: "console.message.welcome", defaultValue: "Bonjour, Sebby !", bundle: .module, comment: "Message affiché par le CLI."))
         print()
     }
 
     func displayReady() {
-        print("Tout est prêt !")
-        print("Tape exit pour quitter.")
+        print(String(localized: "console.status.ready", defaultValue: "Tout est prêt !", bundle: .module, comment: "Message affiché par le CLI."))
+        print(String(localized: "console.hint.exit", defaultValue: "Tape exit pour quitter.", bundle: .module, comment: "Conserver la commande exit telle quelle."))
         print()
     }
 
     func readPrompt() -> String? {
-        print("Vous > ", terminator: "")
+        print(String(localized: "console.prompt.user", defaultValue: "Vous > ", bundle: .module, comment: "Message affiché par le CLI."), terminator: "")
         fflush(stdout)
 
         return readLine()?
@@ -36,6 +36,6 @@ struct ConsoleInterface {
     }
 
     func displayError(_ error: Error) {
-        print("Erreur : \(error.localizedDescription)")
+        print(String(localized: "console.error.details", defaultValue: "Erreur : \(error.localizedDescription)", bundle: .module, comment: "Le paramètre contient la description localisée de l’erreur."))
     }
 }

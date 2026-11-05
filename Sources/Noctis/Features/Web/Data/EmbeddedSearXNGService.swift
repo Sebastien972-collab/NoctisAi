@@ -14,11 +14,11 @@ public enum EmbeddedSearXNGError: Error, LocalizedError, Equatable {
 
     public var errorDescription: String? {
         switch self {
-        case .invalidConfiguration: "Configuration du runtime SearXNG invalide."
-        case .runtimeUnavailable: "Runtime Python SearXNG absent ou non exécutable."
-        case .startupFailed(let code): "Le processus SearXNG a échoué (code \(code)). Vérifiez le runtime et ses dépendances."
-        case .startupTimedOut: "Le démarrage de SearXNG a dépassé le délai autorisé."
-        case .busy: "Une recherche SearXNG ou son arrêt est déjà en cours."
+        case .invalidConfiguration: String(localized: "error.searxng.invalid_configuration", defaultValue: "Configuration du runtime SearXNG invalide.", bundle: .module, comment: "Description d’une erreur affichée à l’utilisateur.")
+        case .runtimeUnavailable: String(localized: "error.searxng.runtime_unavailable", defaultValue: "Runtime Python SearXNG absent ou non exécutable.", bundle: .module, comment: "Description d’une erreur affichée à l’utilisateur.")
+        case .startupFailed(let code): String(localized: "error.searxng.startup_failed", defaultValue: "Le processus SearXNG a échoué (code \(code)). Vérifiez le runtime et ses dépendances.", bundle: .module, comment: "Le nombre est le code de sortie du processus, pas une quantité.")
+        case .startupTimedOut: String(localized: "error.searxng.startup_timeout", defaultValue: "Le démarrage de SearXNG a dépassé le délai autorisé.", bundle: .module, comment: "Description d’une erreur affichée à l’utilisateur.")
+        case .busy: String(localized: "error.searxng.busy", defaultValue: "Une recherche SearXNG ou son arrêt est déjà en cours.", bundle: .module, comment: "Description d’une erreur affichée à l’utilisateur.")
         }
     }
 }

@@ -26,10 +26,10 @@ struct NoctisCLI {
             return
         }
         if embedded != nil {
-            print("Recherche Web : SearXNG local, démarrage à la demande.")
+            print(String(localized: "console.web_search.embedded", defaultValue: "Recherche Web : SearXNG local, démarrage à la demande.", bundle: .module, comment: "Message affiché par le CLI."))
         } else {
-            print("Recherche Web : serveur externe attendu sur 127.0.0.1:8888.")
-            print("Pour le mode sans Docker : python3 infrastructure/searxng/setup_runtime.py")
+            print(String(localized: "console.web_search.external", defaultValue: "Recherche Web : serveur externe attendu sur 127.0.0.1:8888.", bundle: .module, comment: "Message affiché par le CLI."))
+            print(String(localized: "console.web_search.setup_hint", defaultValue: "Pour le mode sans Docker : python3 infrastructure/searxng/setup_runtime.py", bundle: .module, comment: "Conserver la commande Python et son chemin tels quels."))
         }
         let modelService = embedded.map { MLXModelService(webSearchService: $0) } ?? MLXModelService()
         #else
