@@ -5,7 +5,6 @@
 //  Created by Sébastien DAGUIN on 03/11/2026.
 //
 
-
 import Foundation
 import Testing
 @testable import Noctis
@@ -27,5 +26,15 @@ struct HTTPWebPageServiceTests {
         } catch {
             Issue.record("Erreur inattendue : \(error)")
         }
+    }
+
+    @Test
+    func opensArticleSuccessfully() async throws {
+        let service = HTTPWebPageService(protocolClasses: [WebFixtureProtocol.self])
+        let page = try await service.open(url: #require(URL(string: "https://www.swift.org/article")))
+        #expect(page.title == "Swift")
+        #expect(page.content.contains("Swift is a general-purpose"))
+        #expect(page.url == "https://www.swift.org/article")
+        #expect(page.isTruncated == false)
     }
 }

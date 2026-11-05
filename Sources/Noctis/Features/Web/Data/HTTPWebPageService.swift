@@ -1,19 +1,85 @@
 import Foundation
+import SafeURLKit
 import SwiftReadability
 
 struct HTTPWebPageService: WebPageService {
+    private let client: BoundedHTTPClient
+    private let protocolClasses: [AnyClass]?
     private let maximumCharacters: Int
 
-    init(maximumCharacters: Int = 20_000) {
+    init(
+        client: BoundedHTTPClient? = nil,
+        limits: HTTPResponseLimits? = nil,
+        protocolClasses: [AnyClass]? = nil,
+        maximumCharacters: Int = 20_000
+    ) {
+        let effectiveLimits = limits ?? (try! HTTPResponseLimits())
+        self.client = client ?? BoundedHTTPClient(limits: effectiveLimits, enforcePublicPeer: true)
+        self.protocolClasses = protocolClasses
         self.maximumCharacters = min(20_000, max(1, maximumCharacters))
     }
 
     func open(url: URL) async throws -> WebPage {
         try Task.checkCancellation()
-        _ = try PublicWebURLPolicy.validate(url.absoluteString)
-        // Do not replace this with DNS preflight + URLSession: that has a TOCTOU gap.
-        // No opt-in flag exists until the actual peer address can be enforced.
-        throw WebPageError.publicAccessDisabled
+        let validatedURL = try PublicWebURLPolicy.validate(url.absoluteString)
+
+        if protocolClasses == nil, let host = validatedURL.host {
+            try Self.validateDNSResolution(host: host)
+        }
+
+        let (data, response) = try await client.get(
+            validatedURL,
+            mimeTypes: ["text/html", "application/xhtml+xml"],
+            protocolClasses: protocolClasses
+        )
+        return try extract(data: data, response: response)
+    }
+
+    static func validateDNSResolution(host: String) throws {
+        var hints = addrinfo(
+            ai_flags: AI_ADDRCONFIG,
+            ai_family: AF_UNSPEC,
+            ai_socktype: SOCK_STREAM,
+            ai_protocol: IPPROTO_TCP,
+            ai_addrlen: 0,
+            ai_canonname: nil,
+            ai_addr: nil,
+            ai_next: nil
+        )
+        var res: UnsafeMutablePointer<addrinfo>?
+        let status = getaddrinfo(host, "443", &hints, &res)
+        guard status == 0, let first = res else {
+            throw WebPageError.invalidURL
+        }
+        defer { freeaddrinfo(res) }
+
+        var current: UnsafeMutablePointer<addrinfo>? = first
+        while let info = current {
+            let family = info.pointee.ai_family
+            if family == AF_INET {
+                let sin = info.pointee.ai_addr.withMemoryRebound(to: sockaddr_in.self, capacity: 1) { $0.pointee }
+                let ipRaw = UInt32(bigEndian: sin.sin_addr.s_addr)
+                let ipv4 = IPv4Address(rawValue: ipRaw)
+                if SpecialPurposeAddresses.match(ipv4) != nil {
+                    throw WebPageError.invalidURL
+                }
+            } else if family == AF_INET6 {
+                let sin6 = info.pointee.ai_addr.withMemoryRebound(to: sockaddr_in6.self, capacity: 1) { $0.pointee }
+                var addr = sin6.sin6_addr
+                let bytes = withUnsafeBytes(of: &addr) { Array($0) }
+                if bytes.count == 16 {
+                    var pieces: [UInt16] = []
+                    for i in stride(from: 0, to: 16, by: 2) {
+                        let piece = (UInt16(bytes[i]) << 8) | UInt16(bytes[i + 1])
+                        pieces.append(piece)
+                    }
+                    if let ipv6 = IPv6Address(pieces: pieces), SpecialPurposeAddresses.match(ipv6) != nil {
+                        throw WebPageError.invalidURL
+                    }
+                }
+            }
+            current = info.pointee.ai_next
+        }
     }
 
     /// Offline extraction retained until an audited public transport is available.

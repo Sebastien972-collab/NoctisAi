@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct WebPage: Sendable {
+struct WebPage: Sendable, Codable {
     let url: String
     let title: String
     let content: String

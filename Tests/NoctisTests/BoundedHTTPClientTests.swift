@@ -32,6 +32,8 @@ final class WebFixtureProtocol: URLProtocol {
         case "finalURL": break
         case "wrongLength": headers["Content-Length"] = "1"
         case "negativeLength": headers["Content-Length"] = "-1"
+        case "article":
+            body = Data("<html><head><title>Swift</title></head><body><article><h1>Swift</h1><p>Swift is a general-purpose programming language developed by Apple Inc.</p></article></body></html>".utf8)
         case "json":
             headers["Content-Type"] = "application/json"
             body = Data(#"{"results":[{"title":"Swift","url":"https://www.swift.org","content":"Documentation"}]}"#.utf8)

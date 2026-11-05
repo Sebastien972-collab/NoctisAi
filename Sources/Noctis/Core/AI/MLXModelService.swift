@@ -132,17 +132,28 @@ public actor MLXModelService: AIModelService {
     }
 
     public init(webSearchService: any WebSearchService) {
-        let dispatcher = WebToolDispatcher(searchService: webSearchService, pasgeService: HTTPWebPageService())
+        self.init(webSearchService: webSearchService, pageService: HTTPWebPageService())
+    }
+
+    init(webSearchService: any WebSearchService, pageService: any WebPageService) {
+        let dispatcher = WebToolDispatcher(searchService: webSearchService, pageService: pageService)
         factory = { progress in
             let model = try await loadModel(
                 from: CachedModelDownloader(client: HubClient(), phase: progress),
                 using: #huggingFaceTokenizerLoader(),
                 id: NoctisConfiguration.modelID
             )
+            #if os(iOS)
+            // Smaller prefill batches reduce temporary memory on iPhone.
+            let parameters = GenerateParameters(maxTokens: 1_024, prefill: .init(stepSize: 256))
+            #else
+            let parameters = GenerateParameters(maxTokens: 2_048)
+            #endif
             return MLXChatSession(session: ChatSession(
                 model,
                 instructions: NoctisIdentity.systemPrompt,
-                tools: [WebSearchTool.schema],
+                generateParameters: parameters,
+                tools: [WebSearchTool.schema, WebOpenTool.schema],
                 toolDispatch: { call in try await dispatcher.execute(call) }
             ))
         }
