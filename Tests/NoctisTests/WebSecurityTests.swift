@@ -141,6 +141,17 @@ struct WebSecurityTests {
         }
     }
 
+    #if os(macOS)
+    @Test func dispatcherPreservesRuntimeError() async throws {
+        let search = try EmbeddedSearXNGService(pythonExecutable: URL(fileURLWithPath: "/missing/python"))
+        let dispatcher = WebToolDispatcher(searchService: search, pasgeService: PageTrap())
+        await #expect(throws: EmbeddedSearXNGError.runtimeUnavailable) {
+            try await dispatcher.execute(call("web_search", ["query": "Swift"]))
+        }
+        await search.shutdown()
+    }
+    #endif
+
     private func call(_ name: String, _ arguments: [String: any Sendable]) -> ToolCall {
         ToolCall(function: .init(name: name, arguments: arguments))
     }

@@ -27,7 +27,8 @@ struct BoundedHTTPClient: Sendable {
     let limits: HTTPResponseLimits
 
     func get(_ url: URL, mimeTypes: Set<String>,
-             protocolClasses: [AnyClass]? = nil) async throws -> (Data, HTTPURLResponse) {
+             protocolClasses: [AnyClass]? = nil,
+             headers: [String: String] = [:]) async throws -> (Data, HTTPURLResponse) {
         try Task.checkCancellation()
         let delegate = BoundedResponseDelegate(url: url, mimeTypes: mimeTypes, limits: limits)
         let configuration = URLSessionConfiguration.ephemeral
@@ -43,6 +44,7 @@ struct BoundedHTTPClient: Sendable {
         let session = URLSession(configuration: configuration, delegate: delegate, delegateQueue: nil)
         defer { session.invalidateAndCancel() }
         var request = URLRequest(url: url)
+        for (name, value) in headers { request.setValue(value, forHTTPHeaderField: name) }
         request.timeoutInterval = limits.requestTimeout
         request.setValue("identity", forHTTPHeaderField: "Accept-Encoding")
         request.setValue(mimeTypes.sorted().joined(separator: ", "), forHTTPHeaderField: "Accept")

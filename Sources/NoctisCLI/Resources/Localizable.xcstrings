@@ -1,0 +1,193 @@
+{
+  "sourceLanguage" : "fr",
+  "strings" : {
+    "console.error.details" : {
+      "comment" : "Le paramètre contient la description localisée de l’erreur.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Error: %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erreur : %@"
+          }
+        }
+      }
+    },
+    "console.error.startup_failed" : {
+      "comment" : "Message affiché par le CLI.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Unable to start Noctis."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible de démarrer Noctis."
+          }
+        }
+      }
+    },
+    "console.hint.exit" : {
+      "comment" : "Conserver la commande exit telle quelle.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Type exit to quit."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tape exit pour quitter."
+          }
+        }
+      }
+    },
+    "console.message.welcome" : {
+      "comment" : "Message affiché par le CLI.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Hello, Sebby!"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bonjour, Sebby !"
+          }
+        }
+      }
+    },
+    "console.prompt.user" : {
+      "comment" : "Message affiché par le CLI.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "You > "
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vous > "
+          }
+        }
+      }
+    },
+    "console.status.loading_model" : {
+      "comment" : "Message affiché par le CLI.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Loading Ministral 3…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chargement de Ministral 3..."
+          }
+        }
+      }
+    },
+    "console.status.ready" : {
+      "comment" : "Message affiché par le CLI.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "All set!"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tout est prêt !"
+          }
+        }
+      }
+    },
+    "console.status.terminated" : {
+      "comment" : "Message affiché par le CLI.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "🌑 Noctis stopped"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "🌑 Noctis terminé"
+          }
+        }
+      }
+    },
+    "console.web_search.embedded" : {
+      "comment" : "Message affiché par le CLI.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Web search: local SearXNG, starts on demand."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recherche Web : SearXNG local, démarrage à la demande."
+          }
+        }
+      }
+    },
+    "console.web_search.external" : {
+      "comment" : "Message affiché par le CLI.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "Web search: external server expected at 127.0.0.1:8888."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recherche Web : serveur externe attendu sur 127.0.0.1:8888."
+          }
+        }
+      }
+    },
+    "console.web_search.setup_hint" : {
+      "comment" : "Conserver la commande Python et son chemin tels quels.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "machine_translated",
+            "value" : "To run without Docker: python3 infrastructure/searxng/setup_runtime.py"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pour le mode sans Docker : python3 infrastructure/searxng/setup_runtime.py"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.3"
+}

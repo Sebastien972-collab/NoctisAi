@@ -50,6 +50,9 @@ struct WebToolDispatcher: Sendable {
                 throw error
             } catch {
                 if Task.isCancelled { throw CancellationError() }
+                #if os(macOS)
+                if let runtimeError = error as? EmbeddedSearXNGError { throw runtimeError }
+                #endif
                 throw WebPageError.transportFailure
             }
             // JSON quoting prevents content from breaking the structural envelope.

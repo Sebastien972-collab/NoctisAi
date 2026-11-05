@@ -8,6 +8,34 @@ Le projet comprend une conversation en streaming et un outil `web_search` connec
 
 Le package expose la bibliothèque `Noctis`, importable dans une application, et l’exécutable `NoctisCLI` pour le terminal.
 
+## Localisation
+
+Le français est la langue de référence (`defaultLocalization: "fr"`) ; l’anglais est
+également disponible. Chaque target utilise un seul `Resources/Localizable.xcstrings`
+et son propre `Bundle.module` : erreurs pour `Noctis`, messages du terminal pour `NoctisCLI`.
+
+Utiliser des clés sémantiques hiérarchiques en snake_case, jamais le texte affiché :
+`error.network.timeout`, `console.status.ready`, `console.error.details`.
+Dans ce package Foundation, écrire la clé littérale avec sa valeur française et un commentaire :
+
+```swift
+String(
+    localized: "error.network.timeout",
+    defaultValue: "Le délai de la requête Web est dépassé.",
+    bundle: .module,
+    comment: "La requête Web a dépassé le délai autorisé."
+)
+```
+
+Conserver les variables dans `defaultValue` par interpolation native, sans concaténation.
+Pour une quantité, utiliser les variantes de pluriel du catalogue ; un code de sortie
+n’est pas une quantité et ne nécessite pas de pluriel.
+Compiler dans Xcode pour extraire les nouvelles clés, puis vérifier les valeurs françaises
+et anglaises dans les catalogues. Les instructions du modèle, les identifiants techniques
+et les commandes comme `exit` ne sont pas traduits.
+L’application hôte doit déclarer les langues prises en charge. Les previews SwiftUI et
+la validation visuelle de Fullmoon se font dans son dépôt hôte.
+
 ## Fonctionnalités présentes
 
 - Chargement d’un modèle depuis son identifiant Hugging Face avec MLX Swift LM.
@@ -301,4 +329,158 @@ Pour arrêter le service de ce projet :
 docker compose down
 ```
 
-Docker doit fonctionner pour permettre les recherches Web via l’outil `web_search` configuré dans la session MLX. L’inférence du modèle reste locale. Le client Swift utilise `http://127.0.0.1:8888` par défaut ; un changement de port Docker nécessite aussi d’adapter l’URL injectée dans `SearXNGService`.
+Dans ce mode, Docker doit fonctionner pour permettre les recherches Web via l’outil `web_search`. L’inférence du modèle reste locale. Le client Swift utilise `http://127.0.0.1:8888` par défaut ; un changement de port Docker nécessite aussi d’adapter l’URL injectée dans `SearXNGService`.
+
+## SearXNG embarqué sur macOS, sans Docker
+
+`EmbeddedSearXNGService` implémente le même protocole `WebSearchService` et réutilise le
+transport URLSession borné existant (2 Mio, délais HTTP, aucune redirection, ni proxy,
+cookie ou authentification partagée). Le code est exclu sur iOS.
+
+- Aucun processus Python avant la première recherche valide.
+- Un processus, un serveur WSGI Werkzeug sans reloader, une recherche à la fois.
+  Une demande concurrente reçoit `EmbeddedSearXNGError.busy` ; l’interface peut la différer.
+  SearXNG conserve ses propres threads pour les moteurs : ce n’est pas une limite globale de CPU.
+- Port éphémère attribué lors du bind sur `127.0.0.1`, indépendant du port Docker 8888.
+  Le parent attend un fichier de disponibilité privé puis une réponse de santé authentifiée.
+- Secret SearXNG et jeton HTTP aléatoires renouvelés à chaque lancement. Seuls les GET
+  `/search` et `/healthz` avec le jeton sont acceptés ; les requêtes avec `Origin` sont refusées.
+  Les en-têtes de proxy transmis sont supprimés. Un autre utilisateur/processus ayant les
+  mêmes droits système reste hors du périmètre d’isolation de ce jeton.
+- Arrêt après **120 s d’inactivité**, mesurées après la fin de la requête ; jamais pendant
+  une recherche. Démarrage limité à **45 s**. Ces deux durées sont configurables à l’initialisation.
+- Annulation, erreur HTTP ou crash : abandon du worker, puis redémarrage à la demande suivante.
+  Pas de relance automatique d’une requête, ni de bascule silencieuse vers Docker après une erreur.
+- `shutdown()` annule la recherche active, ferme le canal de vie et arrête le processus
+  (SIGTERM, puis SIGKILL après 500 ms si nécessaire). Python s’arrête aussi à la fermeture
+  du canal parent, y compris si l’application plante.
+
+Les paramètres et caches sont créés dans un répertoire temporaire privé, supprimé à l’arrêt.
+Un crash brutal du parent peut laisser ce répertoire jusqu’au nettoyage des fichiers temporaires
+par le système. Les sorties Python sont écartées pour ne pas conserver requêtes et secrets dans
+des logs ; les erreurs exposent le type d’échec et le code de sortie, sans traceback Python.
+Le serveur local Werkzeug convient à cette intégration privée, pas à une instance publique.
+
+### Runtime de développement
+
+Pour le CLI macOS, installer le runtime une seule fois depuis le dépôt :
+
+```sh
+python3 infrastructure/searxng/setup_runtime.py
+swift run
+```
+
+Le script nécessite Python 3.10+ et Git, télécharge la révision SearXNG épinglée et installe
+ses dépendances dans `~/Library/Application Support/Noctis/SearXNG/venv`, sans installation
+Python globale. Il refuse d’écraser une installation existante. Le CLI détecte ce runtime
+après la variable explicite et le runtime embarqué, et annonce le mode utilisé au démarrage.
+Cette installation locale concerne le CLI ; elle ne remplace pas le packaging signé de Fullmoon.
+Les erreurs spécifiques au runtime sont conservées par le dispatcher pour faciliter le diagnostic.
+
+Préparer un Python **3.10 ou plus récent**, les dépendances de la révision SearXNG choisie,
+et le package `searx` avec ses données, traductions, templates et fichiers statiques.
+macOS ne fournit pas un runtime SearXNG prêt à l’emploi. L’application ne télécharge ni
+n’installe Python ou des dépendances pendant son utilisation.
+
+Exemple depuis une copie des sources SearXNG, en dehors du dépôt Noctis :
+
+```sh
+python3 -m venv /chemin/absolu/searxng-venv
+/chemin/absolu/searxng-venv/bin/python -m pip install setuptools wheel
+/chemin/absolu/searxng-venv/bin/python -m pip install -r /chemin/sources/searxng/requirements.txt
+/chemin/absolu/searxng-venv/bin/python -m pip install --no-build-isolation --no-deps /chemin/sources/searxng
+NOCTIS_SEARXNG_PYTHON=/chemin/absolu/searxng-venv/bin/python swift run NoctisCLI
+```
+
+Le chemin doit être absolu. La variable est lue uniquement par le CLI ; `.env` reste réservé
+à Docker. Sans variable, sans runtime dans le bundle et sans installation locale du CLI,
+le service historique reste sélectionné ; le CLI l’indique et affiche la commande d’installation.
+La commande `exit` du CLI appelle explicitement `shutdown()`.
+
+### Application SwiftUI et packaging
+
+Le dépôt contient le package et le CLI ; l’interface SwiftUI Fullmoon est un dépôt distinct.
+`MLXModelService()` détecte automatiquement le runtime à cet emplacement dans le bundle principal :
+
+```text
+Noctis.app/Contents/Helpers/SearXNG/python/bin/python3
+```
+
+Pour un arrêt explicite dans l’application, conserver le service et l’injecter :
+
+```swift
+let search = try EmbeddedSearXNGService(pythonExecutable: pythonURL)
+let model = MLXModelService(webSearchService: search)
+// Dans le chemin de terminaison de l’application, avant de confirmer la fermeture :
+await search.shutdown()
+```
+
+Sur macOS, utiliser le mécanisme de terminaison différée d’AppKit si l’arrêt doit être attendu.
+Une disparition de vue SwiftUI ne signifie pas forcément la fermeture de l’application.
+Le canal de vie couvre aussi la fermeture sans cet appel explicite.
+
+Pour distribuer, fournir un **Python autonome et relocalisable** pour chaque architecture ciblée,
+avec SearXNG et ses dépendances déjà installés. Un venv Homebrew ne constitue pas ce runtime :
+il référence souvent l’installation de développement. Le dépôt ne contient aucun binaire Python.
+Le script de staging refuse les venv et les liens symboliques sortant du runtime, copie le runtime,
+puis vérifie les imports et les préfixes Python après déplacement :
+
+```sh
+python3 infrastructure/searxng/package_runtime.py /chemin/python-autonome /chemin/Noctis.app
+```
+
+L’application de destination doit déjà exister et le dossier de runtime doit être absent.
+Exécuter ce staging **avant la signature finale**. Il ne construit pas Python, ne signe pas
+l’application et ne garantit pas à lui seul la portabilité de toutes les bibliothèques natives.
+Épingler Python, la révision SearXNG et les dépendances, conserver les notices et les sources
+correspondantes de SearXNG (AGPL-3.0-or-later), puis valider sur un Mac sans environnement de développement.
+
+Pour une application sandboxée, le parent doit avoir `com.apple.security.network.client`
+et `com.apple.security.network.server`. Le Python enfant doit être signé pour hériter du sandbox
+avec exactement ces deux clés App Sandbox :
+
+```xml
+<key>com.apple.security.app-sandbox</key><true/>
+<key>com.apple.security.inherit</key><true/>
+```
+
+Signer les exécutables, frameworks, dylibs et extensions Python avec l’identité de distribution
+appropriée, de l’intérieur vers l’extérieur, puis l’application avec Hardened Runtime ; vérifier
+la signature et la notarisation. Ne pas ajouter systématiquement d’exemption à la validation
+des bibliothèques ni d’autorisation réseau globale ATS. Vérifier les connexions HTTP locales
+avec la politique ATS du bundle cible. Le sandbox Fullmoon observé le 5 novembre 2026 n’a que
+le droit réseau client : le mode embarqué nécessite aussi le droit serveur dans ce dépôt hôte.
+Sa signature, son archive et la validation App Store restent à effectuer dans ce projet séparé.
+
+Références : [installation SearXNG](https://docs.searxng.org/admin/installation-searxng.html),
+[paramètres serveur](https://docs.searxng.org/admin/settings/settings_server.html),
+[héritage du sandbox Apple](https://developer.apple.com/library/archive/documentation/Miscellaneous/Reference/EntitlementKeyReference/Chapters/EnablingAppSandbox.html).
+
+### Validation et limites de performances
+
+`EmbeddedSearXNGServiceTests` utilise Python standard et une application WSGI locale factice,
+sans moteur externe ni modèle MLX : validation paresseuse, réutilisation, authentification,
+rejet des origines et routes non autorisées, arrêt sur inactivité, annulations, timeout,
+sortie du parent, concurrence, crash et reprise. Les tests existants du transport restent applicables.
+Le test réseau réel est volontairement activé par un chemin de runtime explicite :
+
+```sh
+swift test
+NOCTIS_TEST_SEARXNG_PYTHON=/chemin/absolu/searxng-venv/bin/python swift test --filter realRuntimeSmoke
+```
+
+Validation du 5 novembre 2026 : SearXNG `cccbc9e158b0ac3bb2158e9841a647a5bec57b57`,
+Python 3.15 et Swift 6.4.1 sur Apple Silicon. La suite ciblée finale passe avec **17 tests**
+dans trois suites, dont le transport existant et le runtime réel. Les deux essais réseau
+ont mesuré environ **2,47 s puis 37,48 s à froid**, et **0,90 s puis 0,76 s à chaud**,
+avec 41 résultats. Ces valeurs incluent l’initialisation et les moteurs externes ; elles
+varient fortement selon le réseau et ne sont pas un benchmark. Aucune mesure de RAM, de batterie ou d’impact pendant une inférence
+MLX n’a été effectuée. Le démarrage et les recherches consomment des ressources ; aucun cache
+de résultats supplémentaire n’est ajouté. Les recherches nécessitent Internet et peuvent
+renvoyer zéro résultat si les moteurs sont bloqués ou indisponibles.
+
+Après correction de la découverte du runtime CLI, le build complet réussit avec les artefacts
+locaux disponibles. La suite complète passe ; les tests réseau restent activés explicitement.
+Le runtime installé par le script a retourné 41 résultats via le service URLSession réel
+(environ 2,26 s à froid et 1,14 s à chaud lors de cet essai). La signature du bundle Fullmoon
+et le fonctionnement de bout en bout avec une génération MLX restent à valider.

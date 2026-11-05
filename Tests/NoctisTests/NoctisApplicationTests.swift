@@ -27,9 +27,9 @@ struct NoctisApplicationTests {
         }
 
         let output = String(decoding: result.standardOutputContent, as: UTF8.self)
-        #expect(output.contains("Tout est prêt !"))
+        #expect(output.contains(localizedCLI("console.status.ready")))
         #expect(output.contains("Noctis 🌙 > Bonjour 🌙"))
-        #expect(output.contains("🌑 Noctis terminé"))
+        #expect(output.contains(localizedCLI("console.status.terminated")))
     }
 
     @Test("Réutilise le moteur pour plusieurs échanges successifs")
@@ -90,7 +90,7 @@ struct NoctisApplicationTests {
         }
 
         let output = String(decoding: result.standardOutputContent, as: UTF8.self)
-        #expect(output.contains("🌑 Noctis terminé"))
+        #expect(output.contains(localizedCLI("console.status.terminated")))
     }
 
     @Test("Un échec de chargement empêche toute génération et affiche l’erreur")
@@ -107,10 +107,10 @@ struct NoctisApplicationTests {
         }
 
         let output = String(decoding: result.standardOutputContent, as: UTF8.self)
-        #expect(output.contains("Impossible de démarrer Noctis."))
+        #expect(output.contains(localizedCLI("console.error.startup_failed")))
         #expect(output.contains(MockAIModelService.Failure.loadFailed.rawValue))
-        #expect(!output.contains("Tout est prêt !"))
-        #expect(output.contains("🌑 Noctis terminé"))
+        #expect(!output.contains(localizedCLI("console.status.ready")))
+        #expect(output.contains(localizedCLI("console.status.terminated")))
     }
 
     @Test("Une erreur avant le streaming est affichée et permet l’échange suivant")
@@ -154,7 +154,7 @@ struct NoctisApplicationTests {
 
         let output = String(decoding: result.standardOutputContent, as: UTF8.self)
         let partialResponse = "Noctis 🌙 > " + chunks.joined()
-        #expect(output.contains(partialResponse + "\nErreur : " + MockAIModelService.Failure.streamFailed.rawValue))
+        #expect(output.contains(partialResponse + "\n" + localizedCLIError(MockAIModelService.Failure.streamFailed.rawValue)))
         let failure = try #require(output.range(of: MockAIModelService.Failure.streamFailed.rawValue))
         let recovery = try #require(output.range(of: "Noctis 🌙 > Réponse suivante"))
         #expect(failure.lowerBound < recovery.lowerBound)
@@ -179,7 +179,7 @@ struct NoctisApplicationTests {
         let output = String(decoding: result.standardOutputContent, as: UTF8.self)
         #expect(output.contains("Noctis 🌙 > \n\n"))
         #expect(output.contains("Noctis 🌙 > Réponse suivante"))
-        #expect(!output.contains("Erreur :"))
+        #expect(!output.contains(localizedCLIError("")))
     }
 }
 

@@ -23,7 +23,7 @@ struct MLXModelServiceTests {
         }
 
         let failure = try #require(error)
-        #expect(failure.localizedDescription == "Le modèle Noctis n'est pas encore chargé.")
+        #expect(failure == .modelNotLoaded)
     }
 }
 
