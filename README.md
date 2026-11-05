@@ -403,7 +403,7 @@ Le dépôt contient le package et le CLI ; l’interface SwiftUI Fullmoon est un
 `MLXModelService()` détecte automatiquement le runtime à cet emplacement dans le bundle principal :
 
 ```text
-Noctis.app/Contents/Helpers/SearXNG/python/bin/python3
+Noctis.app/Contents/Resources/SearXNG/python/bin/python3
 ```
 
 Pour un arrêt explicite dans l’application, conserver le service et l’injecter :
@@ -448,9 +448,25 @@ Signer les exécutables, frameworks, dylibs et extensions Python avec l’identi
 appropriée, de l’intérieur vers l’extérieur, puis l’application avec Hardened Runtime ; vérifier
 la signature et la notarisation. Ne pas ajouter systématiquement d’exemption à la validation
 des bibliothèques ni d’autorisation réseau globale ATS. Vérifier les connexions HTTP locales
-avec la politique ATS du bundle cible. Le sandbox Fullmoon observé le 5 novembre 2026 n’a que
-le droit réseau client : le mode embarqué nécessite aussi le droit serveur dans ce dépôt hôte.
-Sa signature, son archive et la validation App Store restent à effectuer dans ce projet séparé.
+avec la politique ATS du bundle cible.
+Fullmoon intègre une phase de copie et signature du runtime autonome ; voir son README
+pour la préparation. Son sandbox conserve le droit client et ajoute le droit serveur.
+Son archive et la validation App Store restent à effectuer dans ce projet séparé.
+
+Le script `setup_runtime.py --standalone --destination /chemin/nouveau-runtime` prépare
+Python 3.13.13 relocalisable pour l’architecture du Mac via `uv`, puis installe la même
+révision SearXNG que le runtime CLI. Aucun téléchargement n’est effectué par l’app.
+`package_runtime.py --sign IDENTITÉ --entitlements /chemin/helper.entitlements` signe
+les bibliothèques et l’interpréteur après la vérification des imports dans le bundle déplacé.
+
+### Hôte iOS
+
+Fullmoon fournit `IOSWebSearchService`, conforme à `WebSearchService`, et l’injecte dans
+`MLXModelService(webSearchService:)` uniquement sur iOS. Python est intégré au processus
+de l’app via son framework iOS ; `EmbeddedSearXNGService` reste réservé à macOS.
+`infrastructure/searxng/setup_ios_runtime.py` prépare les dépendances natives arm64 pour
+iPhone et simulateur sans modifier les fichiers du runtime Mac. Voir le README Fullmoon
+pour les commandes de préparation et le fonctionnement de l’annulation.
 
 Références : [installation SearXNG](https://docs.searxng.org/admin/installation-searxng.html),
 [paramètres serveur](https://docs.searxng.org/admin/settings/settings_server.html),

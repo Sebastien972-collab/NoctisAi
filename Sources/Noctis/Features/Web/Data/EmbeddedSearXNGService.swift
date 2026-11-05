@@ -60,7 +60,7 @@ public actor EmbeddedSearXNGService: WebSearchService {
     /// A relocatable Python distribution, with SearXNG installed, supplied by the host app.
     public static func bundled(in bundle: Bundle = .main) throws -> EmbeddedSearXNGService? {
         guard bundle.bundleURL.pathExtension == "app" else { return nil }
-        let runtime = bundle.bundleURL.appendingPathComponent("Contents/Helpers/SearXNG/python/bin/python3")
+        let runtime = bundle.bundleURL.appendingPathComponent("Contents/Resources/SearXNG/python/bin/python3")
         guard FileManager.default.fileExists(atPath: runtime.path) else { return nil }
         return try EmbeddedSearXNGService(pythonExecutable: runtime)
     }
