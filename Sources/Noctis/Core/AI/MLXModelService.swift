@@ -122,6 +122,12 @@ public actor MLXModelService: AIModelService {
     private var isResetting = false
 
     public init() {
+        #if os(macOS)
+        if let embedded = try? EmbeddedSearXNGService.bundled() {
+            self.init(webSearchService: embedded)
+            return
+        }
+        #endif
         self.init(webSearchService: SearXNGService())
     }
 
