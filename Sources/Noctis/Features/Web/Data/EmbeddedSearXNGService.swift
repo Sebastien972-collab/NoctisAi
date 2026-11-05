@@ -65,6 +65,18 @@ public actor EmbeddedSearXNGService: WebSearchService {
         return try EmbeddedSearXNGService(pythonExecutable: runtime)
     }
 
+    /// Development runtime installed once by infrastructure/searxng/setup_runtime.py.
+    public static func installed(in applicationSupportDirectory: URL? = nil) throws -> EmbeddedSearXNGService? {
+        let support = try applicationSupportDirectory ?? FileManager.default.url(
+            for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: false)
+        let python = support.appendingPathComponent("Noctis/SearXNG/venv/bin/python")
+        guard FileManager.default.fileExists(atPath: python.path) else { return nil }
+        guard FileManager.default.isExecutableFile(atPath: python.path) else {
+            throw EmbeddedSearXNGError.runtimeUnavailable
+        }
+        return try EmbeddedSearXNGService(pythonExecutable: python)
+    }
+
     public func search(query: String) async throws -> [SearchResult] {
         try Task.checkCancellation()
         try SearXNGService.validate(query: query)

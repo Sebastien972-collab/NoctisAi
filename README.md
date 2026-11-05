@@ -335,6 +335,20 @@ Le serveur local Werkzeug convient à cette intégration privée, pas à une ins
 
 ### Runtime de développement
 
+Pour le CLI macOS, installer le runtime une seule fois depuis le dépôt :
+
+```sh
+python3 infrastructure/searxng/setup_runtime.py
+swift run
+```
+
+Le script nécessite Python 3.10+ et Git, télécharge la révision SearXNG épinglée et installe
+ses dépendances dans `~/Library/Application Support/Noctis/SearXNG/venv`, sans installation
+Python globale. Il refuse d’écraser une installation existante. Le CLI détecte ce runtime
+après la variable explicite et le runtime embarqué, et annonce le mode utilisé au démarrage.
+Cette installation locale concerne le CLI ; elle ne remplace pas le packaging signé de Fullmoon.
+Les erreurs spécifiques au runtime sont conservées par le dispatcher pour faciliter le diagnostic.
+
 Préparer un Python **3.10 ou plus récent**, les dépendances de la révision SearXNG choisie,
 et le package `searx` avec ses données, traductions, templates et fichiers statiques.
 macOS ne fournit pas un runtime SearXNG prêt à l’emploi. L’application ne télécharge ni
@@ -351,7 +365,8 @@ NOCTIS_SEARXNG_PYTHON=/chemin/absolu/searxng-venv/bin/python swift run NoctisCLI
 ```
 
 Le chemin doit être absolu. La variable est lue uniquement par le CLI ; `.env` reste réservé
-à Docker. Sans variable et sans runtime dans le bundle, le service historique reste sélectionné.
+à Docker. Sans variable, sans runtime dans le bundle et sans installation locale du CLI,
+le service historique reste sélectionné ; le CLI l’indique et affiche la commande d’installation.
 La commande `exit` du CLI appelle explicitement `shutdown()`.
 
 ### Application SwiftUI et packaging
@@ -436,8 +451,8 @@ MLX n’a été effectuée. Le démarrage et les recherches consomment des resso
 de résultats supplémentaire n’est ajouté. Les recherches nécessitent Internet et peuvent
 renvoyer zéro résultat si les moteurs sont bloqués ou indisponibles.
 
-Le build complet a été tenté mais bloqué par le composant **Metal Toolchain absent** de Xcode.
-Les fichiers de recherche et les tests ciblés ont été compilés et exécutés dans un paquet
-de validation temporaire sans les dépendances MLX ; cela ne valide pas le build complet,
-le bundle signé ou l’inférence. Installer le composant Metal dans Xcode puis relancer `swift test`
-avant une livraison de l’application.
+Après correction de la découverte du runtime CLI, le build complet réussit avec les artefacts
+locaux disponibles. La suite complète passe ; les tests réseau restent activés explicitement.
+Le runtime installé par le script a retourné 41 résultats via le service URLSession réel
+(environ 2,26 s à froid et 1,14 s à chaud lors de cet essai). La signature du bundle Fullmoon
+et le fonctionnement de bout en bout avec une génération MLX restent à valider.

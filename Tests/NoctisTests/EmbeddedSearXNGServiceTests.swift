@@ -189,6 +189,21 @@ struct EmbeddedSearXNGServiceTests {
         #expect(try EmbeddedSearXNGService.bundled(in: Bundle(for: WebFixtureProtocol.self)) == nil)
     }
 
+    @Test func installedRuntimeDiscovery() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        #expect(try EmbeddedSearXNGService.installed(in: root) == nil)
+        let python = root.appendingPathComponent("Noctis/SearXNG/venv/bin/python")
+        try FileManager.default.createDirectory(at: python.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data("#!/bin/sh\n# Created by Sébastien DAGUIN\nexit 0\n".utf8).write(to: python)
+        try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: python.path)
+        #expect(throws: EmbeddedSearXNGError.runtimeUnavailable) {
+            try EmbeddedSearXNGService.installed(in: root)
+        }
+        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: python.path)
+        #expect(try EmbeddedSearXNGService.installed(in: root) != nil)
+    }
+
     @Test(.enabled(if: ProcessInfo.processInfo.environment["NOCTIS_TEST_SEARXNG_PYTHON"] != nil))
     func realRuntimeSmoke() async throws {
         let path = try #require(ProcessInfo.processInfo.environment["NOCTIS_TEST_SEARXNG_PYTHON"])
