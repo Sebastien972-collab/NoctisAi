@@ -24,4 +24,4 @@ if [ "$("$binary" version)" != "$version" ]; then
 fi
 
 cd "$project_root"
-exec "$binary" lint --strict --quiet --config .swiftlint.yml "$@"
+"$binary" lint --strict --quiet --config .swiftlint.yml "$@"
