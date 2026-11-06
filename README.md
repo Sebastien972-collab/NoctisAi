@@ -500,3 +500,17 @@ locaux disponibles. La suite complète passe ; les tests réseau restent activé
 Le runtime installé par le script a retourné 41 résultats via le service URLSession réel
 (environ 2,26 s à froid et 1,14 s à chaud lors de cet essai). La signature du bundle Fullmoon
 et le fonctionnement de bout en bout avec une génération MLX restent à valider.
+
+## Qualité du code et intégration continue
+
+Exécuter `./scripts/lint.sh` depuis macOS. Le script utilise SwiftLint **0.65.1**,
+le télécharge dans un cache temporaire si nécessaire et vérifie son SHA-256.
+`SWIFTLINT_BIN` permet de fournir une installation locale de la même version.
+
+La configuration `.swiftlint.yml` active les règles standard. La baseline enregistre
+les violations existantes pour éviter une reformate globale ; toute nouvelle violation
+échoue en mode strict. Ne pas régénérer la baseline pour masquer une régression.
+
+GitHub Actions lance ces contrôles sur les pull requests et les pushes vers `main`.
+Les jobs utilisent le runner Apple Silicon `xcode-27`, avec Xcode 27.2 pour Swift 6.4
+et Metal. Aucun poids de modèle n'est téléchargé pendant les tests.
