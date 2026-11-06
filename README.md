@@ -501,28 +501,23 @@ Le runtime installé par le script a retourné 41 résultats via le service URLS
 (environ 2,26 s à froid et 1,14 s à chaud lors de cet essai). La signature du bundle Fullmoon
 et le fonctionnement de bout en bout avec une génération MLX restent à valider.
 
-## SwiftLint
+## Qualité du code et intégration continue
 
-Exécuter le contrôle de style depuis la racine du package :
+Exécuter `./scripts/lint.sh` depuis macOS. Le script utilise SwiftLint **0.65.1**,
+le télécharge dans un cache temporaire si nécessaire et vérifie son SHA-256.
+`SWIFTLINT_BIN` permet de fournir une installation locale de la même version.
+
+La configuration `.swiftlint.yml` active les règles standard. La baseline enregistre
+les violations existantes pour éviter une reformate globale ; toute nouvelle violation
+échoue en mode strict. Ne pas régénérer la baseline pour masquer une régression.
+
+GitHub Actions lance ces contrôles sur les pull requests et les pushes vers `main`.
+Les jobs utilisent le runner Apple Silicon `xcode-27`, avec Xcode 27.2 pour Swift 6.4
+et Metal. Aucun poids de modèle n'est téléchargé pendant les tests.
+
+Le job de tests utilise le schéma Xcode `Noctis-Package` pour compiler également
+les catalogues de traduction et les shaders Metal :
 
 ```sh
-./scripts/lint.sh
+xcodebuild -scheme Noctis-Package -destination 'platform=macOS' -skipMacroValidation test
 ```
-
-Le script utilise SwiftLint **0.65.1** sur macOS. Au premier lancement, il télécharge
-la version portable dans un cache temporaire et vérifie son SHA-256. Pour utiliser
-une installation locale de la même version :
-
-```sh
-SWIFTLINT_BIN=/chemin/vers/swiftlint ./scripts/lint.sh
-```
-
-La configuration `.swiftlint.yml` couvre `Sources`, `Tests` et `Package.swift`, en
-excluant les dépendances et les fichiers de build. La baseline conserve les écarts
-existants ; toute nouvelle violation échoue en mode strict. Ne pas régénérer la
-baseline pour masquer une régression. La même commande peut être utilisée dans la CI.
-
-## Contribuer
-
-Les règles de contribution et les commandes de validation sont décrites dans
-[CONTRIBUTING.md](CONTRIBUTING.md).
