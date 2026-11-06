@@ -500,3 +500,29 @@ locaux disponibles. La suite complète passe ; les tests réseau restent activé
 Le runtime installé par le script a retourné 41 résultats via le service URLSession réel
 (environ 2,26 s à froid et 1,14 s à chaud lors de cet essai). La signature du bundle Fullmoon
 et le fonctionnement de bout en bout avec une génération MLX restent à valider.
+
+## SwiftLint
+
+Exécuter le contrôle de style depuis la racine du package :
+
+```sh
+./scripts/lint.sh
+```
+
+Le script utilise SwiftLint **0.65.1** sur macOS. Au premier lancement, il télécharge
+la version portable dans un cache temporaire et vérifie son SHA-256. Pour utiliser
+une installation locale de la même version :
+
+```sh
+SWIFTLINT_BIN=/chemin/vers/swiftlint ./scripts/lint.sh
+```
+
+La configuration `.swiftlint.yml` couvre `Sources`, `Tests` et `Package.swift`, en
+excluant les dépendances et les fichiers de build. La baseline conserve les écarts
+existants ; toute nouvelle violation échoue en mode strict. Ne pas régénérer la
+baseline pour masquer une régression. La même commande peut être utilisée dans la CI.
+
+## Contribuer
+
+Les règles de contribution et les commandes de validation sont décrites dans
+[CONTRIBUTING.md](CONTRIBUTING.md).
