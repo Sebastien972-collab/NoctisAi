@@ -1,0 +1,50 @@
+# Created by Sébastien DAGUIN
+name: Swift CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DEVELOPER_DIR: /Applications/Xcode_27.2.app/Contents/Developer
+
+jobs:
+  swiftlint:
+    name: SwiftLint
+    runs-on: xcode-27
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - run: ./scripts/lint.sh
+
+  test:
+    name: macOS build and tests
+    runs-on: xcode-27
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Check toolchain and prepare Metal
+        run: |
+          test "$(uname -m)" = arm64
+          xcodebuild -version
+          swift --version
+          xcodebuild -downloadComponent MetalToolchain
+      - name: Build and test without model inference
+        run: >-
+          xcodebuild -scheme Noctis-Package -destination 'platform=macOS'
+          -derivedDataPath .build/CI -skipPackageUpdates -skipMacroValidation
+          ARCHS=arm64 ONLY_ACTIVE_ARCH=YES CODE_SIGNING_ALLOWED=NO test

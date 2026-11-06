@@ -1,0 +1,13 @@
+# Created by Sébastien DAGUIN
+
+swiftlint_version: 0.65.1
+included:
+  - Sources
+  - Tests
+  - Package.swift
+excluded:
+  - .build
+  - build
+  - .git
+baseline: .swiftlint-baseline.json
+cache_path: .build/swiftlint-cache
