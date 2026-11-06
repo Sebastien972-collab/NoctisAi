@@ -514,3 +514,10 @@ les violations existantes pour éviter une reformate globale ; toute nouvelle vi
 GitHub Actions lance ces contrôles sur les pull requests et les pushes vers `main`.
 Les jobs utilisent le runner Apple Silicon `xcode-27`, avec Xcode 27.2 pour Swift 6.4
 et Metal. Aucun poids de modèle n'est téléchargé pendant les tests.
+
+Le job de tests utilise le schéma Xcode `Noctis-Package` pour compiler également
+les catalogues de traduction et les shaders Metal :
+
+```sh
+xcodebuild -scheme Noctis-Package -destination 'platform=macOS' -skipMacroValidation test
+```

@@ -44,4 +44,7 @@ jobs:
           swift --version
           xcodebuild -downloadComponent MetalToolchain
       - name: Build and test without model inference
-        run: swift test --disable-automatic-resolution
+        run: >-
+          xcodebuild -scheme Noctis-Package -destination 'platform=macOS'
+          -derivedDataPath .build/CI -skipPackageUpdates -skipMacroValidation
+          ARCHS=arm64 ONLY_ACTIVE_ARCH=YES CODE_SIGNING_ALLOWED=NO test
