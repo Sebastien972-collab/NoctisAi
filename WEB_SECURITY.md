@@ -1,102 +1,102 @@
-# Audit et sécurisation Web — 3 novembre 2026
+# Web Security Audit and Hardening — November 3, 2026
 
-## A. Audit initial
+## A. Initial Audit
 
-État Git initial propre, HEAD `f50aa58`. Aucun commit créé. Les fichiers réellement présents ont été examinés : manifeste et verrou SwiftPM, services, protocoles, modèles, erreurs, dispatcher, schéma MLX, initialisation ChatSession, instructions système, tests, compose et configuration SearXNG.
+Clean initial Git status, HEAD `f50aa58`. No commit created. The files actually present were inspected: SwiftPM manifest and lockfile, services, protocols, models, errors, dispatcher, MLX schema, ChatSession initialization, system instructions, tests, compose, and SearXNG configuration.
 
-Le chemin actif est `ChatSession → web_search → WebToolDispatcher → SearXNGService → URLSession`. Le service de pages existait mais aucun schéma ni branche opérationnelle `web_open` n'était exposé au modèle.
+The active path is `ChatSession → web_search → WebToolDispatcher → SearXNGService → URLSession`. The page service existed, but no schema or operational `web_open` branch was exposed to the model.
 
-| Criticité | Constat initial | Impact |
+| Criticality | Initial Finding | Impact |
 | --- | --- | --- |
-| Critique, latente | HTTPWebPageService accepte HTTP/HTTPS arbitraires, sans politique de destination et avec redirections automatiques | Accès aux services locaux, métadonnées cloud et réseaux privés dès son exposition |
-| Critique, latente | Aucun contrôle de l'adresse effectivement connectée | DNS rebinding ; un précontrôle DNS laisserait une fenêtre TOCTOU |
-| Élevée | `data(for:)` dans les deux services, sans plafond | Téléchargements et allocations non bornés, réponses compressées |
-| Élevée | Sessions partagées, redirections et stockage implicites | Cookies, authentification ou requêtes pouvant sortir du périmètre attendu |
-| Élevée | Requêtes imprimées, erreurs réseau remontées sans filtrage | Divulgation de requêtes et détails réseau |
-| Élevée | Résultats externes sans enveloppe de confiance | Prompt injection et appels d'outils induits ; le prompt ne constitue pas une protection |
-| Modérée | MIME vérifié par sous-chaîne, UTF-8 seul, pas de plafond DOM | Confusion de contenu, incompatibilités, consommation CPU |
-| Modérée | Tests Web presque absents ; test SearXNG réel optionnel | Garanties non démontrées |
-| Résiduelle | MLX sur main verrouillé par révision, image SearXNG latest et montage de configuration inscriptible | Surveillance de chaîne d'approvisionnement et du service local nécessaire |
+| Critical, latent | HTTPWebPageService accepts arbitrary HTTP/HTTPS, with no destination policy and with automatic redirects | Access to local services, cloud metadata, and private networks upon exposure |
+| Critical, latent | No verification of the actual connected IP address | DNS rebinding; a pre-flight DNS check would leave a TOCTOU window |
+| High | `data(for:)` in both services, without size limit | Unbounded downloads and allocations, compressed responses |
+| High | Shared sessions, implicit redirects, and storage | Cookies, credentials, or requests potentially escaping the intended scope |
+| High | Requests printed, unfiltered network errors surfaced | Disclosure of queries and network details |
+| High | External results without untrusted data envelope | Prompt injection and induced tool calls; system prompt does not constitute a security boundary |
+| Moderate | MIME verified via substring, UTF-8 only, no DOM element cap | Content confusion, incompatibilities, CPU exhaustion |
+| Moderate | Near-absence of Web tests; real SearXNG test is optional | Unverified security guarantees |
+| Residual | MLX pinned to revision on main, SearXNG latest image, and writable configuration mount | Supply chain monitoring and local service auditing required |
 
-## B. Modifications réalisées
+## B. Implemented Changes
 
-Chemins relatifs au dépôt.
+Paths relative to the repository.
 
-| Fichier | Changement, problème résolu et compromis |
+| File | Change, Problem Resolved, and Trade-offs |
 | --- | --- |
-| `Package.swift` | Ajoute SafeURLKit exactement 0.2.0. Centralise le parsing sensible sans réimplémenter les variantes IP. Nouvelle dépendance limitée à Foundation. |
-| `Package.resolved` | Verrouille la révision SafeURLKit ; aucune version des autres dépendances changée. |
-| `Sources/Noctis/Features/Web/Domain/PublicWebURLPolicy.swift` | Validation de la chaîne brute via URLPolicy stricte ; erreurs normalisées. HTTPS/443, pas d'identifiants, noms spéciaux, IP littérales, fragments non vides ou chaînes ambiguës. Plafond de 2048 octets. Refuse aussi les IP publiques et les noms de documentation : restriction volontaire. Ne valide pas DNS. |
-| `Sources/Noctis/Features/Web/Data/BoundedHTTPClient.swift` | Transport interne dédié, session éphémère par requête, sans cookies, cache, stockage d'identifiants ni proxy configuré. Refuse toute redirection et authentification autre que l'évaluation TLS standard. Vérifie statut, MIME exact, URL finale, longueur déclarée et octets reçus. Refuse 206. État protégé par Mutex, annulation et continuation unique. Aucun @unchecked Sendable ajouté au code Noctis. |
-| `Sources/Noctis/Features/Web/Data/HTTPWebPageService.swift` | `open` refuse toute ouverture publique après validation, sans DNS ni connexion. Préserve le protocole et l'extraction hors réseau : titre, URL, Unicode, troncature et texte principal. HTML/XHTML seulement ; UTF-8 par défaut, ASCII et Windows-1252/Latin-1 explicitement déclarés. Refuse encodages inconnus, contenu vide et parsing inexploitable. Le paramètre session a été retiré car il permettait un transport incontrôlé. |
-| `Sources/Noctis/Features/Web/Domain/Enum/WebPageError.swift` | Erreurs exploitables sans URL ni diagnostics sensibles : taille, compression, redirection, timeout, configuration, transport, absence de contenu et ouverture désactivée. |
-| `Sources/Noctis/Features/Web/Domain/Repository/SearXNGService.swift` | Seul l'endpoint configuré HTTP 127.0.0.1:port/search est accepté. Ni DNS, ni host/path/query choisis par le modèle. Le port reste configurable par le programme. JSON obligatoire, requêtes bornées et correctement encodées. Injection URLProtocol pour tests à la place d'une session partagée. Une instance distante ou un reverse proxy redirigeant n'est plus accepté. |
-| `Sources/Noctis/Features/Web/Domain/Tools/WebToolDispatcher.swift` | Vérifie exactement les arguments attendus, 300 caractères et 1200 octets de requête, sans caractères de contrôle. Retire les logs et masque les erreurs inconnues. Enveloppe JSON UNTRUSTED_EXTERNAL_DATA ; cinq résultats au maximum, parmi les cinquante premiers examinés. URL filtrées, titres limités à 512 caractères/2048 octets, descriptions à 2000 caractères/8000 octets. Les graphèmes Unicode géants ne contournent pas le plafond d'octets. `web_open` valide puis refuse, même avec un service injecté. Le paramètre historique `pasgeService` est conservé pour compatibilité. |
-| `Sources/Noctis/Core/Enum/NoctisIdentity.swift` | Ajoute les règles de traitement des données externes et de confidentialité. Aucun changement du moteur MLX ou de ses capacités. Ces instructions ne sont pas une frontière de sécurité. |
-| `Tests/NoctisTests/WebSecurityTests.swift` | Matrice URL, blocage public et annulation, refus des redirections, arguments, enveloppe JSON, erreurs expurgées et budget Unicode. |
-| `Tests/NoctisTests/BoundedHTTPClientTests.swift` | URLProtocol sans état global mutable : succès, statuts, MIME, tailles, Content-Length, compression, URL finale inattendue, interruption, timeout, annulation et isolation SearXNG. Aucune requête réelle. |
-| `Tests/NoctisTests/WebExtractionTests.swift` | Article, titre absent, HTML malformé/vide, absence de contenu, Unicode, encodage Windows-1252, limite exacte et troncature. |
-| `Tests/NoctisTests/WebTransportIntegrationTests.swift` | Serveur Network.framework créé par le test sur un port loopback éphémère : chunked normal et excessif, redirection jamais suivie, réponse partielle, timeout inactif, deadline globale malgré un flux continu, annulation et JSON SearXNG. Aucun service privé existant contacté. |
-| `WEB_SECURITY.md` | Ce rapport et les critères de réactivation. |
+| `Package.swift` | Adds SafeURLKit pinned to exactly 0.2.0. Centralizes sensitive URL parsing without reimplementing IP variations. New dependency restricted to Foundation. |
+| `Package.resolved` | Locks SafeURLKit revision; no other dependency version changed. |
+| `Sources/Noctis/Features/Web/Domain/PublicWebURLPolicy.swift` | Validates raw string via strict URLPolicy; normalized errors. HTTPS/443, no userinfo, special domain names, IP literals, non-empty fragments, or ambiguous strings. 2048-byte limit. Rejects public IPs and documentation domain names: deliberate restriction. Does not validate DNS. |
+| `Sources/Noctis/Features/Web/Data/BoundedHTTPClient.swift` | Dedicated internal transport, ephemeral session per request, no cookies, cache, credential storage, or configured proxy. Rejects all redirects and any authentication beyond standard TLS evaluation. Checks HTTP status, exact MIME type, final URL, declared content length, and received bytes. Rejects 206 Partial Content. State protected by Mutex, cancellation, and single continuation. No @unchecked Sendable added to Noctis code. |
+| `Sources/Noctis/Features/Web/Data/HTTPWebPageService.swift` | `open` rejects any public URL opening following validation, with no DNS query or network connection. Preserves offline extraction protocol: title, URL, Unicode, truncation, and main text. HTML/XHTML only; UTF-8 by default, ASCII and Windows-1252/Latin-1 explicitly declared. Rejects unknown encodings, empty content, and unparseable markup. The session parameter was removed because it allowed unconstrained transport. |
+| `Sources/Noctis/Features/Web/Domain/Enum/WebPageError.swift` | Actionable errors without leaking URLs or sensitive diagnostics: size limit, compression, redirection, timeout, configuration, transport, missing content, and disabled page opening. |
+| `Sources/Noctis/Features/Web/Domain/Repository/SearXNGService.swift` | Only the configured HTTP 127.0.0.1:port/search endpoint is accepted. Neither DNS, nor host/path/query chosen by the model. The port remains configurable by the program. JSON format required, bounded and properly encoded queries. URLProtocol injection for testing instead of a shared session. A remote instance or redirecting reverse proxy is no longer accepted. |
+| `Sources/Noctis/Features/Web/Domain/Tools/WebToolDispatcher.swift` | Verifies exact expected arguments, query capped at 300 characters and 1200 bytes, stripped of control characters. Removes debug logs and masks unknown errors. UNTRUSTED_EXTERNAL_DATA JSON envelope; maximum 5 results returned out of the first 50 examined. Filtered URLs, titles capped at 512 characters/2048 bytes, snippets at 2000 characters/8000 bytes. Large Unicode grapheme clusters do not bypass byte limits. `web_open` validates then rejects, even with an injected service. The legacy `pasgeService` parameter is retained for compatibility. |
+| `Sources/Noctis/Core/Enum/NoctisIdentity.swift` | Adds external data handling and privacy guidelines. No changes to the MLX engine or its capabilities. These instructions do not constitute a security boundary. |
+| `Tests/NoctisTests/WebSecurityTests.swift` | URL matrix, public blocking and cancellation, redirect rejection, arguments validation, JSON envelope, sanitized errors, and Unicode budget. |
+| `Tests/NoctisTests/BoundedHTTPClientTests.swift` | URLProtocol without mutable global state: success, status codes, MIME types, sizes, Content-Length, unexpected final URL, interruption, timeout, cancellation, and SearXNG isolation. No live network requests. |
+| `Tests/NoctisTests/WebExtractionTests.swift` | Article extraction, missing title, malformed/empty HTML, missing content, Unicode, Windows-1252 encoding, exact boundary limit, and truncation. |
+| `Tests/NoctisTests/WebTransportIntegrationTests.swift` | Network.framework server created by the test on an ephemeral loopback port: normal and oversized chunked encoding, redirects never followed, partial responses, idle timeout, global deadline despite continuous stream, cancellation, and SearXNG JSON parsing. No existing private services contacted. |
+| `WEB_SECURITY.md` | This audit report and reactivation criteria. |
 
-### Limites effectives
+### Effective Limits
 
-- Corps accumulé : 2 Mio par requête, configurable à la baisse ; l'excédent est rejeté avant ajout au buffer et la tâche est annulée.
-- Timeout d'inactivité/requête : 15 secondes ; durée de ressource : 30 secondes ; valeurs positives finies configurables.
-- Redirections : **zéro**, fixé intentionnellement. Une redirection publique, une boucle et un saut privé sont tous refusés au premier saut. Aucun test ne prétend autoriser une redirection publique.
-- Compression : demande `Accept-Encoding: identity`, refuse tout Content-Encoding autre qu'identity avant d'autoriser le corps. Cette restriction de compatibilité évite d'introduire un décompresseur.
-- Extraction : 2 Mio d'entrée hors réseau, 20 000 éléments Readability, 20 000 caractères de texte maximum (configurable à la baisse), titre de 512 caractères.
-- Les octets réseau, le nombre d'éléments DOM et les caractères transmis sont des limites distinctes.
+- Accumulated response body: 2 MiB per request, configurable downward; excess data is rejected before buffering and the task is cancelled.
+- Idle/request timeout: 15 seconds; resource timeout: 30 seconds; configurable positive finite values.
+- Redirects: **zero**, intentionally fixed. A public redirect, redirect loop, or hop to a private network is rejected on the first hop. No tests claim to allow public redirects.
+- Compression: sends `Accept-Encoding: identity`, rejects any Content-Encoding other than identity before buffering the response body. This compatibility constraint avoids introducing a decompressor.
+- Extraction: 2 MiB offline input limit, 20,000 Readability elements, 20,000 maximum text characters (configurable downward), 512-character title.
+- Network bytes, DOM element count, and emitted characters are distinct boundaries.
 
-SwiftReadability 0.3.3 a été inspecté dans le checkout résolu. `Readability(html:url:options:)`, `parse()`, `ReadabilityResult.textContent` et `maxElemsToParse` sont des API réelles. Les deux extensions restent actives : imageCarouselRecovery transforme des galeries identifiées en figures ; publisherChromeCleanup retire des éléments éditoriaux parasites. Elles modifient le DOM et peuvent influencer les heuristiques de sélection ou supprimer du texte légitime. Elles ne chargent pas les images, ne lancent pas JavaScript et n'effectuent pas de requêtes réseau dans le code inspecté.
+SwiftReadability 0.3.3 was inspected in the resolved checkout. `Readability(html:url:options:)`, `parse()`, `ReadabilityResult.textContent`, and `maxElemsToParse` are genuine APIs. Both extensions remain active: `imageCarouselRecovery` transforms detected image galleries into figures; `publisherChromeCleanup` removes editorial clutter. They mutate the DOM and can affect content selection heuristics or remove legitimate text. In the inspected code, they do not load images, execute JavaScript, or issue network requests.
 
-## C. Dépendances et choix du transport
+## C. Dependencies and Transport Decisions
 
-SafeURLKit **0.2.0**, révision **e9c4eddcfd3e16669a19f46142f487d9b74fbc14**. Tags distants, manifeste Swift 6.2+, code URLPolicy, parsing, noms réservés et delegate de redirection examinés. Aucun audit indépendant de cette jeune bibliothèque n'est supposé.
+SafeURLKit **0.2.0**, revision **e9c4eddcfd3e16669a19f46142f487d9b74fbc14**. Remote tags, Swift 6.2+ manifest, URLPolicy implementation, parsing, reserved names, and redirection delegate were examined. No independent audit of this young library is assumed.
 
-Références :
-- [Source de la version utilisée](https://github.com/adamtheturtle/SafeURLKit/tree/0.2.0)
-- [Politique et limites DNS](https://github.com/adamtheturtle/SafeURLKit/blob/0.2.0/Sources/SafeURLKit/URLPolicy.swift)
-- [Delegate de redirection étudié](https://github.com/adamtheturtle/SafeURLKit/blob/0.2.0/Sources/SafeURLKit/PolicyEnforcingRedirectDelegate.swift)
+References:
+- [Source of used version](https://github.com/adamtheturtle/SafeURLKit/tree/0.2.0)
+- [URLPolicy and DNS limits](https://github.com/adamtheturtle/SafeURLKit/blob/0.2.0/Sources/SafeURLKit/URLPolicy.swift)
+- [Studied redirect delegate](https://github.com/adamtheturtle/SafeURLKit/blob/0.2.0/Sources/SafeURLKit/PolicyEnforcingRedirectDelegate.swift)
 - [SwiftReadability 0.3.3](https://github.com/wolfyy970/swift-readability/tree/0.3.3)
-- [Delegate URLSession et redirections](https://developer.apple.com/documentation/foundation/urlsessiontaskdelegate)
+- [URLSession delegate and redirects](https://developer.apple.com/documentation/foundation/urlsessiontaskdelegate)
 
-Le delegate SafeURLKit revalide les redirections et retire certains en-têtes lors d'un changement d'origine. Il ne contrôle pas la connexion DNS effective et ne fournit pas notre budget de sauts. Il déclare lui-même @unchecked Sendable ; Noctis ne l'instancie pas. Notre delegate vérifié Sendable refuse tous les sauts.
+The SafeURLKit delegate re-validates redirects and strips certain headers when origin changes. It does not verify the actual DNS connection and does not provide our hop budget. It explicitly declares itself `@unchecked Sendable`; Noctis does not instantiate it. Our verified `Sendable` delegate rejects all redirects unconditionally.
 
-Une résolution DNS préalable suivie de `URLSession` serait insuffisante. Les métriques de connexion sont trop tardives pour empêcher une requête. Un transport public correct doit connecter l'adresse validée tout en préservant Host, SNI et validation TLS, gérer toutes les familles d'adresses, redirections, proxies et reconnexions. Réécrire ces couches autour de Network.framework ne serait pas un correctif raisonnablement vérifiable ici.
+A pre-flight DNS resolution followed by `URLSession` would be insufficient. Connection metrics arrive too late to abort a connection attempt. A proper public transport must connect to the validated IP address while preserving Host header, SNI, and TLS certificate validation, supporting all address families, redirects, proxies, and reconnections. Re-architecting these layers on top of Network.framework would not be a reasonably verifiable fix here.
 
-Une passerelle de sortie isolée et auditée serait une autre solution, à condition d'interdire tout chemin de contournement et de vérifier les destinations après résolution. Aucune passerelle de ce type n'existe dans le dépôt. Aucun faux mode « sécurisé » ou flag d'activation n'a donc été ajouté : le blocage est le mécanisme de sécurité effectivement livré.
+An isolated and audited egress proxy/gateway would provide an alternative solution, provided all bypass paths are eliminated and destinations are re-verified after resolution. No such gateway exists in the repository. No misleading "secure mode" or activation flag was added: blocking is the security mechanism actually delivered.
 
-Les dépendances existantes restent inchangées : SwiftReadability 0.3.3, SwiftSoup 2.13.6, swift-url 0.4.2 transitif, ainsi que les dépendances MLX/HuggingFace et leurs révisions verrouillées.
+Existing dependencies remain unchanged: SwiftReadability 0.3.3, SwiftSoup 2.13.6, transitive swift-url 0.4.2, as well as MLX/HuggingFace dependencies and their locked revisions.
 
-## D. Validation réellement effectuée
+## D. Validation Actually Performed
 
-- `swift package resolve`, `swift build` et `swift test` lancés : échec initial du sandbox imbriqué, `sandbox-exec: sandbox_apply: Operation not permitted`.
-- `swift package --disable-sandbox resolve` : **réussi**. Avertissements de caches SwiftPM non inscriptibles ; aucune dépendance existante mise à jour.
-- `swift build --disable-sandbox` : **réussi**. Avertissements C++17 dans le code Metal généré de MLX, hors module Web.
-- `swift test --disable-sandbox` : compilation atteinte mais signature du bundle de tests refusée à cause d'attributs Finder/FileProvider dans .build. Nettoyage ciblé de FinderInfo tenté ; la reconstruction les réintroduit. **Ne pas considérer cette commande comme un succès.**
-- BuildProject Xcode, y compris les cibles de tests : **réussi**. Pas d'erreur Swift Concurrency ; avertissement de métadonnées AppIntents sans framework associé.
-- RunAllTests Xcode sur la version finale du code : **100 cas, 99 réussis, 0 échec, 1 ignoré**.
-- Le cas ignoré est le test préexistant nécessitant RUN_SEARXNG_TESTS=1 et une vraie instance. La compatibilité du client est vérifiée avec URLProtocol et le serveur contrôlé ; la disponibilité de l'instance Docker réelle et de ses moteurs n'est pas affirmée.
-- Diff relu et vérification de whitespace effectuée. Aucun secret réel identifié dans les ajouts ; identifiants présents uniquement sous forme de chaînes factices de tests. Aucun commit.
+- `swift package resolve`, `swift build`, and `swift test` initiated: initial nested sandbox failure, `sandbox-exec: sandbox_apply: Operation not permitted`.
+- `swift package --disable-sandbox resolve`: **succeeded**. Unwritable SwiftPM cache warnings; no existing dependencies updated.
+- `swift build --disable-sandbox`: **succeeded**. C++17 warnings in MLX generated Metal code, unrelated to the Web module.
+- `swift test --disable-sandbox`: compilation succeeded, but test bundle code signing was rejected due to Finder/FileProvider extended attributes in `.build`. Targeted cleaning of FinderInfo was attempted; rebuilding reintroduces them. **Do not consider this command a success.**
+- Xcode BuildProject, including test targets: **succeeded**. No Swift Concurrency errors; warning regarding AppIntents metadata without an associated framework.
+- Xcode RunAllTests on final code revision: **100 tests, 99 passed, 0 failed, 1 skipped**.
+- The skipped test is the pre-existing test requiring `RUN_SEARXNG_TESTS=1` and a live instance. Client compatibility is verified via URLProtocol and the controlled server; availability of the real Docker instance and its engines is not claimed.
+- Diff reviewed and whitespace checks performed. No real secrets identified in changes; credentials present only as mock strings in test cases. No commit created.
 
-Les tests simulés ne prouvent ni DNS rebinding ni enforcement de l'adresse du pair. L'intégration utilise HTTP loopback contrôlé pour vérifier les garanties du transport interne, pas un réseau public ou une attaque DNS réelle.
+Simulated tests do not prove protection against DNS rebinding or peer IP address enforcement. Integration testing uses a controlled HTTP loopback server to verify internal transport guarantees, not a public network or real DNS rebinding attack.
 
-## E. Sécurité résiduelle
+## E. Residual Security Risks
 
-1. **DNS rebinding / TOCTOU** : non résolus pour les URL publiques ; neutralisés pour l'outil par l'interdiction de toute connexion publique. Ne pas brancher BoundedHTTPClient sur web_open : il ne constitue pas un transport SSRF sûr.
-2. **Prompt injection** : JSON et instructions réduisent la confusion, sans garantir le comportement du modèle. Les actions sensibles doivent rester contrôlées dans le code. web_open reste bloqué indépendamment des instructions.
-3. **Confidentialité des recherches** : seul query est transmis, sans ajout automatique de contexte, cookie ou identifiant. Un modèle peut toutefois recopier une information personnelle dans query. Il n'existe pas de détection sémantique fiable des secrets ni de consentement par recherche dans cette livraison. SearXNG et ses moteurs reçoivent les recherches ; leurs propres logs et sorties ne sont pas contrôlés par ce client.
-4. **Ressources** : le plafond de 2 Mio concerne le buffer applicatif, pas toute la mémoire de Foundation, du noyau ou du parseur. Les en-têtes et buffers internes appartiennent à URLSession. Le parsing HTML synchrone n'est pas interrompu au milieu d'un appel ; la limite DOM est appliquée par Readability après création du document. Pas de plafond global de mémoire sur plusieurs requêtes concurrentes.
-5. **Compression** : les en-têtes compressés sont refusés ; cela ne prouve pas un plafond strict du CPU et des buffers internes de CFNetwork. Aucun serveur public hostile n'est accessible via le service de pages.
-6. **Encodages** : pas de détection heuristique des charset de balises meta, ni prise en charge universelle des pages anciennes. Les contenus non décodables sont refusés.
-7. **Service local** : l'instance SearXNG et la machine hôte sont de confiance. Un processus local malveillant occupant le port configuré pourrait falsifier les résultats. La politique publique n'hérite jamais de cette exception locale.
-8. **Chaîne d'approvisionnement** : mises à jour des tables SafeURLKit à surveiller ; absence de garantie d'audit indépendant. L'image Docker latest, les privilèges réseau du conteneur et sa configuration modifiable restent à durcir séparément avant un déploiement non local.
+1. **DNS rebinding / TOCTOU**: unresolved for public URLs; neutralized for the tool by disallowing all public connections. Do not connect `BoundedHTTPClient` to `web_open`: it does not constitute a secure anti-SSRF transport.
+2. **Prompt injection**: JSON envelope and system instructions reduce confusion without guaranteeing model behavior. Sensitive actions must remain strictly guarded in application code. `web_open` remains blocked regardless of model instructions.
+3. **Search query privacy**: only the search query string is transmitted, without automatically injecting context, cookies, or credentials. However, a model may inadvertently echo sensitive user information into a query. No reliable semantic secret detection or per-search user consent mechanism is included in this release. SearXNG and upstream search engines receive queries; their logging and output handling are beyond this client's control.
+4. **Resources**: the 2 MiB ceiling applies to the application buffer, not the entire memory footprint of Foundation, the kernel, or the HTML parser. Headers and low-level internal buffers belong to URLSession. Synchronous HTML parsing cannot be interrupted mid-operation; the DOM limit is enforced by Readability after parsing the document. There is no global memory cap across multiple concurrent requests.
+5. **Compression**: compressed Content-Encoding headers are rejected; this does not prove a strict memory or CPU ceiling inside CFNetwork internal buffers. No hostile public servers can be reached via the page service.
+6. **Encodings**: no heuristic meta tag charset detection, nor universal support for legacy page encodings. Content that cannot be decoded is rejected.
+7. **Local service**: the SearXNG instance and host machine are trusted. A malicious local process occupying the configured port could forge search results. The public network policy never inherits this local trust exception.
+8. **Supply chain**: SafeURLKit table updates require ongoing monitoring; no independent security audit is assumed. The latest Docker image tag, container network privileges, and writable configuration mount should be separately hardened prior to non-local deployment.
 
-## F. État de préparation
+## F. Readiness Assessment
 
-**NON PRÊT pour activer web_open sur des URL arbitraires générées par Ministral.**
+**NOT READY to enable `web_open` on arbitrary URLs generated by Ministral.**
 
-La faille critique n'est pas masquée par une validation syntaxique : l'ouverture est désactivée dans le service et le dispatcher, et son schéma n'est pas annoncé à MLX. La recherche interne et l'extraction hors réseau sont conservées et testées.
+The critical vulnerability is not obscured by superficial syntactic validation: page opening is disabled in both the service and the dispatcher, and its schema is not advertised to MLX. Local search and offline text extraction are preserved and tested.
 
-Pour lever le blocage : fournir un transport ou proxy qui impose l'adresse effective validée, tester DNS changeant, IPv4/IPv6, redirections, reconnexions, TLS/SNI et impossibilité de contourner le proxy, puis définir la politique de consentement/confidentialité des sorties avant activation. Une simple modification du prompt, une liste de noms ou une résolution DNS avant URLSession ne suffisent pas.
+To lift the restriction: provide a transport or egress proxy enforcing the actual validated IP address, verify behavior against dynamic DNS, IPv4/IPv6, redirects, reconnections, TLS/SNI, and guarantee the proxy cannot be bypassed, then establish an outbound privacy and user consent policy prior to activation. Simply modifying the system prompt, maintaining an allowlist of domain names, or resolving DNS before passing a URL to `URLSession` is insufficient.
