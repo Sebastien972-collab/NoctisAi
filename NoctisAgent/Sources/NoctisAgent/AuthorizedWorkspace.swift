@@ -5,8 +5,31 @@ import Darwin
 
 /// Pins the authorized directory inode. All descendants are opened relative to held descriptors.
 public final class AuthorizedWorkspace: @unchecked Sendable {
+    public let rootURL: URL
+    public var path: String { rootURL.path }
+
     private let root: Int32
     private static let ignored = Set([".git", ".build", "node_modules", ".DS_Store"])
+
+    public static func isSensitive(name: String) -> Bool {
+        let lower = name.lowercased()
+        if lower == ".env" || lower.hasPrefix(".env.") || lower.hasPrefix(".env") { return true }
+        if lower == ".netrc" || lower == ".npmrc" || lower == ".pypirc" { return true }
+        let sensitiveExtensions = ["pem", "key", "p12", "pfx", "pkcs12", "keystore", "jks"]
+        if let ext = lower.split(separator: ".").last.map(String.init), sensitiveExtensions.contains(ext) {
+            return true
+        }
+        if lower.hasPrefix("id_rsa") || lower.hasPrefix("id_ed25519") || lower.hasPrefix("id_ecdsa") || lower.hasPrefix("id_dsa") {
+            return true
+        }
+        if lower.contains("credential") || lower.contains("secret") {
+            return true
+        }
+        if lower == ".ssh" || lower == ".aws" || lower == ".gnupg" {
+            return true
+        }
+        return false
+    }
 
     public init(authorizing rootURL: URL) throws {
         guard rootURL.isFileURL, rootURL.path.hasPrefix("/"), !rootURL.path.contains("\0") else {
@@ -24,6 +47,7 @@ public final class AuthorizedWorkspace: @unchecked Sendable {
                 descriptor = next
             }
             root = descriptor
+            self.rootURL = rootURL
         } catch {
             close(descriptor)
             throw error
@@ -42,6 +66,9 @@ public final class AuthorizedWorkspace: @unchecked Sendable {
         do {
             let parts = components.filter { $0 != "." }
             for (index, part) in parts.enumerated() {
+                guard !Self.ignored.contains(part), !Self.isSensitive(name: part) else {
+                    throw AgentError.accessDenied
+                }
                 let flags = O_RDONLY | O_NOFOLLOW | O_CLOEXEC | O_NONBLOCK
                     | ((directory || index < parts.count - 1) ? O_DIRECTORY : 0)
                 let next = openat(descriptor, part, flags)
@@ -93,7 +120,7 @@ public final class AuthorizedWorkspace: @unchecked Sendable {
             if visited > limit {
                 return .init(items: items.sorted { $0.name < $1.name }, truncated: true, scanned: visited)
             }
-            guard !Self.ignored.contains(name) else { continue }
+            guard !Self.ignored.contains(name), !Self.isSensitive(name: name) else { continue }
             var metadata = stat()
             guard fstatat(descriptor, name, &metadata, AT_SYMLINK_NOFOLLOW) == 0 else { continue }
             let mode = metadata.st_mode & S_IFMT
