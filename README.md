@@ -75,7 +75,31 @@ swift build -c release
 swift run -c release NoctisCLI
 ```
 
-No command-line arguments or user configuration files are currently parsed by the program.
+To authorize read-only analysis of a project with Ministral 3 14B on macOS:
+
+```sh
+swift run NoctisCLI --workspace "/Users/sebastiendaguin/NoctisAI/NoctisAi"
+```
+
+Then ask normally, for example: `Explique l’architecture du projet et trouve où le modèle MLX est chargé.`
+The flag explicitly authorizes only this directory. Paths must be absolute and contain no symbolic links.
+The conversation engine natively exposes listFiles, readFile and searchCode for the authorized directory.
+Ministral chooses whether to call tools or answer directly, without a separate code mode.
+Ordinary replies and tool-assisted replies use the same streaming conversation and preserve context between turns.
+Editing and command execution remain disabled.
+
+You can also start without arguments, then authorize a project at any time:
+
+```text
+/workspace /absolute/project/path
+```
+
+Use `/workspace off` to revoke access. These commands grant permissions; they do not switch a code mode.
+Changing directory access resets conversation history to separate local content from Web-enabled conversations.
+Web search is unavailable while a workspace is authorized. Without authorization, local tools are not declared.
+The same capability is available directly to applications through `MLXModelService.authorizeWorkspace(_:)`
+and the usual `generate` / `withResponse` APIs, independently of the CLI.
+Use `swift run NoctisCLI --help` to display usage without loading or downloading the model.
 
 ## Configuration
 
@@ -135,7 +159,7 @@ Tests/
 | `NoctisConfiguration` | Configuration constants compiled with the application |
 | `NoctisIdentity` | System instructions passed to the session |
 
-The `Noctis` and `NoctisCLI` folders constitute **two distinct modules**. The executable target `NoctisCLI` depends on the `Noctis` library and uses it via `import Noctis`. MLX and Web dependencies are declared in the library; the console depends solely on `Noctis`.
+The `Noctis` and `NoctisCLI` folders constitute **two distinct modules**. The executable target `NoctisCLI` depends on the `Noctis` library and uses it via `import Noctis`. MLX and Web dependencies are declared in the library; the console depends on `Noctis` and the local `NoctisAgent` package.
 
 **There is no `ChatService` in this revision.** Conversation handling is managed directly by `NoctisApplication`. The tests cover this existing code; no extra service or refactoring was added for testing purposes.
 

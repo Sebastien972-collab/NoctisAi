@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Created by Sébastien DAGUIN -->
+<project version="4">
+  <component name="ProjectTasksOptions">
+    <TaskOptions isEnabled="true">
+      <option name="name" value="SwiftLint on save" />
+      <option name="fileExtension" value="swift" />
+      <option name="scopeName" value="Project Files" />
+      <option name="program" value="/bin/sh" />
+      <option name="arguments" value="&quot;$ProjectFileDir$/scripts/lint.sh&quot; --force-exclude &quot;$FilePath$&quot;" />
+      <option name="workingDir" value="$ProjectFileDir$" />
+      <option name="immediateSync" value="false" />
+      <option name="runOnExternalChanges" value="false" />
+      <option name="checkSyntaxErrors" value="false" />
+      <option name="trackOnlyRoot" value="false" />
+      <option name="exitCodeBehavior" value="ERROR" />
+      <option name="output" value="" />
+      <option name="outputFromStdout" value="false" />
+      <envs />
+    </TaskOptions>
+  </component>
+</project>

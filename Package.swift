@@ -1,5 +1,6 @@
 // swift-tools-version: 6.4
 // The swift-tools-version declares the minimum version of Swift required to build this package.
+// Created by Sébastien DAGUIN
 import PackageDescription
 
 let package = Package(
@@ -20,6 +21,7 @@ let package = Package(
         )
     ],
     dependencies: [
+        .package(path: "NoctisAgent"),
         .package(url: "https://github.com/adamtheturtle/SafeURLKit.git", exact: "0.2.0"),
         .package(
             url: "https://github.com/ml-explore/mlx-swift-lm.git",
@@ -40,12 +42,17 @@ let package = Package(
         .package(
             url: "https://github.com/wolfyy970/swift-readability.git",
             .upToNextMinor(from: "0.3.3")
-        )
+        ),
+        .package(
+            url: "https://github.com/migueldeicaza/SwiftTerm.git",
+            exact: "1.99.3"
+        ),
     ],
     targets: [
         .target(
             name: "Noctis",
             dependencies: [
+                .product(name: "NoctisAgent", package: "NoctisAgent"),
                 .product(name: "SafeURLKit", package: "SafeURLKit"),
                 .product(
                     name: "MLXLMCommon",
@@ -74,18 +81,23 @@ let package = Package(
                 .product(
                     name: "SwiftReadability",
                     package: "swift-readability"
-                )
+                ),
+                .product(
+                    name: "SwiftTerm",
+                    package: "SwiftTerm",
+                    condition: .when(platforms: [.macOS])
+                ),
             ],
             resources: [.process("Resources")]
         ),
         .executableTarget(
             name: "NoctisCLI",
-            dependencies: ["Noctis"],
+            dependencies: ["Noctis", .product(name: "NoctisAgent", package: "NoctisAgent")],
             resources: [.process("Resources")]
         ),
         .testTarget(
             name: "NoctisTests",
-            dependencies: ["Noctis", "NoctisCLI"]
+            dependencies: ["Noctis", "NoctisCLI", .product(name: "NoctisAgent", package: "NoctisAgent")]
         )
     ]
 )

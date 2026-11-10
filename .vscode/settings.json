@@ -1,0 +1,13 @@
+// Created by Sébastien DAGUIN
+{
+  "emeraldwalk.runonsave": {
+    "commands": [
+      {
+        "match": "\\.swift$",
+        "notMatch": "/(\\.build|build|\\.git|Pods|DerivedData)/",
+        "cmd": "/bin/sh \"${workspaceFolder}/scripts/lint.sh\" --force-exclude \"${file}\"",
+        "autoShowOutputPanel": "error"
+      }
+    ]
+  }
+}
