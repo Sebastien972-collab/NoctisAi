@@ -187,6 +187,144 @@
           }
         }
       }
+    },
+    "console.workspace.analyzing" : {
+      "comment" : "Message affiché par le CLI.",
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Analyzing the project…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Analyse du projet en cours…"
+          }
+        }
+      }
+    },
+    "console.workspace.authorized" : {
+      "comment" : "Message affiché par le CLI.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Authorized read-only directory:"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dossier autorisé en lecture seule :"
+          }
+        }
+      }
+    },
+    "console.workspace.context_reset" : {
+      "comment" : "Message affiché par le CLI.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conversation context reset for this access change."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contexte réinitialisé pour ce changement d’accès."
+          }
+        }
+      }
+    },
+    "console.workspace.hint" : {
+      "comment" : "Message affiché par le CLI.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Authorize a project at any time: /workspace /absolute/path\nRevoke access: /workspace off"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pour autoriser un projet à tout moment : /workspace /chemin/absolu\nPour retirer cet accès : /workspace off"
+          }
+        }
+      }
+    },
+    "console.workspace.invalid" : {
+      "comment" : "Message affiché par le CLI.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Directory refused or invalid arguments. Provide an existing directory with an absolute path without symbolic links."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dossier refusé ou arguments invalides. Indiquez un dossier existant avec un chemin absolu sans lien symbolique."
+          }
+        }
+      }
+    },
+    "console.workspace.iteration_limit" : {
+      "comment" : "Message affiché par le CLI.",
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Analysis limit reached. No final conclusion was produced; try a more specific request."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Limite d’analyse atteinte. Aucune conclusion finale n’a été produite ; reformulez une demande plus précise."
+          }
+        }
+      }
+    },
+    "console.workspace.revoked" : {
+      "comment" : "Message affiché par le CLI.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Directory access revoked."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Accès au dossier révoqué."
+          }
+        }
+      }
+    },
+    "console.workspace.usage" : {
+      "comment" : "Message affiché par le CLI.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usage: NoctisCLI [--workspace /absolute/project/path]\nWith --workspace, you authorize reading this directory. Then ask your questions normally. During conversation: /workspace /absolute/path to authorize a directory; /workspace off to revoke access. No code mode to enable. Type exit to quit."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utilisation : NoctisCLI [--workspace /chemin/absolu/du/projet]\nAvec --workspace, vous autorisez la lecture de ce dossier. Posez ensuite vos questions normalement. Pendant la conversation : /workspace /chemin/absolu pour autoriser un dossier ; /workspace off pour révoquer. Aucun mode code à activer. Tapez exit pour quitter."
+          }
+        }
+      }
     }
   },
   "version" : "1.3"

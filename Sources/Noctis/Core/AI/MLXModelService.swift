@@ -5,6 +5,7 @@
 //  Created by Sébastien DAGUIN on 03/11/2026.
 //
 import Foundation
+import NoctisAgent
 import MLXLMCommon
 import MLXVLM
 import HuggingFace
@@ -13,13 +14,28 @@ import MLXHuggingFace
 
 private final class MLXChatSession: ModelSession {
     private var session: ChatSession
+    private let workspaceAccess: WorkspaceToolAccess
+    private let webDispatcher: WebToolDispatcher
 
-    init(session: ChatSession) {
+    init(session: ChatSession, workspaceAccess: WorkspaceToolAccess, webDispatcher: WebToolDispatcher) {
         self.session = session
+        self.workspaceAccess = workspaceAccess
+        self.webDispatcher = webDispatcher
     }
 
     func streamResponse(to prompt: String) -> AsyncThrowingStream<String, Error> {
-        session.streamResponse(to: prompt)
+        let registry = workspaceAccess.registry
+        session.tools = MLXModelService.conversationToolSchemas(registry: registry)
+        if let registry {
+            let dispatcher = ConversationToolDispatcher(registry: registry)
+            session.toolDispatch = { call in try await dispatcher.execute(call) }
+            session.generateParameters.maxTokens = 2_048
+        } else {
+            let dispatcher = webDispatcher
+            session.toolDispatch = { call in try await dispatcher.execute(call) }
+            session.generateParameters.maxTokens = nil
+        }
+        return session.streamResponse(to: prompt)
     }
 
     func synchronize() async {
@@ -27,7 +43,7 @@ private final class MLXChatSession: ModelSession {
     }
 
     func reset(history: [AIChatMessage]) async throws {
-        var instructions = [NoctisIdentity.systemPrompt]
+        var instructions = [NoctisIdentity.systemPrompt + MLXModelService.workspaceInstructions]
         let messages: [Chat.Message] = history.compactMap {
             switch $0.role {
             case .user: return .user($0.content)
@@ -109,12 +125,15 @@ struct CachedModelDownloader: Downloader {
     }
 }
 
-public actor MLXModelService: AIModelService {
+public actor MLXModelService: AIModelService, WorkspaceAuthorizing {
     public enum LoadState: Equatable, Sendable {
         case notLoaded, loading, loaded, failed
     }
 
     public private(set) var loadState = LoadState.notLoaded
+    private let workspaceAccess: WorkspaceToolAccess
+    private let agentModelReference: LoadedAgentModel?
+    private var isAgentGenerating = false
     private let factory: ModelSessionWorker.Factory
     private var worker: ModelSessionWorker?
     private var generation: Task<Void, Never>?
@@ -131,24 +150,37 @@ public actor MLXModelService: AIModelService {
         self.init(webSearchService: SearXNGService())
     }
 
-    public init(webSearchService: any WebSearchService) {
+    public init(modelID: String) {
+        self.init(webSearchService: SearXNGService(), modelID: modelID)
+    }
+
+    public init(webSearchService: any WebSearchService, modelID: String? = nil) {
+        let access = WorkspaceToolAccess()
+        workspaceAccess = access
+        let reference = LoadedAgentModel()
+        agentModelReference = reference
+        let selectedModelID = modelID ?? NoctisConfiguration.modelID
         let dispatcher = WebToolDispatcher(searchService: webSearchService, pasgeService: HTTPWebPageService())
         factory = { progress in
-            let model = try await loadModel(
+            let context = try await loadModel(
                 from: CachedModelDownloader(client: HubClient(), phase: progress),
                 using: #huggingFaceTokenizerLoader(),
-                id: NoctisConfiguration.modelID
+                id: selectedModelID
             )
+            let model = ModelContainer(context: context)
+            await reference.set(model)
             return MLXChatSession(session: ChatSession(
                 model,
-                instructions: NoctisIdentity.systemPrompt,
+                instructions: NoctisIdentity.systemPrompt + MLXModelService.workspaceInstructions,
                 tools: [WebSearchTool.schema],
                 toolDispatch: { call in try await dispatcher.execute(call) }
-            ))
+            ), workspaceAccess: access, webDispatcher: dispatcher)
         }
     }
 
     init(sessionFactory: @escaping ModelSessionWorker.Factory) {
+        workspaceAccess = WorkspaceToolAccess()
+        agentModelReference = nil
         factory = sessionFactory
     }
 
@@ -182,9 +214,22 @@ public actor MLXModelService: AIModelService {
         }
     }
 
+    public func authorizeWorkspace(_ workspace: AuthorizedWorkspace?) async throws {
+        try Task.checkCancellation()
+        guard generation == nil, !isResetting, !isAgentGenerating, loadState != .loading else {
+            throw MLXModelServiceError.generationInProgress
+        }
+        isResetting = true
+        defer { isResetting = false }
+        // Reset before changing capability scopes: local file contents must never enter Web-only history.
+        try await worker?.reset(history: [])
+        try Task.checkCancellation()
+        workspaceAccess.authorize(workspace)
+    }
+
     public func resetConversation(history: [AIChatMessage]) async throws {
         guard let worker else { throw MLXModelServiceError.modelNotLoaded }
-        guard !isResetting else { throw MLXModelServiceError.generationInProgress }
+        guard !isResetting, !isAgentGenerating else { throw MLXModelServiceError.generationInProgress }
         isResetting = true
         defer { isResetting = false }
         await cancelGeneration()
@@ -222,7 +267,9 @@ public actor MLXModelService: AIModelService {
     ) {
         try Task.checkCancellation()
         guard let worker else { throw MLXModelServiceError.modelNotLoaded }
-        guard generation == nil, !isResetting else { throw MLXModelServiceError.generationInProgress }
+        guard generation == nil, !isResetting, !isAgentGenerating else {
+            throw MLXModelServiceError.generationInProgress
+        }
 
         let (stream, output) = AsyncThrowingStream<String, Error>.makeStream()
         let cancellation = GenerationCancellation()
@@ -245,6 +292,24 @@ public actor MLXModelService: AIModelService {
         }
         generation = task
         return (stream, cancellation, task)
+    }
+
+    public func respond(
+        messages: [AgentMessage], tools: [AgentToolSchema], limits: AgentLimits
+    ) async throws -> AgentResponse {
+        try Task.checkCancellation()
+        guard loadState == .loaded, let agentModelReference else {
+            throw MLXModelServiceError.modelNotLoaded
+        }
+        guard generation == nil, !isResetting, !isAgentGenerating else {
+            throw MLXModelServiceError.generationInProgress
+        }
+        isAgentGenerating = true
+        defer { isAgentGenerating = false }
+        guard let model = await agentModelReference.get() else {
+            throw MLXModelServiceError.modelNotLoaded
+        }
+        return try await Self.generateAgentResponse(model: model, messages: messages, tools: tools, limits: limits)
     }
 
     /// Waits for MLX's cache transaction to end before permitting another turn.

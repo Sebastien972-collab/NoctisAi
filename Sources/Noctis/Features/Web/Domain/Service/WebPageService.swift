@@ -5,7 +5,6 @@
 //  Created by Sébastien DAGUIN on 03/11/2026.
 //
 
-
 import Foundation
 
 protocol WebPageService: Sendable {
