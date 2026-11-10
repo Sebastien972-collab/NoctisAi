@@ -1,6 +1,6 @@
 // swift-tools-version: 6.4
-// The swift-tools-version declares the minimum version of Swift required to build this package.
 // Created by Sébastien DAGUIN
+
 import PackageDescription
 
 let package = Package(
@@ -15,17 +15,24 @@ let package = Package(
             name: "Noctis",
             targets: ["Noctis"]
         ),
+        .library(
+            name: "NoctisAgent",
+            targets: ["NoctisAgent"]
+        ),
         .executable(
             name: "NoctisCLI",
             targets: ["NoctisCLI"]
         )
     ],
     dependencies: [
-        .package(path: "NoctisAgent"),
-        .package(url: "https://github.com/adamtheturtle/SafeURLKit.git", exact: "0.2.0"),
+        .package(
+            url: "https://github.com/adamtheturtle/SafeURLKit.git",
+            exact: "0.2.0"
+        ),
         .package(
             url: "https://github.com/ml-explore/mlx-swift-lm.git",
-            branch: "main"
+            exact: "3.32.3",
+            traits: []
         ),
         .package(
             url: "https://github.com/huggingface/swift-huggingface.git",
@@ -46,14 +53,26 @@ let package = Package(
         .package(
             url: "https://github.com/migueldeicaza/SwiftTerm.git",
             exact: "1.99.3"
-        ),
+        )
     ],
     targets: [
+        // MARK: - NoctisAgent
+
+        .target(
+            name: "NoctisAgent",
+            path: "NoctisAgent/Sources/NoctisAgent"
+        ),
+
+        // MARK: - Noctis Engine
+
         .target(
             name: "Noctis",
             dependencies: [
-                .product(name: "NoctisAgent", package: "NoctisAgent"),
-                .product(name: "SafeURLKit", package: "SafeURLKit"),
+                "NoctisAgent",
+                .product(
+                    name: "SafeURLKit",
+                    package: "SafeURLKit"
+                ),
                 .product(
                     name: "MLXLMCommon",
                     package: "mlx-swift-lm"
@@ -86,18 +105,42 @@ let package = Package(
                     name: "SwiftTerm",
                     package: "SwiftTerm",
                     condition: .when(platforms: [.macOS])
-                ),
+                )
             ],
-            resources: [.process("Resources")]
+            resources: [
+                .process("Resources")
+            ]
         ),
+
+        // MARK: - CLI
+
         .executableTarget(
             name: "NoctisCLI",
-            dependencies: ["Noctis", .product(name: "NoctisAgent", package: "NoctisAgent")],
-            resources: [.process("Resources")]
+            dependencies: [
+                "Noctis",
+                "NoctisAgent"
+            ],
+            resources: [
+                .process("Resources")
+            ]
+        ),
+
+        // MARK: - Tests
+
+        .testTarget(
+            name: "NoctisAgentTests",
+            dependencies: [
+                "NoctisAgent"
+            ],
+            path: "NoctisAgent/Tests/NoctisAgentTests"
         ),
         .testTarget(
             name: "NoctisTests",
-            dependencies: ["Noctis", "NoctisCLI", .product(name: "NoctisAgent", package: "NoctisAgent")]
+            dependencies: [
+                "Noctis",
+                "NoctisCLI",
+                "NoctisAgent"
+            ]
         )
     ]
 )
