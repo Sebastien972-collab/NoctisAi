@@ -18,4 +18,9 @@ public enum InterfaceValidationError: String, Error, Sendable, Equatable {
     case descriptionTooLarge
     case invalidActionReference
     case invalidStyle
+    case invalidRevision
+    case targetNotFound
+    case incompatibleMutation
+    case tooDeep
+    case tooManyActions
 }

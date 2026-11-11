@@ -21,13 +21,20 @@ public enum InterfaceNodeType: String, Codable, Sendable, Equatable, CaseIterabl
     case input
     case menu
     case status
+    case heading
+    case markdown
+    case card
+    case sourceList
+    case chart
+    case choice
+    case confirmation
 
     /// Whether a node of this type can carry child nodes.
     public var allowsChildren: Bool {
         switch self {
-        case .row, .column, .container, .list, .table, .menu:
+        case .row, .column, .container, .list, .table, .menu, .card, .sourceList, .chart, .choice, .confirmation:
             return true
-        case .text, .divider, .progress, .spinner, .input, .status:
+        case .text, .heading, .markdown, .divider, .progress, .spinner, .input, .status:
             return false
         }
     }
@@ -36,8 +43,8 @@ public enum InterfaceNodeType: String, Codable, Sendable, Equatable, CaseIterabl
     public var defaultLayout: InterfaceLayout? {
         switch self {
         case .row: return .horizontal
-        case .column, .container, .list, .table, .menu: return .vertical
-        case .text, .divider, .progress, .spinner, .input, .status: return nil
+        case .column, .container, .list, .table, .menu, .card, .sourceList, .chart, .choice, .confirmation: return .vertical
+        case .text, .heading, .markdown, .divider, .progress, .spinner, .input, .status: return nil
         }
     }
 }

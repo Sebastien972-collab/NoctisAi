@@ -10,17 +10,20 @@ public struct InterfaceDescription: Codable, Sendable, Equatable {
     public static let currentSchemaVersion = 1
 
     public let schemaVersion: Int
+    public let revision: Int
     public let id: String
-    public let title: String?
-    public let root: InterfaceNode
+    public var title: String?
+    public var root: InterfaceNode
 
     public init(
         schemaVersion: Int = currentSchemaVersion,
+        revision: Int = 1,
         id: String,
         title: String? = nil,
         root: InterfaceNode
     ) {
         self.schemaVersion = schemaVersion
+        self.revision = revision
         self.id = id
         self.title = title
         self.root = root

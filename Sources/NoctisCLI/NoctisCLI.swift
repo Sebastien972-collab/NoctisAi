@@ -9,6 +9,7 @@ import Darwin
 import Foundation
 import Noctis
 import NoctisAgent
+import SwiftTUICLI
 
 @main
 struct NoctisCLI {
@@ -79,7 +80,14 @@ struct NoctisCLI {
         }
         let model = embedded.map { MLXModelService(webSearchService: $0) } ?? MLXModelService()
         try await model.authorizeWorkspace(workspace)
-        await NoctisApplication(modelService: model, workspace: workspace).run()
+        if isatty(STDIN_FILENO) == 1, isatty(STDOUT_FILENO) == 1,
+           ProcessInfo.processInfo.environment["TERM"] != "dumb" {
+            let state = await ConversationUIState(modelService: model)
+            try await TerminalRunner.run(NoctisTerminalApp(state: state))
+        } else {
+            // Pipes and automation retain the line-oriented interface and deterministic output.
+            await NoctisApplication(modelService: model, workspace: workspace).run()
+        }
         await embedded?.shutdown()
     }
 

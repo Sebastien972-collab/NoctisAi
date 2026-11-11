@@ -2,6 +2,8 @@
 
 # Noctis 🌘
 
+See [DYNAMIC_UI.md](DYNAMIC_UI.md) for the SwiftTUI-based generative interface architecture, protocol, security limits and benchmarks.
+
 Noctis is a personal command-line AI assistant, developed in Swift for macOS. It uses **Ministral 3 14B Instruct**, in 4-bit quantized MLX format, to generate its responses locally and stream them incrementally to the terminal.
 
 The project includes streaming conversation and a `web_search` tool connected to SearXNG. Persistent memory and a Vapor API are not yet implemented.

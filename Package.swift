@@ -51,8 +51,8 @@ let package = Package(
             .upToNextMinor(from: "0.3.3")
         ),
         .package(
-            url: "https://github.com/migueldeicaza/SwiftTerm.git",
-            exact: "1.99.3"
+            url: "https://github.com/SwiftTUI/swift-tui.git",
+            exact: "0.16.0"
         )
     ],
     targets: [
@@ -101,15 +101,16 @@ let package = Package(
                     name: "SwiftReadability",
                     package: "swift-readability"
                 ),
-                .product(
-                    name: "SwiftTerm",
-                    package: "SwiftTerm",
-                    condition: .when(platforms: [.macOS])
-                )
             ],
             resources: [
                 .process("Resources")
             ]
+        ),
+
+        // MARK: - Renderer-independent Dynamic UI protocol
+
+        .target(
+            name: "NoctisPresentation"
         ),
 
         // MARK: - CLI
@@ -118,7 +119,10 @@ let package = Package(
             name: "NoctisCLI",
             dependencies: [
                 "Noctis",
-                "NoctisAgent"
+                "NoctisAgent",
+                "NoctisPresentation",
+                .product(name: "SwiftTUI", package: "swift-tui"),
+                .product(name: "SwiftTUICLI", package: "swift-tui")
             ],
             resources: [
                 .process("Resources")
@@ -139,7 +143,8 @@ let package = Package(
             dependencies: [
                 "Noctis",
                 "NoctisCLI",
-                "NoctisAgent"
+                "NoctisAgent",
+                "NoctisPresentation"
             ]
         )
     ]

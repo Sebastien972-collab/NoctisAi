@@ -1,5 +1,5 @@
 {
-  "originHash" : "0040a60eeabaf9b272a934889ecc00970847839c3d7f559c192d054f63e3aa27",
+  "originHash" : "543466a0b77314030eed8657cef06df676871e01d32602bf1d556704544e54e6",
   "pins" : [
     {
       "identity" : "eventsource",
@@ -8,15 +8,6 @@
       "state" : {
         "revision" : "bb4b61273b5a976bb571859c17f903ebc3439df1",
         "version" : "1.6.0"
-      }
-    },
-    {
-      "identity" : "h",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/rarestype/h",
-      "state" : {
-        "revision" : "aa3626829160917d4378330617971977cbd78f5b",
-        "version" : "1.0.1"
       }
     },
     {
@@ -65,6 +56,15 @@
       }
     },
     {
+      "identity" : "swift-async-algorithms",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-async-algorithms.git",
+      "state" : {
+        "revision" : "d0b4a06d0f173a2f3be27d3ea21b3c3aa18db440",
+        "version" : "1.1.4"
+      }
+    },
+    {
       "identity" : "swift-collections",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-collections.git",
@@ -110,15 +110,6 @@
       }
     },
     {
-      "identity" : "swift-png",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/tayloraswift/swift-png",
-      "state" : {
-        "revision" : "2d17c6c51c098628574c0383f1119892655a73a2",
-        "version" : "4.5.2"
-      }
-    },
-    {
       "identity" : "swift-readability",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/wolfyy970/swift-readability.git",
@@ -155,6 +146,15 @@
       }
     },
     {
+      "identity" : "swift-tui",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/SwiftTUI/swift-tui.git",
+      "state" : {
+        "revision" : "9ef8feec9fee6fc199767a52aa1c913976bdb2c9",
+        "version" : "0.16.0"
+      }
+    },
+    {
       "identity" : "swift-url",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/karwa/swift-url.git",
@@ -170,15 +170,6 @@
       "state" : {
         "revision" : "ead56133a693d0184d8c2db1a6d6394410cacfd6",
         "version" : "2.13.6"
-      }
-    },
-    {
-      "identity" : "swiftterm",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/migueldeicaza/SwiftTerm.git",
-      "state" : {
-        "revision" : "282c3c3a932b55c129628876b70f37d993af1615",
-        "version" : "1.99.3"
       }
     },
     {
