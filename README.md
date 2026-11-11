@@ -234,7 +234,13 @@ checkout, exercises install/reinstall/rollback/uninstall, rejects corruption and
 and checks that unrelated executables are preserved. It never installs into your real PATH or
 loads a model. Unit tests cover command parsing, lazy loading, multiline input, terminal control
 filtering, split Markdown tokens, permissions, signal cancellation and continuation after errors.
-Real MLX/Metal inference and physical terminal interactions require separate runtime validation.
+A separate runtime check with the cached Ministral 3 14B model verified a real local response,
+then interruption after the first generated fragment and a successful next turn using the same
+loaded model. Pseudo-terminal checks cover history, Unicode editing, Ctrl+C/Ctrl+D, confirmation,
+terminal restoration, narrow windows and NO_COLOR. These checks do not constitute a benchmark
+or validation on every terminal application. The official unsigned `0.1.0` tag was also rejected
+by the updater; a successful update from a trusted signed official release remains untested
+until one is published.
 
 ## Configuration
 

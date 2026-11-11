@@ -83,6 +83,36 @@ struct NoctisCLITests {
         #expect(output.contains("Après interruption"))
     }
 
+    @Test(arguments: ["install", "arm", "cancel"])
+    func cancellationHandlersCanReenterCancellationState(phase: String) async throws {
+        let cancellation = GenerationCancellation()
+        let (ready, signal) = AsyncStream<Void>.makeStream()
+        let reader = Task<Void, Error> {
+            try await withTaskCancellationHandler {
+                signal.yield(())
+                try await Task.sleep(for: .seconds(30))
+            } onCancel: {
+                #expect(cancellation.isCancelled)
+            }
+        }
+        for await _ in ready { break }
+        switch phase {
+        case "install":
+            cancellation.arm()
+            cancellation.cancel()
+            cancellation.install(reader)
+        case "arm":
+            cancellation.cancel()
+            cancellation.install(reader)
+            cancellation.arm()
+        default:
+            cancellation.install(reader)
+            cancellation.arm()
+            cancellation.cancel()
+        }
+        await #expect(throws: CancellationError.self) { try await reader.value }
+    }
+
     @Test func sensitiveRootsAndAdditionalCredentialNamesAreDenied() throws {
         for name in [".codex", ".ssh", "tokens.json", "passwords.txt", "api_key.txt", ".env.production"] {
             #expect(AuthorizedWorkspace.isSensitive(name: name))

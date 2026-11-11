@@ -23,6 +23,7 @@ struct ConsoleInterface {
         print("  " + String(localized: "console.message.welcome", defaultValue: "Bonjour, installe-toi.",
                             bundle: .module, comment: "Message affiché par le CLI."))
         print()
+        fflush(stdout)
     }
 
     func displayReady() {
@@ -31,10 +32,12 @@ struct ConsoleInterface {
         print("  " + styled(String(localized: "console.hint.exit", defaultValue: "Tape exit pour quitter.",
                                    bundle: .module, comment: "Conserver la commande exit telle quelle."), color: "2"))
         print()
+        fflush(stdout)
     }
 
     func displayStatus(_ message: String) {
         print("  " + styled(TerminalMarkdown.sanitized(message), color: "2"))
+        fflush(stdout)
     }
 
     func confirmWorkspace(_ path: String, input: inout ConsoleInput) -> Bool {
@@ -67,6 +70,7 @@ struct ConsoleInterface {
         let details = TerminalMarkdown.sanitized(error.localizedDescription)
         print(String(localized: "console.error.details", defaultValue: "Erreur : \(details)",
                      bundle: .module, comment: "Le paramètre contient la description localisée de l’erreur."))
+        fflush(stdout)
     }
 
     private func styled(_ text: String, color: String) -> String {

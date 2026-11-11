@@ -31,7 +31,7 @@ final class NoctisApplication {
         while let prompt = input.readPrompt() {
             if [NoctisConfiguration.exitCommand, "/exit"].contains(prompt.lowercased()) { break }
             guard !prompt.isEmpty else { continue }
-            if await handleCommand(prompt) { continue }
+            if await handleCommand(prompt) { fflush(stdout); continue }
             await respond(to: prompt, interrupts: interrupts)
         }
         console.displayStatus(String(localized: "console.status.terminated",

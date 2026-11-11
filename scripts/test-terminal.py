@@ -87,6 +87,38 @@ def exercise(no_color):
             os.close(secondary)
 
 
+def exercise_redirected():
+    child = subprocess.Popen([str(executable)], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                             stderr=subprocess.STDOUT)
+    output = bytearray()
+    try:
+        deadline = time.monotonic() + 10
+        while b"exit" not in output:
+            assert time.monotonic() < deadline, "Redirected welcome was not flushed"
+            readable, _, _ = select.select([child.stdout], [], [], 0.1)
+            if readable:
+                chunk = os.read(child.stdout.fileno(), 4096)
+                assert chunk, bytes(output)
+                output.extend(chunk)
+        child.stdin.write(b"/model\n")
+        child.stdin.flush()
+        model = b"mlx-community/Ministral-3-14B-Instruct-2512-4bit"
+        while model not in output:
+            assert time.monotonic() < deadline, "Redirected command output was not flushed"
+            readable, _, _ = select.select([child.stdout], [], [], 0.1)
+            if readable:
+                output.extend(os.read(child.stdout.fileno(), 4096))
+        remaining, _ = child.communicate(input=b"/exit\n", timeout=10)
+        output.extend(remaining)
+        assert child.returncode == 0
+        assert b"\x1b" not in output
+    finally:
+        if child.poll() is None:
+            child.kill()
+            child.wait()
+
+
+exercise_redirected()
 exercise(no_color=False)
 exercise(no_color=True)
 print("Terminal: history, UTF-8 editing, Ctrl+C/Ctrl+D, confirmations, width and NO_COLOR: OK")
