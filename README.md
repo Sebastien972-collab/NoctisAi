@@ -48,76 +48,193 @@ For quantities, use catalog plural variants; an exit code is not a quantity and 
 Build in Xcode to extract new keys, then check French and English values in the catalogs. Model instructions, technical identifiers, and commands like `exit` are not translated.
 The host application must declare the supported languages. SwiftUI previews and Fullmoon visual validation are performed in its host repository.
 
-## Current Features
+## Global CLI
 
-- Loading a model from its Hugging Face repository ID using MLX Swift LM.
-- Initializing a `ChatSession` with Noctis's identity and instructions.
-- Reusing this session across conversations within the running process.
-- Reading prompts from the terminal and streaming chunks as they arrive.
-- Trimming whitespace around prompts and skipping empty messages.
-- Exiting with `exit` (case-insensitive) or upon standard input EOF.
-- Displaying errors for loading, generation, and stream reading.
-- Web search via `web_search`, `WebToolDispatcher`, and the local SearXNG service.
+Noctis remains a general-purpose personal assistant: conversation, learning, reflection,
+questions and local documents. A working directory does not change its identity or turn it
+into a programming agent. Its existing system prompt and MLX model are preserved.
 
-Inference is local. The loader first checks for a complete installation in the Hugging Face cache with `localFilesOnly: true`, without network verification. If files are missing, the Hugging Face client downloads the required assets while reusing the cache. Tokenizer files and all weight shards must be present; legacy index files from an unquantized model are accepted when the quantized shard set is complete. An installed model can be reloaded without network access. Web tools remain dependent on their own services.
+### Prerequisites
 
-## Prerequisites
+- macOS 15 or later on Apple Silicon, with enough memory for Ministral 3 14B (4-bit).
+- Swift 6.4 or later and the selected Xcode installation, including its Metal Toolchain component.
+- Git and network access for initial Swift package resolution. The existing model downloads
+  from Hugging Face only if its local cache is incomplete; no other model is selected.
+- No Homebrew, Docker, remote inference service or `sudo` is required.
 
-- **Swift 6.4 or later**, according to `swift-tools-version` in `Package.swift`.
-- **macOS 15 or later**, the package's declared minimum deployment target.
-- A Mac compatible with MLX and Metal, with sufficient memory capacity to run the chosen 14B model. This version does not include memory consumption measurements or hardware benchmarks.
-- Xcode and its **Metal Toolchain component** to compile shaders for MLX dependencies.
-- Network access to resolve Swift packages and, on the first real launch, download model files if they are not already cached.
+Check `swift --version` and `xcode-select -p` before installing. See Apple's documentation
+on [additional Xcode components](https://developer.apple.com/documentation/xcode/downloading-and-installing-additional-xcode-components)
+if the Metal compiler is unavailable.
 
-Installing the tools and the Metal component must be done in your environment. See Apple's documentation on [downloading and installing additional Xcode components](https://developer.apple.com/documentation/xcode/downloading-and-installing-additional-xcode-components).
+### Install and launch
 
-## Getting Started
-
-From the repository root:
+From your trusted checkout:
 
 ```sh
-swift --version
-swift package resolve
-swift build
-swift run NoctisCLI
+scripts/install.sh
 ```
 
-`swift run NoctisCLI` genuinely launches the assistant: its entry point instantiates `MLXModelService`, then calls `NoctisApplication.run()`. This command may therefore trigger downloading and loading the model. It is not used by unit tests.
+The script uses the selected Swift/Xcode to build `NoctisCLI` in Release. It copies the
+executable **and all SwiftPM resource bundles, including MLX's Metal library**, checks their
+SHA-256 checksums, then runs help, version and diagnostics before activation. Build failures
+leave the previous installation active. A lock prevents concurrent installation/uninstallation.
 
-Once the `Tout est prêt !` message is displayed, enter a prompt after `Vous >`. Responses are streamed after `Noctis 🌘 >`. Enter `exit` to quit.
-
-For an optimized build:
+The command is installed at `~/.local/bin/noctis`. If needed, add this to `~/.zshrc`:
 
 ```sh
-swift build -c release
-swift run -c release NoctisCLI
+export PATH="$HOME/.local/bin:$PATH"
 ```
 
-To authorize read-only analysis of a project with Ministral 3 14B on macOS:
+Open a new terminal, then:
 
 ```sh
-swift run NoctisCLI --workspace "/Users/sebastiendaguin/NoctisAI/NoctisAi"
+cd ~/Documents
+noctis
 ```
 
-Then ask normally, for example: `Explique l’architecture du projet et trouve où le modèle MLX est chargé.`
-The flag explicitly authorizes only this directory. Paths must be absolute and contain no symbolic links.
-The conversation engine natively exposes listFiles, readFile and searchCode for the authorized directory.
-Ministral chooses whether to call tools or answer directly, without a separate code mode.
-Ordinary replies and tool-assisted replies use the same streaming conversation and preserve context between turns.
-Editing and command execution remain disabled.
-
-You can also start without arguments, then authorize a project at any time:
+The current directory is retained as the initial read-only workspace. Opening its directory
+descriptor does not enumerate its contents or put documents into the model. No model load
+or download happens at the welcome screen; the first actual question loads the configured
+model. Later turns reuse its weights, conversation history and system instructions.
 
 ```text
-/workspace /absolute/project/path
+✦ Noctis
+  Assistant personnel · IA locale
+
+  Bonjour, installe-toi.
+  Je suis là. Comment puis-je t’aider ?
+
+›
 ```
 
-Use `/workspace off` to revoke access. These commands grant permissions; they do not switch a code mode.
-Changing directory access resets conversation history to separate local content from Web-enabled conversations.
-Web search is unavailable while a workspace is authorized. Without authorization, local tools are not declared.
-The same capability is available directly to applications through `MLXModelService.authorizeWorkspace(_:)`
-and the usual `generate` / `withResponse` APIs, independently of the CLI.
-Use `swift run NoctisCLI --help` to display usage without loading or downloading the model.
+For development, `swift run NoctisCLI` remains available. A fully explicit scope is also supported:
+
+```sh
+noctis --workspace /absolute/folder/path
+```
+
+### Commands and input
+
+| Command | Behavior |
+| --- | --- |
+| `noctis --help` | Help, without loading the model |
+| `noctis --version` | Installed Git revision/version, without loading the model |
+| `noctis doctor` | Architecture and installed resource checks; never runs inference |
+| `noctis update` | Display the verified manual update procedure; no automatic download |
+| `/help` | Interactive help |
+| `/clear` | Reset conversation context and session input history; retain model weights |
+| `/model` | Show the configured model ID |
+| `/workspace` | Show the authorized directory |
+| `/workspace /absolute/path` | Ask for terminal confirmation before changing directory scope |
+| `/workspace off` | Revoke local access and restore the existing Web-enabled conversation |
+| `/permissions` | Show the effective policy and limitations |
+| `/exit`, `exit`, Ctrl+D | Leave the session |
+
+In an interactive terminal, use ↑/↓ for session history, backspace to edit the end of the line,
+and Ctrl+U to clear it. Long input scrolls horizontally to fit the terminal. End a line with
+`\` to continue the same message on the next line. Ctrl+C discards the current input or cancels
+an active model load/generation and permits the next turn. Cancellation joins the existing
+MLX cleanup path; an in-progress load/prefill may take time to finish safely.
+
+Input is limited to 64 KiB per message. Input history is in memory only, capped at 100 entries
+and 256 KiB; it is discarded on exit or `/clear`. Conversation context stays in the running MLX
+session; use `/clear` to release the context of a long conversation. No persistent memory is added.
+
+Responses stream incrementally. Interactive colored terminals render headings, bold, inline
+code and fenced code blocks; other Markdown stays readable as text. Lines wrap naturally to the
+terminal width. `NO_COLOR`, `TERM=dumb` and redirected output disable styling. Model-generated
+terminal controls are filtered. Redirected input accepts newline-separated prompts and the same
+backslash continuation convention; it never accepts interactive permission grants.
+
+### Workspace and permissions
+
+The host authorizes the workspace, never the LLM. `AuthorizedWorkspace` pins the root inode and
+opens descendants with descriptor-relative `openat` and `O_NOFOLLOW`:
+
+- Absolute descendant paths, traversal, symbolic links, non-regular files and hard links are refused.
+- Known sensitive names (`.env*`, private keys, credentials, tokens, `.ssh`, `.aws`, `.codex`, etc.)
+  are blocked, including when supplied as the workspace root or an ancestor.
+- Text reads are limited to 64 KiB. Listing, recursive search, tool results and tool calls are bounded.
+- Tools are available when needed for a user request, without automatic startup exploration.
+- A new directory outside the current scope requires an explicit `--workspace` flag or a live
+  terminal confirmation. Model output, file contents and piped text cannot approve a scope change.
+
+**Writing, deleting, renaming and system command execution are disabled.** No write/exec tool is
+exposed, so there is no autonomous execution mode or unsafe shell interpolation. This deliberately
+limits this first CLI version rather than claiming that confirmation alone provides OS isolation.
+A future write/exec implementation will need its own validation, preview and confirmation flow.
+
+These descriptor checks are not an operating-system sandbox. Name filtering cannot detect a
+secret stored under an ordinary name; authorize only folders you intend Noctis to consult.
+
+The existing engine separates local-file and Web contexts: Web search is unavailable while a
+workspace is authorized. `/workspace off` resets history before exposing Web tools, so local file
+contents do not carry over into Web-enabled context. Changing scopes also resets conversation
+context. This explicit separation remains a limitation of this release.
+
+The optional existing SearXNG runtime starts only when needed. If its configuration is invalid,
+a diagnostic is displayed and ordinary conversation remains available. `doctor` describes the
+optional Web setup without starting a service, loading a model or probing the network.
+
+### Updates and restoration
+
+`noctis update` prints the procedure instead of silently executing remote scripts. From your
+trusted checkout, first verify the release tag and full commit independently against the
+[official releases](https://github.com/Sebastien972-collab/NoctisAi/releases), then run:
+
+```sh
+scripts/update.sh --tag vX.Y.Z --revision FULL_40_CHARACTER_COMMIT
+```
+
+The updater fetches only the requested SemVer tag from the fixed official repository into a
+temporary checkout. It requires an annotated OpenPGP-signed tag, a valid signature from a fully
+trusted key in your local GPG keyring, and an exact match to the supplied commit. A missing or
+untrusted signature fails closed. A checksum by itself is not treated as publisher authentication.
+No automatic update is available until such a signed release exists. No new release tag is created
+by this implementation, and the old `0.1.0` tag is not changed.
+
+Only the trusted checkout's installer is executed. Building Swift packages can execute build
+plugins, so the release signer and pinned commit must be trusted. The development repository
+and the shell's working directory are never pulled, reset or overwritten.
+
+Installations are staged under `~/.local/share/noctis/versions`. An atomic symlink replacement
+activates the new version; a failed post-activation check restores the prior link. The previous
+version remains available:
+
+```sh
+scripts/update.sh --rollback
+```
+
+Checksums are rechecked before rollback. Previous versions remain on disk for restoration until
+uninstall; reinstalling is safe and does not require deleting the working version first.
+
+### Uninstall
+
+```sh
+scripts/uninstall.sh
+```
+
+Only this installer's command link and managed versions are removed. Hugging Face model caches,
+SearXNG runtime, personal documents and shell configuration are retained. An unrelated existing
+`noctis` executable is never overwritten or removed. `NOCTIS_PREFIX=/absolute/prefix` can be used
+consistently with all scripts to install or test under a different prefix.
+
+### CLI validation
+
+```sh
+swift build -c release --product NoctisCLI
+swift test
+scripts/lint.sh
+scripts/test-install.sh
+python3 scripts/test-terminal.py
+```
+
+The installation integration test uses a temporary prefix with spaces, launches from outside the
+checkout, exercises install/reinstall/rollback/uninstall, rejects corruption and failed builds,
+and checks that unrelated executables are preserved. It never installs into your real PATH or
+loads a model. Unit tests cover command parsing, lazy loading, multiline input, terminal control
+filtering, split Markdown tokens, permissions, signal cancellation and continuation after errors.
+Real MLX/Metal inference and physical terminal interactions require separate runtime validation.
 
 ## Configuration
 
