@@ -1,5 +1,140 @@
 # Web Security Audit and Hardening — November 3, 2026
 
+## Current review — November 12, 2026
+
+**`web_open` remains disabled. No public transport has been implemented or certified.**
+The November 3 sections below are historical. This section describes the current change.
+
+### Audit and transport decision
+
+The real sources reviewed include `NoctisIdentity`, `MLXModelService`, `MLXAgentModel`,
+`ToolRegistry`, the search schema and dispatcher, `PublicWebURLPolicy`, `HTTPWebPageService`,
+`BoundedHTTPClient`, extraction tests, URLProtocol tests and the controlled Network.framework
+integration server. The initial checkout was clean on `main`; work uses
+`feat/secure-web-prompt-registry`. Dependencies, package configuration and generated files are unchanged.
+
+The public page service and Web dispatcher both rejected opening, but the identity permanently
+advertised search and denied local reading. The conversation actually replaces search with three
+read-only tools when a workspace is authorized. The separate AgentModel path had the same identity
+mismatch. Schema selection alone did not update those instructions after authorization changes.
+
+The resolved SafeURLKit 0.2.0 source offers `validate(resolvedAddresses:)`, including IPv4/IPv6
+reserved-address checks. These checks do **not** bind the following URLSession connection to the
+checked addresses. BoundedHTTPClient remains an **internal SearXNG transport only**.
+
+Native alternative examined: resolve all A/AAAA candidates, reject the entire set if any is
+nonpublic, then create Network.framework connections to numeric endpoints, preserving the
+original hostname in TLS SNI, certificate hostname validation and HTTP authority. This would
+require a reviewed HTTP implementation above the connection, response framing and header limits,
+trust-chain/hostname validation tests, connection/retry ownership, cancellation, deadlines,
+and verified exclusion of proxies and alternate routes on all supported OS versions.
+Network.framework is a viable building block, not proof that this complete transport exists.
+We did not write a custom HTTP/TLS parser or add an unverified secure-looking wrapper.
+
+Primary references examined:
+- [Apple: Network.framework connection example](https://developer.apple.com/documentation/network/implementing-netcat-with-network-framework)
+- [Apple: TLS server name](https://developer.apple.com/documentation/security/sec_protocol_options_set_tls_server_name(_:_:))
+- [Apple: local-network TLS and certificate identity](https://developer.apple.com/documentation/network/creating-an-identity-for-local-network-tls)
+- [Apple: URLSession task metrics](https://developer.apple.com/documentation/foundation/urlsessiontaskmetrics)
+
+An isolated egress gateway would be an alternative, but none is deployed, audited or shipped for
+macOS/iOS here. Adding one would introduce a separate service and its lifecycle. Neither architecture
+has the controlled DNS/TLS/proxy test fixture required to substantiate the requested guarantees.
+This is an implementation and verification gap, not a claim that native secure fetching is impossible.
+
+### Implemented architecture
+
+`NoctisSystemPromptBuilder` assembles, in deterministic order: permanent identity, core reliability,
+security, effective tool instructions, dated runtime context, host-selected presentation. Identity
+stays at its existing path to avoid an unnecessary move. Its personality, relationship with Sébastien,
+critical thinking and guiding principles are retained; platform, tool names and terminal formatting
+are no longer permanent identity facts. `NoctisIdentity.systemPrompt` remains an internal compatibility
+accessor for the legacy Web-only scope; actual MLX sessions use the scoped builder.
+
+`NoctisToolRegistry` is the capability snapshot consumed by prompt generation, MLX schemas and
+`NoctisToolDispatcher`. It adapts the existing read-only `ToolRegistry` rather than replacing its
+filesystem enforcement. Search descriptions come from its genuine schema. Workspace descriptions
+come from the same schemas the local runtime uses. The ordinary chat dispatcher accepts only names
+in that snapshot and allows at most eight calls per user turn (a fresh dispatcher each turn).
+Workspace calls retain the existing eight-call/256-KiB cumulative output budget. In a Web turn,
+the shared eight-call budget also bounds simultaneous search calls to eight.
+
+The snapshot and date are refreshed before each ordinary response, including after loading/resetting
+and authorization/revocation. Existing authorization history clearing, generation exclusion, deferred
+model loading and cancellation synchronization remain in place. AgentModel uses its supplied local
+schema subset for both instructions and MLX declarations. No new tool, filesystem permission,
+telemetry, cloud LLM or automatic local-content transmission has been added.
+
+Presentation is chosen by the host with `NoctisPresentationInstructions`: CLI explicitly uses
+`.plainText`; library clients default to `.markdown` for simple text formatting. This is a
+presentation capability, independent of macOS versus iOS. The builder takes an injectable date,
+time zone and platform and includes no workspace path or secret.
+
+`WebOpenTool` defines the reserved strict one-string `url` contract and shared validation.
+Its schema is **never registered**, and the direct Web dispatcher still validates then returns
+`publicAccessDisabled`, even with an injected page service. HTTPWebPageService independently blocks
+all connections. There is no activation flag. Thus the effective `web_open` request budget is zero,
+including concurrent requests; DNS, TLS and HTML fetching cannot be induced by this tool.
+No success envelope or retrieval status is fabricated for a fetch that cannot occur.
+
+The existing offline SwiftReadability extraction stays available for tests, now also rejecting
+unsupported Content-Encoding. Body and parser limits remain 2 MiB/20,000 elements/20,000 text
+characters. Internal HTTP timeouts can now only be tightened below 15 seconds/request and
+30 seconds/resource, and redirects remain fixed at zero. Cookies, credentials and private cache
+remain disabled. Synchronous DOM parsing still cannot be cancelled mid-parse.
+
+### Validation of this change
+
+- `swift package resolve`: initially blocked by the host compiler-cache permissions, then by nested
+  `sandbox-exec`. `CLANG_MODULE_CACHE_PATH=/private/tmp/noctis-clang-cache swift package --disable-sandbox resolve`
+  succeeded; cache-write warnings remain. No lockfile change.
+- `swift build --disable-sandbox` with the same compiler cache: succeeded. Existing MLX adapter
+  warning about an unreachable `default` remains.
+- First `swift test --disable-sandbox`: failed with five issues because the restricted environment
+  prohibited controlled loopback listeners / embedded mock servers. This failure is not hidden.
+- Rerun with local networking allowed: **116 NoctisTests, 14 NoctisAgentTests, zero failures**.
+  Two NoctisTests are skipped: opt-in live SearXNG runtime and upstream search smoke tests.
+  Controlled HTTP transport, mocked embedded SearXNG lifecycle, workspace, CLI, streaming and
+  deferred-loading suites passed. These do not load Ministral or contact live search engines.
+- SwiftLint: successful with two complexity warnings in the existing extraction and Web dispatch
+  functions. Configuration and baseline unchanged.
+- Final rebuild and full test rerun after passing presentation through the AgentModel path:
+  succeeded with the same counts; CLI `--help` also succeeded without model loading.
+- `git diff --check`: succeeded.
+- Physical-device and iOS Simulator compilation were not performed in this validation run.
+
+New tests cover permanent
+identity, deterministic order/date/time zone/platform, CLI versus app formatting, permission
+changes, schema/prompt correspondence, dispatch for each announced tool, unknown/disabled names,
+strict reserved arguments, concurrent call budgets and fail-closed opening. The actual MLX
+Ministral tool-call parser accepts every declared tool under strict schema validation and rejects
+unknown names and the disabled page-opening name. Existing tests exercise
+SSRF URL syntax, controlled internal HTTP, malformed HTML, resource bounds and cancellation.
+These tests demonstrate application policy and plumbing, **not actual Ministral inference**.
+
+### Activation requirements and residual risks
+
+No runtime setting enables page opening. Activation requires a reviewed transport enforcing validated
+public IPs through every actual connection, standard trusted TLS with original hostname and SNI,
+no redirect/proxy bypass, bounded framing/decompression/headers, and concurrency/deadline/cancellation
+control. Only after this exists should the registry advertise `web_open` and its dispatcher call
+the page service, returning a bounded `UNTRUSTED_EXTERNAL_DATA` envelope with verified URL, title,
+main text, truncation and status. Keep the dispatcher and service independent fail-closed checks
+until then.
+
+Required but **not executed or proven for a public transport**: successful public HTTPS retrieval,
+DNS rebinding, changed resolution between validation and connect, all IPv4/IPv6 connection candidates,
+reconnection/proxy bypass, invalid TLS chain, wrong TLS hostname. Existing redirect tests concern
+the internal HTTP client, not an enabled pinned public transport. No offensive third-party testing
+was performed. Public fetching, reading, summarizing or translating a newly fetched page remains
+unavailable; offline extraction and search snippets do not satisfy that functional criterion.
+
+Prompts cannot guarantee injection resistance or detect every secret in a user-generated search
+query. Only Swift permission gates enforce access. Host-provided extra system messages remain
+trusted configuration. A configured search capability does not guarantee that SearXNG or an upstream
+engine is reachable. Real model behavior, physical devices and live upstream engines require
+separate runtime validation. Historical risks below still apply where not superseded.
+
 ## A. Initial Audit
 
 Clean initial Git status, HEAD `f50aa58`. No commit created. The files actually present were inspected: SwiftPM manifest and lockfile, services, protocols, models, errors, dispatcher, MLX schema, ChatSession initialization, system instructions, tests, compose, and SearXNG configuration.

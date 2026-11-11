@@ -24,6 +24,20 @@ struct WebSecurityTests {
         #expect(throws: WebPageError.invalidURL) { try PublicWebURLPolicy.validate(raw) }
     }
 
+    @Test func timeoutCeilingsCannotBeRelaxed() {
+        #expect(throws: WebPageError.invalidConfiguration) { try HTTPResponseLimits(requestTimeout: 15.01) }
+        #expect(throws: WebPageError.invalidConfiguration) { try HTTPResponseLimits(resourceTimeout: 30.01) }
+    }
+
+    @Test func offlineExtractionRejectsCompression() throws {
+        let url = try #require(URL(string: "https://www.swift.org"))
+        let response = try #require(HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil,
+            headerFields: ["Content-Type": "text/html", "Content-Encoding": "gzip"]))
+        #expect(throws: WebPageError.unsupportedCompression) {
+            try HTTPWebPageService().extract(data: Data("<html>text</html>".utf8), response: response)
+        }
+    }
+
     @Test func publicOpenFailsClosed() async throws {
         await #expect(throws: WebPageError.publicAccessDisabled) {
             try await HTTPWebPageService().open(url: #require(URL(string: "https://www.swift.org")))
