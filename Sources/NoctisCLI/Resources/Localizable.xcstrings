@@ -41,13 +41,30 @@
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
-            "value" : "Type exit to quit."
+            "value" : "Take your time · Type exit to quit."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tape exit pour quitter."
+            "value" : "Prends ton temps · Tape exit pour quitter."
+          }
+        }
+      }
+    },
+    "console.identity.subtitle" : {
+      "comment" : "Présentation de Noctis dans le terminal.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Personal assistant · Local AI"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Assistant personnel · IA locale"
           }
         }
       }
@@ -58,13 +75,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
-            "value" : "Hello, Sebby!"
+            "value" : "Hello, make yourself comfortable."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bonjour, Sebby !"
+            "value" : "Bonjour, installe-toi."
           }
         }
       }
@@ -92,13 +109,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
-            "value" : "Loading Ministral 3…"
+            "value" : "Getting ready for our conversation…"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Chargement de Ministral 3..."
+            "value" : "Je me prépare pour notre conversation…"
           }
         }
       }
@@ -109,13 +126,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
-            "value" : "All set!"
+            "value" : "I’m here. How can I help?"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tout est prêt !"
+            "value" : "Je suis là. Comment puis-je t’aider ?"
           }
         }
       }
@@ -126,13 +143,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "machine_translated",
-            "value" : "🌑 Noctis stopped"
+            "value" : "See you soon. Take care."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "🌑 Noctis terminé"
+            "value" : "À bientôt. Prends soin de toi."
           }
         }
       }
@@ -246,13 +263,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Authorize a project at any time: /workspace /absolute/path\nRevoke access: /workspace off"
+            "value" : "Read a folder: /workspace /absolute/path · Revoke access: /workspace off"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Pour autoriser un projet à tout moment : /workspace /chemin/absolu\nPour retirer cet accès : /workspace off"
+            "value" : "Lire un dossier : /workspace /chemin/absolu · Retirer l’accès : /workspace off"
           }
         }
       }

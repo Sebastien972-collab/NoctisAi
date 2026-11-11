@@ -11,6 +11,7 @@ import NoctisAgent
 
 final class NoctisApplication {
 
+    private let console = ConsoleInterface()
     private let modelService: any AIModelService
 
     init(modelService: any AIModelService) {
@@ -18,35 +19,31 @@ final class NoctisApplication {
     }
 
     func run() async {
-        print("🌙 \(NoctisConfiguration.assistantName)")
-        print(String(localized: "console.message.welcome", defaultValue: "Bonjour, Sebby !", bundle: .module, comment: "Message affiché par le CLI."))
-        print()
+        console.displayWelcome()
 
         do {
-            print(String(localized: "console.status.loading_model", defaultValue: "Chargement de Ministral 3...", bundle: .module, comment: "Message affiché par le CLI."))
+            console.displayStatus(String(localized: "console.status.loading_model",
+                                         defaultValue: "Je me prépare pour notre conversation…", bundle: .module))
 
             try await modelService.load()
 
-            print(String(localized: "console.status.ready", defaultValue: "Tout est prêt !", bundle: .module, comment: "Message affiché par le CLI."))
-            print(String(localized: "console.workspace.hint", defaultValue: """
-                Pour autoriser un projet à tout moment : /workspace /chemin/absolu
-                Pour retirer cet accès : /workspace off
-                """, bundle: .module))
-            print(String(localized: "console.hint.exit", defaultValue: "Tape exit pour quitter.", bundle: .module, comment: "Conserver la commande exit telle quelle."))
+            console.displayReady()
+            console.displayStatus(String(localized: "console.workspace.hint", defaultValue: "", bundle: .module))
             print()
 
             await startConversation()
 
         } catch {
             print(String(localized: "console.error.startup_failed", defaultValue: "Impossible de démarrer Noctis.", bundle: .module, comment: "Message affiché par le CLI."))
-            print(String(localized: "console.error.details", defaultValue: "Erreur : \(error.localizedDescription)", bundle: .module, comment: "Le paramètre contient la description localisée de l’erreur."))
+            console.displayError(error)
         }
 
-        print(String(localized: "console.status.terminated", defaultValue: "🌑 Noctis terminé", bundle: .module, comment: "Message affiché par le CLI."))
+        console.displayStatus(String(localized: "console.status.terminated",
+                                     defaultValue: "À bientôt. Prends soin de toi.", bundle: .module))
     }
 
     private func startConversation() async {
-        while let prompt = readPrompt() {
+        while let prompt = console.readPrompt() {
 
             if prompt.lowercased() == NoctisConfiguration.exitCommand {
                 break
@@ -59,14 +56,6 @@ final class NoctisApplication {
             if await handleWorkspaceCommand(prompt) { continue }
             await generateResponse(for: prompt)
         }
-    }
-
-    private func readPrompt() -> String? {
-        print(String(localized: "console.prompt.user", defaultValue: "Vous > ", bundle: .module, comment: "Message affiché par le CLI."), terminator: "")
-        fflush(stdout)
-
-        return readLine()?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private func handleWorkspaceCommand(_ prompt: String) async -> Bool {
@@ -99,14 +88,11 @@ final class NoctisApplication {
 
     private func generateResponse(for prompt: String) async {
         do {
-            try await modelService.withResponse(prompt: prompt) { stream in
-                print()
-                print("Noctis 🌙 > ", terminator: "")
-                fflush(stdout)
+            try await modelService.withResponse(prompt: prompt) { [console] stream in
+                console.beginResponse()
 
                 for try await chunk in stream {
-                    print(chunk, terminator: "")
-                    fflush(stdout)
+                    console.displayResponse(chunk)
                 }
             }
 
@@ -114,7 +100,7 @@ final class NoctisApplication {
 
         } catch {
             print()
-            print(String(localized: "console.error.details", defaultValue: "Erreur : \(error.localizedDescription)", bundle: .module, comment: "Le paramètre contient la description localisée de l’erreur."))
+            console.displayError(error)
             print()
         }
     }
