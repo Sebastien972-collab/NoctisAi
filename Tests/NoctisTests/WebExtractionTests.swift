@@ -57,6 +57,13 @@ struct WebExtractionTests {
         #expect(throws: WebPageError.unsupportedContentType) { try extract("hello", contentType: "application/pdf") }
     }
 
+    @Test func excessiveMarkupAndDepthAreRejectedBeforeReadability() {
+        let tooManyTags = "<html><body>" + String(repeating: "<p>a</p>", count: 20_001) + "</body></html>"
+        #expect(throws: WebPageError.responseTooLarge) { try extract(tooManyTags) }
+        let tooDeep = String(repeating: "<div>", count: 200) + paragraph + String(repeating: "</div>", count: 200)
+        #expect(throws: WebPageError.responseTooLarge) { try extract(tooDeep) }
+    }
+
     @Test func oversizedOfflineInput() throws {
         let url = try #require(URL(string: "https://www.swift.org"))
         let response = try #require(HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil,

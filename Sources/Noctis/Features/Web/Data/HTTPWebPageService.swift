@@ -1,22 +1,24 @@
 import Foundation
 import SwiftReadability
+import SwiftSoup
 
 struct HTTPWebPageService: WebPageService {
     private let maximumCharacters: Int
+    private let transport: SecureWebTransport
 
-    init(maximumCharacters: Int = 20_000) {
+    init(maximumCharacters: Int = 20_000, transport: SecureWebTransport = .shared) {
+        self.transport = transport
         self.maximumCharacters = min(20_000, max(1, maximumCharacters))
     }
 
     func open(url: URL) async throws -> WebPage {
         try Task.checkCancellation()
-        _ = try PublicWebURLPolicy.validate(url.absoluteString)
-        // Do not replace this with DNS preflight + URLSession: that has a TOCTOU gap.
-        // No opt-in flag exists until the actual peer address can be enforced.
-        throw WebPageError.publicAccessDisabled
+        let checkedURL = try PublicWebURLPolicy.validate(url.absoluteString)
+        let (data, response) = try await transport.get(checkedURL)
+        return try await WebPageExtraction.shared.extract(service: self, data: data, response: response)
     }
 
-    /// Offline extraction retained until an audited public transport is available.
+    /// Bounded offline extraction; it never executes scripts or loads secondary resources.
     func extract(data: Data, response: HTTPURLResponse) throws -> WebPage {
         try Task.checkCancellation()
         guard data.count <= 2 * 1_024 * 1_024 else { throw WebPageError.responseTooLarge }
@@ -42,8 +44,10 @@ struct HTTPWebPageService: WebPageService {
         guard !html.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw WebPageError.noContent
         }
-        let reader = Readability(html: html, url: url, options: ReadabilityOptions(
+        let document = try boundedDocument(html: html, url: url)
+        let reader = Readability(document: document, options: ReadabilityOptions(
             maxElemsToParse: 20_000,
+            serializer: { _ in "" },
             extensions: [.imageCarouselRecovery, .publisherChromeCleanup]
         ))
         do {
@@ -63,5 +67,41 @@ struct HTTPWebPageService: WebPageService {
         } catch {
             throw WebPageError.noContent
         }
+    }
+
+    private func boundedDocument(html: String, url: URL) throws -> Document {
+        // Conservative preflight also bounds markup before SwiftSoup constructs its DOM.
+        guard html.utf8.lazy.filter({ $0 == 60 }).prefix(20_001).count <= 20_000 else {
+            throw WebPageError.responseTooLarge
+        }
+        let document = try SwiftSoup.parse(html, url.absoluteString)
+        var pending: [(Node, Int)] = [(document, 0)]
+        var count = 0
+        while let (node, depth) = pending.popLast() {
+            try Task.checkCancellation()
+            count += 1
+            guard count <= 20_000, depth <= 128 else { throw WebPageError.responseTooLarge }
+            for child in node.getChildNodes() { pending.append((child, depth + 1)) }
+        }
+        return document
+    }
+
+}
+
+private actor WebPageExtraction {
+    static let shared = WebPageExtraction()
+    private var active = 0
+
+    func extract(service: HTTPWebPageService, data: Data, response: HTTPURLResponse) async throws -> WebPage {
+        try Task.checkCancellation()
+        guard active < 2 else { throw WebPageError.requestLimit }
+        active += 1
+        defer { active -= 1 }
+        let task = Task.detached(priority: .utility) { try service.extract(data: data, response: response) }
+        return try await withTaskCancellationHandler {
+            let page = try await task.value
+            try Task.checkCancellation()
+            return page
+        } onCancel: { task.cancel() }
     }
 }
