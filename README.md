@@ -120,7 +120,10 @@ noctis --workspace /absolute/folder/path
 | `noctis --help` | Help, without loading the model |
 | `noctis --version` | Installed Git revision/version, without loading the model |
 | `noctis doctor` | Architecture and installed resource checks; never runs inference |
-| `noctis update` | Display the verified manual update procedure; no automatic download |
+| `noctis update` | Install the latest stable release after integrity and provenance verification |
+| `noctis update --check` | Check versions and release notes without installing |
+| `noctis update --dev` | Build a precise revision of main after interactive confirmation |
+| `noctis update --rollback` | Restore the previous verified installation |
 | `/help` | Interactive help |
 | `/clear` | Reset conversation context and session input history; retain model weights |
 | `/model` | Show the configured model ID |
@@ -178,35 +181,94 @@ optional Web setup without starting a service, loading a model or probing the ne
 
 ### Updates and restoration
 
-`noctis update` prints the procedure instead of silently executing remote scripts. From your
-trusted checkout, first verify the release tag and full commit independently against the
-[official releases](https://github.com/Sebastien972-collab/NoctisAi/releases), then run:
+Stable versions are Semantic Versioning tags (`0.2.0` or `v0.2.0`); `main` is ongoing
+work and can contain untested changes. Stable discovery reads every GitHub tags page, ignores
+prereleases, compares numeric versions and never downgrades. A new tag without compatible release
+assets is reported, but cannot be installed. There is no source-build fallback on the stable channel.
 
 ```sh
-scripts/update.sh --tag vX.Y.Z --revision FULL_40_CHARACTER_COMMIT
+noctis --version
+noctis update --check
+noctis update
+noctis update --rollback
 ```
 
-The updater fetches only the requested SemVer tag from the fixed official repository into a
-temporary checkout. It requires an annotated OpenPGP-signed tag, a valid signature from a fully
-trusted key in your local GPG keyring, and an exact match to the supplied commit. A missing or
-untrusted signature fails closed. A checksum by itself is not treated as publisher authentication.
-No automatic update is available until such a signed release exists. No new release tag is created
-by this implementation, and the old `0.1.0` tag is not changed.
+The binary embeds its version, channel and full source commit in a read-only Mach-O section.
+`--version` displays the short commit. Moving or editing `version.txt` does not change it. Bare
+`swift build` binaries report `unknown (local)` and require reinstalling with `scripts/install.sh`
+to enable stable comparisons. Source installations derive their version from Git tags and mark
+tracked local changes as dirty. Updating legacy installations first requires running the new installer
+from a trusted checkout.
 
-Only the trusted checkout's installer is executed. Building Swift packages can execute build
-plugins, so the release signer and pinned commit must be trusted. The development repository
-and the shell's working directory are never pulled, reset or overwritten.
+Stable installation requires **GitHub CLI (`gh`)** in `/opt/homebrew/bin` or `/usr/local/bin`,
+with `gh auth login` configured and support for `gh attestation verify --source-ref`. A checksum
+alone is insufficient: the updater uses GitHub CLI's Sigstore verifier to require provenance from
+`Sebastien972-collab/NoctisAi/.github/workflows/release-cli.yml`, the exact version tag and a
+GitHub-hosted runner. Authentication or provenance failures stop before any executable is run.
+See the [GitHub verification documentation](https://cli.github.com/manual/gh_attestation_verify).
+This trusts the official repository's release workflow and GitHub/Sigstore identities, not a tag
+alone. Compromise of the authorized release workflow remains outside this trust boundary.
 
-Installations are staged under `~/.local/share/noctis/versions`. An atomic symlink replacement
-activates the new version; a failed post-activation check restores the prior link. The previous
-version remains available:
+The distribution includes the CLI, localization bundles and MLX Metal resources. It targets macOS 15+
+on Apple Silicon. Archives containing traversal paths, symbolic links, hard links or special files
+are rejected. Downloads use HTTPS, bounded request/resource timeouts and private temporary files;
+interrupted downloads never reach the installation. `--check` only uses temporary files and makes no
+changes to the installation, model caches or preferences.
+
+Installations remain under `~/.local/share/noctis/versions`. The manager validates the executable's
+real path, the command symlink, directory ownership and permissions. It never elevates privileges.
+`NOCTIS_PREFIX=/absolute/prefix` must match a custom installation. Symlinked prefixes are refused.
+A shared install lock prevents concurrent operations. Files are copied and verified on the same
+filesystem before an atomic replacement of `current`; post-activation failure restores the old link.
+`previous` retains the old working directory. Integrity manifests cover every regular application file
+before rollback; the old installer's checksum manifests are also supported. These local checks detect
+corruption; they are not publisher authentication. Models, Hugging Face caches, conversations,
+workspace permissions, preferences and the SearXNG runtime are never changed.
+
+Cancellation before activation leaves the old version active. Process termination or power loss can
+leave `.install-lock` and an unused version directory. After checking that no installation process is
+running, remove only the empty lock directory and run `noctis update --rollback` if needed. The
+prechecked candidate and previous version remain on disk; no automatic cleanup deletes backups.
+
+For development only:
 
 ```sh
-scripts/update.sh --rollback
+noctis update --dev
 ```
 
-Checksums are rechecked before rollback. Previous versions remain on disk for restoration until
-uninstall; reinstalling is safe and does not require deleting the working version first.
+This requires an interactive terminal, Git, Xcode/Swift 6.4+ and the Metal compiler. It fetches `main`
+from the fixed official HTTPS repository into a private temporary checkout with Git hooks and URL
+rewrites disabled. It prints the exact commit and requires typing `yes` before building that revision.
+Building Swift packages can execute dependency plugins; confirmation explicitly grants that trust.
+The installed updater's build recipe is used, never a downloaded installer script. It copies and
+checks resources and the CLI before activation. It does not pull, reset or modify your working copy.
+This channel uses HTTPS source trust, not stable artifact attestations, and requires network access
+and sufficient disk space to compile. An update is never exposed as a model tool or triggered at startup.
+
+The existing independently trusted OpenPGP source-update route remains available from a trusted
+checkout (`scripts/update.sh --tag vX.Y.Z --revision FULL_40_CHARACTER_COMMIT`). It requires an
+annotated tag signed by a locally trusted key. It does not bypass the stable artifact verifier.
+
+### Publishing a stable CLI release
+
+The tag-triggered `.github/workflows/release-cli.yml` validates a stable tag, runs `swift test`,
+SwiftLint and the isolated installation checks, builds Release, packages `noctis-macos-arm64.tar`
+and its SHA-256 file, creates a GitHub artifact provenance attestation, then verifies that attestation
+before publishing with generated release notes. No release is published after a failed check.
+Actions are pinned to commit IDs. The workflow uses GitHub-hosted Apple Silicon `macos-26`,
+the image’s `/Applications/Xcode.app`, Metal and a pinned Swift 6.4.1 setup action. That action
+uses Swiftly with signature verification enabled. Check runner/toolchain availability before the
+first publication; setup or compiler failures stop publication. Do not
+replace it with a self-hosted runner: the client's provenance policy rejects those attestations.
+
+Before the first release, merge this implementation, check GitHub-hosted runner/toolchain availability,
+ensure repository permissions permit `contents: write`, `id-token: write`, `attestations: write`, `artifact-metadata: write` and
+verify GitHub CLI supports the required verification flags. Review the release changes, create and
+push a new stable tag **only after maintainer approval**, then review the resulting release assets
+and test a real update from an earlier installation. Do not retag an existing version. This change
+does not create or push tags, publish releases or alter existing ones. On November 11, 2026,
+the repository has tags `0.1.0` and `0.2.0` and no GitHub Releases; real publisher-authenticated
+stable installation remains unvalidated until the first compatible release exists.
 
 ### Uninstall
 
@@ -232,15 +294,27 @@ python3 scripts/test-terminal.py
 The installation integration test uses a temporary prefix with spaces, launches from outside the
 checkout, exercises install/reinstall/rollback/uninstall, rejects corruption and failed builds,
 and checks that unrelated executables are preserved. It never installs into your real PATH or
-loads a model. Unit tests cover command parsing, lazy loading, multiline input, terminal control
-filtering, split Markdown tokens, permissions, signal cancellation and continuation after errors.
-A separate runtime check with the cached Ministral 3 14B model verified a real local response,
-then interruption after the first generated fragment and a successful next turn using the same
-loaded model. Pseudo-terminal checks cover history, Unicode editing, Ctrl+C/Ctrl+D, confirmation,
-terminal restoration, narrow windows and NO_COLOR. These checks do not constitute a benchmark
-or validation on every terminal application. The official unsigned `0.1.0` tag was also rejected
-by the updater; a successful update from a trusted signed official release remains untested
-until one is published.
+loads a model. Updater tests mock GitHub downloads and provenance failures, exercise real temporary
+installation directories, numeric version ordering, stable tag filtering, archive/path rejection,
+backup integrity, post-activation restoration and preservation of user data. Existing conversation,
+workspace permissions and model lazy-loading suites remain part of `swift test`.
+
+Validation on November 11, 2026: `swift test` passes **120 tests** (106 engine/CLI tests and
+14 agent tests). SwiftLint 0.65.1 passes. Release packaging passes help/version/doctor; the isolated
+installation script passes reinstall, real CLI rollback in both directions, noninteractive development
+refusal, corruption rejection, failed compilation and uninstall. A live `update --check` finds `0.2.0`
+and reports its missing GitHub Release without creating a model cache. Changing `version.txt`
+does not change the embedded binary version. Development revision selection/confirmation and
+publisher identity failures are tested with mocks; archive extraction and activation use real local files.
+
+Existing engine/toolchain warnings are separate from updater validation: the unreachable `default`
+in `MLXAgentModel.swift:196`, SwiftTerm's build helper linking a macOS 12 target against macOS 13+
+Swift runtime libraries, and an XCBuild cache warning about the existing MLX bundle's missing creator.
+No engine, dependency or SDK versions were changed to suppress these warnings.
+
+A complete authenticated GitHub stable-update round trip requires a published attested release;
+source rebuilding of a remote development revision also requires explicit terminal confirmation.
+Local fixture and smoke tests do not establish either of those production scenarios.
 
 ## Configuration
 

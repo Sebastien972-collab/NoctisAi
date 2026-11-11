@@ -14,6 +14,7 @@ import NoctisAgent
 struct NoctisCLI {
     enum Command: Equatable {
         case chat(String?), help, version, doctor, update
+        case updateMode(CLIUpdateMode)
     }
 
     static func command(arguments: [String]) throws -> Command {
@@ -23,6 +24,9 @@ struct NoctisCLI {
         case ["--version"]: return .version
         case ["doctor"]: return .doctor
         case ["update"]: return .update
+        case ["update", "--check"]: return .updateMode(.check)
+        case ["update", "--dev"]: return .updateMode(.development)
+        case ["update", "--rollback"]: return .updateMode(.rollback)
         default:
             guard arguments.count == 2, arguments[0] == "--workspace",
                   arguments[1].hasPrefix("/"), !arguments[1].contains("\0") else {
@@ -36,10 +40,11 @@ struct NoctisCLI {
         do {
             switch try command(arguments: Array(CommandLine.arguments.dropFirst())) {
             case .help: print(usage)
-            case .version: print("Noctis \(version)")
+            case .version: print(CLIBuildIdentity.installed.display)
             case .doctor:
                 if !doctor() { exit(EXIT_FAILURE) }
-            case .update: print(updateInstructions)
+            case .update: try await update(.stable)
+            case .updateMode(let mode): try await update(mode)
             case .chat(let path): try await chat(workspacePath: path)
             }
         } catch {
@@ -84,15 +89,12 @@ struct NoctisCLI {
     }
 
     static var version: String {
-        let file = executableDirectory.appendingPathComponent("version.txt")
-        guard let data = try? Data(contentsOf: file), data.count <= 256,
-              let text = String(data: data, encoding: .utf8) else { return "0.2.0-dev" }
-        return TerminalMarkdown.sanitized(text).trimmingCharacters(in: .whitespacesAndNewlines)
+        CLIBuildIdentity.installed.version
     }
 
     @discardableResult
     static func doctor() -> Bool {
-        print("Noctis \(version)")
+        print(CLIBuildIdentity.installed.display)
         print("macOS \(ProcessInfo.processInfo.operatingSystemVersionString)")
         print(TerminalMarkdown.sanitized(executableDirectory.path))
         #if arch(arm64)
@@ -122,7 +124,10 @@ struct NoctisCLI {
               noctis --help       Afficher cette aide
               noctis --version    Afficher la version installée
               noctis doctor       Vérifier l’installation sans charger le modèle
-              noctis update       Afficher la procédure de mise à jour vérifiée
+              noctis update       Installer la dernière version stable vérifiée
+              noctis update --check      Vérifier sans installer
+              noctis update --dev        Compiler main après confirmation
+              noctis update --rollback   Restaurer la version précédente
 
             Le dossier courant est disponible en lecture seule, sans analyse automatique.
             Le modèle est chargé à la première question uniquement.
@@ -144,22 +149,6 @@ struct NoctisCLI {
             Flèches ↑/↓ : historique de session · Ctrl+U : effacer la ligne
             Ctrl+C : abandonner la saisie ou interrompre la réponse.
             Les écritures et commandes système restent désactivées.
-            """, bundle: .module)
-    }
-
-    static var updateInstructions: String {
-        String(localized: "console.cli.update", defaultValue: """
-            Mise à jour manuelle vérifiée (aucun téléchargement automatique).
-            Version installée :
-            """, bundle: .module) + " \(version)\n\n" + String(localized: "console.cli.update_steps", defaultValue: """
-            Dans une copie de confiance du dépôt officiel :
-              scripts/update.sh --tag vX.Y.Z --revision COMMIT_COMPLET_40_CARACTERES
-
-            Vérifie au préalable le tag et le commit publiés par le mainteneur :
-            https://github.com/Sebastien972-collab/NoctisAi/releases
-            Le tag doit porter une signature valide d’une clé que tu as approuvée localement.
-            La compilation se fait dans un dossier isolé. L’installation précédente reste récupérable.
-            Les versions sans tag signé ne sont pas mises à jour automatiquement.
             """, bundle: .module)
     }
 

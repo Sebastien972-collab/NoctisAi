@@ -8,7 +8,7 @@ export NOCTIS_PREFIX="$fixture/prefix with spaces"
 "$project_root/scripts/install.sh"
 bin="$NOCTIS_PREFIX/bin/noctis"
 data="$NOCTIS_PREFIX/share/noctis"
-(cd "$fixture" && "$bin" --help && "$bin" --version && "$bin" doctor && "$bin" update)
+(cd "$fixture" && "$bin" --help && "$bin" --version && "$bin" doctor)
 # No question means no model load or download, even outside the source repository.
 printf '/workspace\n/permissions\n/model\n/exit\n' | (cd "$fixture" && "$bin") > "$fixture/chat.txt"
 /usr/bin/grep -F "$fixture" "$fixture/chat.txt" >/dev/null
@@ -16,6 +16,12 @@ printf '/workspace\n/permissions\n/model\n/exit\n' | (cd "$fixture" && "$bin") >
 current=$(readlink "$data/current")
 previous=$(readlink "$data/previous")
 [ "$current" != "$previous" ]
+"$bin" update --rollback
+[ "$(readlink "$data/current")" = "$previous" ]
+"$bin" update --rollback
+[ "$(readlink "$data/current")" = "$current" ]
+# Piped input must never authorize a development checkout/build.
+if "$bin" update --dev </dev/null; then exit 1; fi
 "$project_root/scripts/update.sh" --rollback
 [ "$(readlink "$data/current")" = "$previous" ]
 "$project_root/scripts/update.sh" --rollback

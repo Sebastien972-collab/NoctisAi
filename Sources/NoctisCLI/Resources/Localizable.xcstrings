@@ -18,53 +18,19 @@
         }
       }
     },
-    "console.cli.update" : {
-      "comment" : "Message affiché par le CLI.",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Verified manual update (no automatic downloads).\nInstalled version:"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mise à jour manuelle vérifiée (aucun téléchargement automatique).\nVersion installée :"
-          }
-        }
-      }
-    },
-    "console.cli.update_steps" : {
-      "comment" : "Message affiché par le CLI.",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "From a trusted copy of the official repository:\n  scripts/update.sh --tag vX.Y.Z --revision FULL_40_CHARACTER_COMMIT\n\nFirst verify the tag and commit published by the maintainer:\nhttps://github.com/Sebastien972-collab/NoctisAi/releases\nThe tag must have a valid signature from a key you have trusted locally.\nThe build uses an isolated folder. The previous installation can be restored.\nReleases without signed tags are not updated automatically."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Dans une copie de confiance du dépôt officiel :\n  scripts/update.sh --tag vX.Y.Z --revision COMMIT_COMPLET_40_CARACTERES\n\nVérifie au préalable le tag et le commit publiés par le mainteneur :\nhttps://github.com/Sebastien972-collab/NoctisAi/releases\nLe tag doit porter une signature valide d’une clé que tu as approuvée localement.\nLa compilation se fait dans un dossier isolé. L’installation précédente reste récupérable.\nLes versions sans tag signé ne sont pas mises à jour automatiquement."
-          }
-        }
-      }
-    },
     "console.cli.usage" : {
       "comment" : "Message affiché par le CLI.",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Usage: noctis [--workspace /absolute/path]\n  noctis --help       Show this help\n  noctis --version    Show the installed version\n  noctis doctor       Check the installation without loading the model\n  noctis update       Show the verified update procedure\n\nThe current folder is available read-only, without automatic analysis.\nThe model loads only when you ask your first question."
+            "value" : "Usage: noctis [--workspace /absolute/path]\n  noctis --help       Show this help\n  noctis --version    Show the installed version\n  noctis doctor       Check the installation without loading the model\n  noctis update       Install the latest verified stable version\n  noctis update --check      Check without installing\n  noctis update --dev        Build main after confirmation\n  noctis update --rollback   Restore the previous version\n\nThe current folder is available read-only, without automatic analysis.\nThe model loads only when you ask your first question."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Utilisation : noctis [--workspace /chemin/absolu]\n  noctis --help       Afficher cette aide\n  noctis --version    Afficher la version installée\n  noctis doctor       Vérifier l’installation sans charger le modèle\n  noctis update       Afficher la procédure de mise à jour vérifiée\n\nLe dossier courant est disponible en lecture seule, sans analyse automatique.\nLe modèle est chargé à la première question uniquement."
+            "value" : "Utilisation : noctis [--workspace /chemin/absolu]\n  noctis --help       Afficher cette aide\n  noctis --version    Afficher la version installée\n  noctis doctor       Vérifier l’installation sans charger le modèle\n  noctis update       Installer la dernière version stable vérifiée\n  noctis update --check      Vérifier sans installer\n  noctis update --dev        Compiler main après confirmation\n  noctis update --rollback   Restaurer la version précédente\n\nLe dossier courant est disponible en lecture seule, sans analyse automatique.\nLe modèle est chargé à la première question uniquement."
           }
         }
       }
@@ -543,6 +509,566 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Utilisation : NoctisCLI [--workspace /chemin/absolu/du/projet]\nAvec --workspace, vous autorisez la lecture de ce dossier. Posez ensuite vos questions normalement. Pendant la conversation : /workspace /chemin/absolu pour autoriser un dossier ; /workspace off pour révoquer. Aucun mode code à activer. Tapez exit pour quitter."
+          }
+        }
+      }
+    },
+    "Invalid download source." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Source de téléchargement invalide."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Invalid download source."
+          }
+        }
+      }
+    },
+    "Invalid GitHub response or download." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Réponse GitHub ou téléchargement invalide."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Invalid GitHub response or download."
+          }
+        }
+      }
+    },
+    "Download failed. Check your connection and try again; the installation is unchanged." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Échec du téléchargement. Vérifie ta connexion et réessaie ; l’installation est inchangée."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Download failed. Check your connection and try again; the installation is unchanged."
+          }
+        }
+      }
+    },
+    "Cannot create a private temporary file." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible de créer un fichier temporaire privé."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cannot create a private temporary file."
+          }
+        }
+      }
+    },
+    "Command failed. Check Swift, Xcode, Git or GitHub CLI authentication." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Échec de la commande. Vérifie Swift, Xcode, Git ou l’authentification de GitHub CLI."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Command failed. Check Swift, Xcode, Git or GitHub CLI authentication."
+          }
+        }
+      }
+    },
+    "This release has no compatible verified artifact. Use --check or wait for a signed release." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cette version ne contient aucun artefact compatible vérifié. Utilise --check ou attends une publication attestée."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This release has no compatible verified artifact. Use --check or wait for a signed release."
+          }
+        }
+      }
+    },
+    "The installed version is unknown. Reinstall from a trusted checkout to enable updates." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La version installée est inconnue. Réinstalle depuis une copie de confiance pour activer les mises à jour."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The installed version is unknown. Reinstall from a trusted checkout to enable updates."
+          }
+        }
+      }
+    },
+    "Too many tags; cannot determine the latest stable version safely." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trop de tags ; impossible de déterminer la dernière version stable de façon fiable."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Too many tags; cannot determine the latest stable version safely."
+          }
+        }
+      }
+    },
+    "No stable version is published." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucune version stable n’est publiée."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No stable version is published."
+          }
+        }
+      }
+    },
+    "The latest stable tag has no published stable release." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le dernier tag stable ne correspond à aucune release stable publiée."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The latest stable tag has no published stable release."
+          }
+        }
+      }
+    },
+    "macOS 15 or later on Apple Silicon is required." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "macOS 15 ou ultérieur sur Apple Silicon est requis."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "macOS 15 or later on Apple Silicon is required."
+          }
+        }
+      }
+    },
+    "Integrity verification failed. Nothing was installed." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Échec de la vérification d’intégrité. Aucune installation effectuée."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Integrity verification failed. Nothing was installed."
+          }
+        }
+      }
+    },
+    "The artifact version does not match the requested release." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La version de l’artefact ne correspond pas à la version demandée."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The artifact version does not match the requested release."
+          }
+        }
+      }
+    },
+    "Unsafe or malformed archive. Nothing was installed." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Archive dangereuse ou malformée. Aucune installation effectuée."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unsafe or malformed archive. Nothing was installed."
+          }
+        }
+      }
+    },
+    "Unsafe installation path." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chemin d’installation non sécurisé."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unsafe installation path."
+          }
+        }
+      }
+    },
+    "This executable is not in an authorized Noctis installation. Reinstall with scripts/install.sh." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cet exécutable ne provient pas d’une installation Noctis autorisée. Réinstalle avec scripts/install.sh."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This executable is not in an authorized Noctis installation. Reinstall with scripts/install.sh."
+          }
+        }
+      }
+    },
+    "No previous working version is available." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucune version précédente fonctionnelle n’est disponible."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No previous working version is available."
+          }
+        }
+      }
+    },
+    "The application executable is missing." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’exécutable de l’application est absent."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The application executable is missing."
+          }
+        }
+      }
+    },
+    "Unexpected integrity manifest in application payload." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Manifeste d’intégrité inattendu dans l’application téléchargée."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unexpected integrity manifest in application payload."
+          }
+        }
+      }
+    },
+    "Cannot activate this version. Check installation permissions; no privilege elevation is attempted." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible d’activer cette version. Vérifie les permissions d’installation ; aucune élévation de privilèges n’est tentée."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cannot activate this version. Check installation permissions; no privilege elevation is attempted."
+          }
+        }
+      }
+    },
+    "Installation locked. Another operation may be running; inspect .install-lock after an interruption." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Installation verrouillée. Une autre opération est peut-être en cours ; inspecte .install-lock après une interruption."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Installation locked. Another operation may be running; inspect .install-lock after an interruption."
+          }
+        }
+      }
+    },
+    "Automatic restoration failed. The previous version is preserved under versions; restore the current link manually." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La restauration automatique a échoué. L’ancienne version reste dans versions ; restaure le lien current manuellement."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automatic restoration failed. The previous version is preserved under versions; restore the current link manually."
+          }
+        }
+      }
+    },
+    "Latest stable version:" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dernière version stable :"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Latest stable version:"
+          }
+        }
+      }
+    },
+    "Noctis is already up to date:" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noctis est déjà à jour :"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noctis is already up to date:"
+          }
+        }
+      }
+    },
+    "An update is available." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Une mise à jour est disponible."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "An update is available."
+          }
+        }
+      }
+    },
+    "Installation verified. The previous version is available with noctis update --rollback." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Installation vérifiée. La version précédente est disponible avec noctis update --rollback."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Installation verified. The previous version is available with noctis update --rollback."
+          }
+        }
+      }
+    },
+    "GitHub CLI (gh) is required in /opt/homebrew/bin or /usr/local/bin to verify provenance. Install it and authenticate with gh auth login." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GitHub CLI (gh) est requis dans /opt/homebrew/bin ou /usr/local/bin pour vérifier la provenance. Installe-le et connecte-toi avec gh auth login."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GitHub CLI (gh) is required in /opt/homebrew/bin or /usr/local/bin to verify provenance. Install it and authenticate with gh auth login."
+          }
+        }
+      }
+    },
+    "Development updates require an interactive terminal and explicit confirmation." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les mises à jour de développement nécessitent un terminal interactif et une confirmation explicite."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Development updates require an interactive terminal and explicit confirmation."
+          }
+        }
+      }
+    },
+    "Development only: main is not a stable release. Building may execute Swift package plugins." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Développement uniquement : main n’est pas une version stable. La compilation peut exécuter des plugins de packages Swift."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Development only: main is not a stable release. Building may execute Swift package plugins."
+          }
+        }
+      }
+    },
+    "Type yes to build and install this exact revision:" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saisis yes pour compiler et installer cette révision précise :"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Type yes to build and install this exact revision:"
+          }
+        }
+      }
+    },
+    "Update cancelled; the installation is unchanged." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mise à jour annulée ; l’installation est inchangée."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Update cancelled; the installation is unchanged."
+          }
+        }
+      }
+    },
+    "Swift 6.4 or later and the Xcode Metal compiler are required." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Swift 6.4 ou ultérieur et le compilateur Metal de Xcode sont requis."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Swift 6.4 or later and the Xcode Metal compiler are required."
+          }
+        }
+      }
+    },
+    "GitHub rate limit reached. Try again later." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Limite de requêtes GitHub atteinte. Réessaie plus tard."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GitHub rate limit reached. Try again later."
+          }
+        }
+      }
+    },
+    "GitHub request failed. The installation is unchanged." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Échec de la requête GitHub. L’installation est inchangée."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GitHub request failed. The installation is unchanged."
+          }
+        }
+      }
+    },
+    "Provenance verification failed. Check GitHub CLI version and authentication." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Échec de vérification de provenance. Vérifie la version et l’authentification de GitHub CLI."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Provenance verification failed. Check GitHub CLI version and authentication."
           }
         }
       }

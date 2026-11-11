@@ -1,0 +1,74 @@
+# Created by Sébastien DAGUIN
+name: Publish verified Noctis CLI
+
+on:
+  push:
+    tags: ['v*', '[0-9]*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-cli-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    # Provenance verification rejects self-hosted runners. This must remain GitHub-hosted.
+    runs-on: macos-26
+    timeout-minutes: 60
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    env:
+      DEVELOPER_DIR: /Applications/Xcode.app/Contents/Developer
+      MACOSX_DEPLOYMENT_TARGET: '15.0'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up Swift 6.4.1 with Swiftly signature verification
+        uses: swift-actions/setup-swift@364295d9c23900ce04d4e5cc708387921b4e50f9
+        with:
+          swift-version: '6.4.1'
+      - name: Validate tag and toolchain
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          printf '%s\n' "$RELEASE_TAG" | grep -Eq '^v?(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$'
+          test "$(uname -m)" = arm64
+          swift --version | grep -F 'Swift version 6.4.1'
+          xcodebuild -downloadComponent MetalToolchain
+      - name: Tests and lint
+        run: |
+          swift test
+          scripts/lint.sh
+      - name: Build and verify distribution
+        run: |
+          scripts/package-cli.sh "$RUNNER_TEMP/noctis-payload"
+          scripts/test-install.sh
+          mkdir -p dist
+          tar -cf dist/noctis-macos-arm64.tar -C "$RUNNER_TEMP/noctis-payload" .
+          (cd dist && shasum -a 256 noctis-macos-arm64.tar > noctis-macos-arm64.tar.sha256)
+      - name: Attest artifact provenance
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+        with:
+          subject-path: dist/noctis-macos-arm64.tar
+      - name: Verify provenance before publishing
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          gh attestation verify dist/noctis-macos-arm64.tar --repo Sebastien972-collab/NoctisAi \
+            --signer-workflow Sebastien972-collab/NoctisAi/.github/workflows/release-cli.yml \
+            --source-ref "refs/tags/$RELEASE_TAG" --deny-self-hosted-runners
+      - name: Publish release after all checks pass
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$RELEASE_TAG" dist/noctis-macos-arm64.tar dist/noctis-macos-arm64.tar.sha256 \
+            --verify-tag --generate-notes --title "Noctis $RELEASE_TAG"

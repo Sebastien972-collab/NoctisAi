@@ -14,8 +14,9 @@ struct CLILocalizationTests {
     func includesGlobalCLITranslations(language: String) throws {
         let path = try #require(Bundle.module.path(forResource: language, ofType: "lproj"))
         let bundle = try #require(Bundle(path: path))
-        for key in ["console.cli.usage", "console.cli.interactive_help", "console.cli.update",
-                    "console.cli.update_steps", "console.permissions.summary", "console.workspace.confirm",
+        for key in ["console.cli.usage", "console.cli.interactive_help", "Latest stable version:",
+                    "An update is available.", "Unsafe installation path.",
+                    "console.permissions.summary", "console.workspace.confirm",
                     "console.workspace.explicit_flag", "console.history.cleared", "console.status.cancelled"] {
             #expect(bundle.localizedString(forKey: key, value: "__missing__", table: "Localizable") != "__missing__")
         }

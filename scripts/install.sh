@@ -6,6 +6,13 @@ umask 077
 project_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
 prefix=${NOCTIS_PREFIX:-"$HOME/.local"}
 case "$prefix" in /*) ;; *) echo 'NOCTIS_PREFIX doit être absolu.' >&2; exit 1 ;; esac
+[ "$prefix" != / ] || { echo 'Préfixe racine refusé.' >&2; exit 1; }
+# Reject every symlink ancestor before creating or writing any installation directory.
+ancestor=$prefix
+while [ "$ancestor" != / ]; do
+    [ ! -L "$ancestor" ] || { echo 'Préfixe avec lien symbolique refusé.' >&2; exit 1; }
+    ancestor=$(dirname "$ancestor")
+done
 data="$prefix/share/noctis"
 bin="$prefix/bin/noctis"
 source_root="$project_root"
@@ -21,17 +28,30 @@ fi
 [ "$(uname -s)" = Darwin ] && [ "$(uname -m)" = arm64 ] || {
     echo 'macOS sur Apple Silicon est requis.' >&2; exit 1;
 }
+for directory in "$prefix" "$prefix/bin" "$prefix/share" "$data" "$data/versions"; do
+    [ ! -L "$directory" ] || { echo 'Lien symbolique dans l’installation.' >&2; exit 1; }
+    [ -e "$directory" ] || continue
+    [ -d "$directory" ] && [ "$(stat -f %u "$directory")" = "$(id -u)" ] || {
+        echo 'Dossier d’installation invalide.' >&2; exit 1;
+    }
+    permissions=$(stat -f %Lp "$directory")
+    [ "$((0$permissions & 0022))" -eq 0 ] || { echo 'Dossier accessible en écriture à un tiers.' >&2; exit 1; }
+done
 mkdir -p "$data/versions" "$prefix/bin"
-[ ! -L "$data" ] && [ ! -L "$data/versions" ] || { echo 'Dossier d’installation invalide.' >&2; exit 1; }
 if [ -e "$bin" ] || [ -L "$bin" ]; then
     [ -L "$bin" ] && [ "$(readlink "$bin")" = "$data/current/NoctisCLI" ] || {
         echo 'Un autre fichier noctis existe déjà ; il ne sera pas remplacé.' >&2; exit 1;
     }
 fi
-mkdir "$data/.install-lock" 2>/dev/null || { echo 'Une installation est déjà en cours.' >&2; exit 1; }
 stage=
 link="$data/.current-$$"
 old=$(readlink "$data/current" 2>/dev/null || true)
+case "$old" in
+    versions/build-*/*) echo 'Chemin courant invalide.' >&2; exit 1 ;;
+    versions/build-*|'') ;;
+    *) echo 'Chemin courant invalide.' >&2; exit 1 ;;
+esac
+mkdir "$data/.install-lock" 2>/dev/null || { echo 'Une installation est déjà en cours.' >&2; exit 1; }
 committed=false
 switched=false
 cleanup() {
@@ -63,30 +83,9 @@ if [ "$rollback" = true ]; then
     [ -x "$data/$target/NoctisCLI" ] || { echo 'Version précédente absente.' >&2; exit 1; }
     (cd "$data/$target" && shasum -a 256 -c checksums.sha256 >/dev/null)
 else
-    command -v swift >/dev/null
-    command -v xcrun >/dev/null
-    [ -f "$source_root/Package.swift" ] || { echo 'Package.swift absent.' >&2; exit 1; }
-    xcrun --find metal >/dev/null
-    printf 'Compilation Release avec : %s\n' "$(command -v swift)"
-    swift --version
-    swift build --package-path "$source_root" -c release --product NoctisCLI
-    products=$(swift build --package-path "$source_root" -c release --show-bin-path)
-    [ -x "$products/NoctisCLI" ] || { echo 'Exécutable SwiftPM absent.' >&2; exit 1; }
     stage=$(mktemp -d "$data/versions/.stage.XXXXXX")
-    cp -p "$products/NoctisCLI" "$stage/NoctisCLI"
-    chmod 700 "$stage/NoctisCLI"
-    # SwiftPM bundles include localization and MLX's compiled Metal library.
-    for resource in "$products"/*.bundle "$products"/*.dylib "$products"/*.metallib; do
-        [ -e "$resource" ] || continue
-        /usr/bin/ditto "$resource" "$stage/$(basename "$resource")"
-    done
-    git -C "$source_root" describe --tags --always --dirty > "$stage/version.txt"
-    (cd "$stage" && find . -type f ! -name checksums.sha256 -exec shasum -a 256 {} \; > checksums.sha256)
-    (cd "$stage" && shasum -a 256 -c checksums.sha256 >/dev/null)
-    # Exercise the copied resources before publishing the new version.
-    "$stage/NoctisCLI" --help >/dev/null
-    "$stage/NoctisCLI" --version
-    "$stage/NoctisCLI" doctor
+    rmdir "$stage"
+    NOCTIS_SOURCE_ROOT="$source_root" "$project_root/scripts/package-cli.sh" "$stage"
     target="versions/build-$(date +%Y%m%d%H%M%S)-${stage##*.}"
     mv "$stage" "$data/$target"
     stage=
