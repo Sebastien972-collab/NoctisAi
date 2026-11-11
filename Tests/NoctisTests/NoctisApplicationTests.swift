@@ -27,8 +27,11 @@ struct NoctisApplicationTests {
         }
 
         let output = String(decoding: result.standardOutputContent, as: UTF8.self)
+        #expect(output.contains(localizedCLI("console.identity.subtitle")))
+        #expect(output.contains(localizedCLI("console.message.welcome")))
+        #expect(!output.contains("\u{001B}["))
         #expect(output.contains(localizedCLI("console.status.ready")))
-        #expect(output.contains("Noctis 🌙 > Bonjour 🌙"))
+        #expect(output.contains("  ✦ Noctis\n\nBonjour 🌙"))
         #expect(output.contains(localizedCLI("console.status.terminated")))
     }
 
@@ -49,8 +52,8 @@ struct NoctisApplicationTests {
         }
 
         let output = String(decoding: result.standardOutputContent, as: UTF8.self)
-        let first = try #require(output.range(of: "Noctis 🌙 > Première réponse"))
-        let second = try #require(output.range(of: "Noctis 🌙 > Seconde réponse"))
+        let first = try #require(output.range(of: "  ✦ Noctis\n\nPremière réponse"))
+        let second = try #require(output.range(of: "  ✦ Noctis\n\nSeconde réponse"))
         #expect(first.lowerBound < second.lowerBound)
     }
 
@@ -72,7 +75,7 @@ struct NoctisApplicationTests {
 
             try await runApplication(input: "  ExIt  \nIgnoré\n", modelService: service)
 
-            #expect(service.calls == [.load])
+            #expect(service.calls.isEmpty)
         }
     }
 
@@ -86,7 +89,7 @@ struct NoctisApplicationTests {
 
             try await runApplication(input: "", modelService: service)
 
-            #expect(service.calls == [.load])
+            #expect(service.calls.isEmpty)
         }
 
         let output = String(decoding: result.standardOutputContent, as: UTF8.self)
@@ -109,7 +112,7 @@ struct NoctisApplicationTests {
         let output = String(decoding: result.standardOutputContent, as: UTF8.self)
         #expect(output.contains(localizedCLI("console.error.startup_failed")))
         #expect(output.contains(MockAIModelService.Failure.loadFailed.rawValue))
-        #expect(!output.contains(localizedCLI("console.status.ready")))
+        #expect(!output.contains("  ✦ Noctis\n\n"))
         #expect(output.contains(localizedCLI("console.status.terminated")))
     }
 
@@ -131,7 +134,7 @@ struct NoctisApplicationTests {
 
         let output = String(decoding: result.standardOutputContent, as: UTF8.self)
         let failure = try #require(output.range(of: MockAIModelService.Failure.generationFailed.rawValue))
-        let recovery = try #require(output.range(of: "Noctis 🌙 > Réponse suivante"))
+        let recovery = try #require(output.range(of: "  ✦ Noctis\n\nRéponse suivante"))
         #expect(failure.lowerBound < recovery.lowerBound)
     }
 
@@ -153,10 +156,10 @@ struct NoctisApplicationTests {
         }
 
         let output = String(decoding: result.standardOutputContent, as: UTF8.self)
-        let partialResponse = "Noctis 🌙 > " + chunks.joined()
+        let partialResponse = "  ✦ Noctis\n\n" + chunks.joined()
         #expect(output.contains(partialResponse + "\n" + localizedCLIError(MockAIModelService.Failure.streamFailed.rawValue)))
         let failure = try #require(output.range(of: MockAIModelService.Failure.streamFailed.rawValue))
-        let recovery = try #require(output.range(of: "Noctis 🌙 > Réponse suivante"))
+        let recovery = try #require(output.range(of: "  ✦ Noctis\n\nRéponse suivante"))
         #expect(failure.lowerBound < recovery.lowerBound)
     }
 
@@ -177,8 +180,8 @@ struct NoctisApplicationTests {
         }
 
         let output = String(decoding: result.standardOutputContent, as: UTF8.self)
-        #expect(output.contains("Noctis 🌙 > \n\n"))
-        #expect(output.contains("Noctis 🌙 > Réponse suivante"))
+        #expect(output.contains("  ✦ Noctis\n\n\n\n"))
+        #expect(output.contains("  ✦ Noctis\n\nRéponse suivante"))
         #expect(!output.contains(localizedCLIError("")))
     }
 }

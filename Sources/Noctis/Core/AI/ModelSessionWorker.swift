@@ -20,26 +20,30 @@ final class GenerationCancellation: Sendable {
     private let state = OSAllocatedUnfairLock(initialState: State())
 
     func install(_ reader: Task<Void, Error>) {
-        state.withLock {
+        let shouldCancel = state.withLock {
             $0.reader = reader
-            if $0.requested && $0.armed { reader.cancel() }
+            return $0.requested && $0.armed
         }
+        if shouldCancel { reader.cancel() }
     }
 
     // The first element proves that MLX has entered its cache transaction.
     // Before this point synchronize() could overtake its unstructured producer.
     func arm() {
-        state.withLock {
+        let reader = state.withLock {
             $0.armed = true
-            if $0.requested { $0.reader?.cancel() }
+            return $0.requested ? $0.reader : nil
         }
+        reader?.cancel()
     }
 
     func cancel() {
-        state.withLock {
+        let reader = state.withLock {
             $0.requested = true
-            if $0.armed { $0.reader?.cancel() }
+            return $0.armed ? $0.reader : nil
         }
+        // Cancellation handlers run synchronously and may re-enter this state.
+        reader?.cancel()
     }
 
     var isCancelled: Bool { state.withLock { $0.requested } }

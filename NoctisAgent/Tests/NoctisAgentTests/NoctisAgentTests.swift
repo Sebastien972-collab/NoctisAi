@@ -115,8 +115,9 @@ struct WorkspaceTests {
         defer { try? FileManager.default.removeItem(at: outside) }
         try FileManager.default.createDirectory(at: safe, withIntermediateDirectories: true)
         try FileManager.default.createDirectory(at: outside, withIntermediateDirectories: true)
-        try Data("inside".utf8).write(to: safe.appendingPathComponent("secret"))
-        try Data("OUTSIDE_SECRET".utf8).write(to: outside.appendingPathComponent("secret"))
+        try Data("inside".utf8).write(to: safe.appendingPathComponent("document.txt"))
+        try Data("OUTSIDE_SECRET".utf8).write(to: outside.appendingPathComponent("document.txt"))
+        #expect(try fixture.call("readFile", ["path": "safe/document.txt"]).contains("inside"))
         let swap = Task.detached {
             for _ in 0..<200 {
                 if rename(safe.path, held.path) != 0 { continue }

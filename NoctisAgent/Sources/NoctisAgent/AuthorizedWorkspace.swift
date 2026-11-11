@@ -22,10 +22,10 @@ public final class AuthorizedWorkspace: @unchecked Sendable {
         if lower.hasPrefix("id_rsa") || lower.hasPrefix("id_ed25519") || lower.hasPrefix("id_ecdsa") || lower.hasPrefix("id_dsa") {
             return true
         }
-        if lower.contains("credential") || lower.contains("secret") {
+        if ["credential", "secret", "token", "password", "api_key", "apikey"].contains(where: lower.contains) {
             return true
         }
-        if lower == ".ssh" || lower == ".aws" || lower == ".gnupg" {
+        if [".ssh", ".aws", ".gnupg", ".azure", ".kube", ".docker", ".config", ".codex"].contains(lower) {
             return true
         }
         return false
@@ -41,6 +41,7 @@ public final class AuthorizedWorkspace: @unchecked Sendable {
         guard descriptor >= 0 else { throw AgentError.accessDenied }
         do {
             for component in components where component != "." {
+                guard !Self.isSensitive(name: component) else { throw AgentError.accessDenied }
                 let next = openat(descriptor, component, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC)
                 guard next >= 0 else { throw AgentError.accessDenied }
                 close(descriptor)

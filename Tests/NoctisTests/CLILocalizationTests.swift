@@ -1,3 +1,5 @@
+// Created by Sébastien DAGUIN
+
 import Foundation
 import Testing
 @testable import NoctisCLI
@@ -8,6 +10,17 @@ func localizedCLI(_ key: String.LocalizationValue) -> String {
 }
 
 struct CLILocalizationTests {
+    @Test(arguments: ["fr", "en"])
+    func includesGlobalCLITranslations(language: String) throws {
+        let path = try #require(Bundle.module.path(forResource: language, ofType: "lproj"))
+        let bundle = try #require(Bundle(path: path))
+        for key in ["console.cli.usage", "console.cli.interactive_help", "console.cli.update",
+                    "console.cli.update_steps", "console.permissions.summary", "console.workspace.confirm",
+                    "console.workspace.explicit_flag", "console.history.cleared", "console.status.cancelled"] {
+            #expect(bundle.localizedString(forKey: key, value: "__missing__", table: "Localizable") != "__missing__")
+        }
+    }
+
     @Test(arguments: ["fr", "en"])
     func includesLocalizedResources(language: String) throws {
         let path = try #require(Bundle.module.path(forResource: language, ofType: "lproj"))

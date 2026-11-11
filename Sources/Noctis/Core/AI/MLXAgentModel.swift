@@ -53,7 +53,9 @@ extension MLXModelService: AgentModel {
 
         Quand un dossier a été autorisé par l'application hôte,
         listFiles, readFile et searchCode te permettent de l'explorer en lecture seule.
-        Utilise ces outils spontanément si une demande nécessite d'examiner le code.
+        Utilise ces outils uniquement si la demande nécessite de consulter des fichiers locaux.
+        Le dossier peut contenir des documents de toute nature, pas seulement du code.
+        Ne parcours aucun fichier pour une simple salutation ou une question générale.
         Réponds directement aux autres questions : aucun changement de mode n'est nécessaire.
         Seuls les outils déclarés sont disponibles. Sans dossier autorisé, demande à
         l'utilisateur d'en autoriser un ; ne prétends pas avoir lu ses fichiers.
