@@ -18,15 +18,17 @@ struct NoctisAgentCLITests {
             defer { try? FileManager.default.removeItem(at: directory) }
             try Data("contenu du projet".utf8).write(to: directory.appendingPathComponent("example.swift"))
             let service = NativeCLIService()
-            let input = "Bonjour\n/workspace \(directory.path)\nAnalyse ce projet\n"
+            let initial = try AuthorizedWorkspace(authorizing: directory)
+            try await service.authorizeWorkspace(initial)
+            let input = "Bonjour\nAnalyse ce projet\n"
                 + "Autre question\n/workspace off\nexit\n"
             try await runApplication(input: input, modelService: service)
             #expect(await service.prompts == ["Bonjour", "Analyse ce projet", "Autre question"])
             #expect(await service.authorizations == 2)
         }
         let output = try #require(String(bytes: result.standardOutputContent, encoding: .utf8))
-        #expect(output.contains("Noctis 🌙 > contenu du projet"))
-        #expect(output.contains("Noctis 🌙 > Réponse directe"))
+        #expect(output.contains("  ✦ Noctis\n\ncontenu du projet"))
+        #expect(output.contains("  ✦ Noctis\n\nRéponse directe"))
     }
 
     @Test("Aucun workspace implicite ni argument invalide n’est accepté")

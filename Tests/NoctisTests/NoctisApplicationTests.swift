@@ -75,7 +75,7 @@ struct NoctisApplicationTests {
 
             try await runApplication(input: "  ExIt  \nIgnoré\n", modelService: service)
 
-            #expect(service.calls == [.load])
+            #expect(service.calls.isEmpty)
         }
     }
 
@@ -89,7 +89,7 @@ struct NoctisApplicationTests {
 
             try await runApplication(input: "", modelService: service)
 
-            #expect(service.calls == [.load])
+            #expect(service.calls.isEmpty)
         }
 
         let output = String(decoding: result.standardOutputContent, as: UTF8.self)
@@ -112,7 +112,7 @@ struct NoctisApplicationTests {
         let output = String(decoding: result.standardOutputContent, as: UTF8.self)
         #expect(output.contains(localizedCLI("console.error.startup_failed")))
         #expect(output.contains(MockAIModelService.Failure.loadFailed.rawValue))
-        #expect(!output.contains(localizedCLI("console.status.ready")))
+        #expect(!output.contains("  ✦ Noctis\n\n"))
         #expect(output.contains(localizedCLI("console.status.terminated")))
     }
 

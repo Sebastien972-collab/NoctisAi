@@ -10,7 +10,7 @@ import Darwin
 import Foundation
 
 struct ConsoleInterface {
-    private let usesColor = isatty(STDOUT_FILENO) == 1
+    let usesColor = isatty(STDOUT_FILENO) == 1
         && ProcessInfo.processInfo.environment["NO_COLOR"] == nil
         && ProcessInfo.processInfo.environment["TERM"] != "dumb"
 
@@ -34,13 +34,21 @@ struct ConsoleInterface {
     }
 
     func displayStatus(_ message: String) {
-        print("  " + styled(message, color: "2"))
+        print("  " + styled(TerminalMarkdown.sanitized(message), color: "2"))
     }
 
-    func readPrompt() -> String? {
-        print(styled("  › ", color: "33"), terminator: "")
-        fflush(stdout)
-        return readLine()?.trimmingCharacters(in: .whitespacesAndNewlines)
+    func confirmWorkspace(_ path: String, input: inout ConsoleInput) -> Bool {
+        // A model cannot answer this question: only an interactive terminal can grant access.
+        guard isatty(STDIN_FILENO) == 1, isatty(STDOUT_FILENO) == 1 else {
+            print(String(localized: "console.workspace.explicit_flag", defaultValue:
+                "Hors terminal interactif, autorise le dossier au lancement avec --workspace.", bundle: .module))
+            return false
+        }
+        print(TerminalMarkdown.sanitized(path))
+        print(String(localized: "console.workspace.confirm", defaultValue:
+            "Autoriser la lecture de ce dossier ? [y/o] Autoriser · [n] Refuser", bundle: .module))
+        guard let answer = input.readPrompt()?.lowercased() else { return false }
+        return ["y", "yes", "o", "oui"].contains(answer)
     }
 
     func beginResponse() {
@@ -56,7 +64,8 @@ struct ConsoleInterface {
     }
 
     func displayError(_ error: Error) {
-        print(String(localized: "console.error.details", defaultValue: "Erreur : \(error.localizedDescription)",
+        let details = TerminalMarkdown.sanitized(error.localizedDescription)
+        print(String(localized: "console.error.details", defaultValue: "Erreur : \(details)",
                      bundle: .module, comment: "Le paramètre contient la description localisée de l’erreur."))
     }
 

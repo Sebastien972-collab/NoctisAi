@@ -1,6 +1,91 @@
 {
   "sourceLanguage" : "fr",
   "strings" : {
+    "console.cli.interactive_help" : {
+      "comment" : "Message affiché par le CLI.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "/help          Help\n/clear         Clear conversation context and input history\n/model         Show the active model\n/workspace     Show the authorized folder\n/workspace /absolute/path   Change folder after confirmation\n/workspace off             Revoke local access and restore Web search\n/permissions   Show permissions and limits\n/exit          Quit (exit and Ctrl+D also work)\n\nEnd a line with \\ to continue on the next line.\n↑/↓ arrows: session history · Ctrl+U: clear input\nCtrl+C: discard input or interrupt the response.\nWriting and system commands remain disabled."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "/help          Aide\n/clear         Effacer le contexte et l’historique de saisie\n/model         Afficher le modèle actif\n/workspace     Afficher le dossier autorisé\n/workspace /chemin/absolu   Changer de dossier après confirmation\n/workspace off            Retirer l’accès local et retrouver la recherche Web\n/permissions   Afficher les autorisations et limites\n/exit          Quitter (exit et Ctrl+D fonctionnent aussi)\n\nTermine une ligne par \\ pour continuer sur la suivante.\nFlèches ↑/↓ : historique de session · Ctrl+U : effacer la ligne\nCtrl+C : abandonner la saisie ou interrompre la réponse.\nLes écritures et commandes système restent désactivées."
+          }
+        }
+      }
+    },
+    "console.cli.update" : {
+      "comment" : "Message affiché par le CLI.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verified manual update (no automatic downloads).\nInstalled version:"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mise à jour manuelle vérifiée (aucun téléchargement automatique).\nVersion installée :"
+          }
+        }
+      }
+    },
+    "console.cli.update_steps" : {
+      "comment" : "Message affiché par le CLI.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "From a trusted copy of the official repository:\n  scripts/update.sh --tag vX.Y.Z --revision FULL_40_CHARACTER_COMMIT\n\nFirst verify the tag and commit published by the maintainer:\nhttps://github.com/Sebastien972-collab/NoctisAi/releases\nThe tag must have a valid signature from a key you have trusted locally.\nThe build uses an isolated folder. The previous installation can be restored.\nReleases without signed tags are not updated automatically."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dans une copie de confiance du dépôt officiel :\n  scripts/update.sh --tag vX.Y.Z --revision COMMIT_COMPLET_40_CARACTERES\n\nVérifie au préalable le tag et le commit publiés par le mainteneur :\nhttps://github.com/Sebastien972-collab/NoctisAi/releases\nLe tag doit porter une signature valide d’une clé que tu as approuvée localement.\nLa compilation se fait dans un dossier isolé. L’installation précédente reste récupérable.\nLes versions sans tag signé ne sont pas mises à jour automatiquement."
+          }
+        }
+      }
+    },
+    "console.cli.usage" : {
+      "comment" : "Message affiché par le CLI.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usage: noctis [--workspace /absolute/path]\n  noctis --help       Show this help\n  noctis --version    Show the installed version\n  noctis doctor       Check the installation without loading the model\n  noctis update       Show the verified update procedure\n\nThe current folder is available read-only, without automatic analysis.\nThe model loads only when you ask your first question."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Utilisation : noctis [--workspace /chemin/absolu]\n  noctis --help       Afficher cette aide\n  noctis --version    Afficher la version installée\n  noctis doctor       Vérifier l’installation sans charger le modèle\n  noctis update       Afficher la procédure de mise à jour vérifiée\n\nLe dossier courant est disponible en lecture seule, sans analyse automatique.\nLe modèle est chargé à la première question uniquement."
+          }
+        }
+      }
+    },
+    "console.doctor.summary" : {
+      "comment" : "Message affiché par le CLI.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diagnostics without loading or downloading the model.\nOptional Web search: local SearXNG runtime or server at 127.0.0.1:8888.\nBuilding requires Xcode, Swift 6.4 and the Metal component."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diagnostic sans chargement ni téléchargement du modèle.\nRecherche Web optionnelle : runtime SearXNG local ou serveur sur 127.0.0.1:8888.\nPour les commandes de compilation : Xcode, Swift 6.4 et le composant Metal sont requis."
+          }
+        }
+      }
+    },
     "console.error.details" : {
       "comment" : "Le paramètre contient la description localisée de l’erreur.",
       "localizations" : {
@@ -52,6 +137,23 @@
         }
       }
     },
+    "console.history.cleared" : {
+      "comment" : "Message affiché par le CLI.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A new conversation begins."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Une nouvelle conversation commence."
+          }
+        }
+      }
+    },
     "console.identity.subtitle" : {
       "comment" : "Présentation de Noctis dans le terminal.",
       "localizations" : {
@@ -65,6 +167,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Assistant personnel · IA locale"
+          }
+        }
+      }
+    },
+    "console.input.too_long" : {
+      "comment" : "Message affiché par le CLI.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Message too long (64 KiB maximum)."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Message trop long (64 Kio maximum)."
           }
         }
       }
@@ -86,6 +205,23 @@
         }
       }
     },
+    "console.permissions.summary" : {
+      "comment" : "Message affiché par le CLI.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Read access is limited to the authorized folder, only when your request needs it.\nSensitive files, symbolic links and files over 64 KiB are denied.\nWriting and system commands are disabled in this version.\nNo local access when /workspace off is active."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lecture limitée au dossier autorisé, uniquement pour répondre à tes demandes.\nFichiers sensibles, liens symboliques et fichiers de plus de 64 Kio : refusés.\nÉcriture et commandes système : désactivées dans cette version.\nAucun accès local lorsque /workspace off est actif."
+          }
+        }
+      }
+    },
     "console.prompt.user" : {
       "comment" : "Message affiché par le CLI.",
       "localizations" : {
@@ -99,6 +235,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Vous > "
+          }
+        }
+      }
+    },
+    "console.status.cancelled" : {
+      "comment" : "Message affiché par le CLI.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Response interrupted. We can continue."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Réponse interrompue. On peut continuer."
           }
         }
       }
@@ -240,6 +393,23 @@
         }
       }
     },
+    "console.workspace.confirm" : {
+      "comment" : "Message affiché par le CLI.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Allow reading this folder? [y] Allow · [n] Deny"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Autoriser la lecture de ce dossier ? [y/o] Autoriser · [n] Refuser"
+          }
+        }
+      }
+    },
     "console.workspace.context_reset" : {
       "comment" : "Message affiché par le CLI.",
       "localizations" : {
@@ -253,6 +423,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Contexte réinitialisé pour ce changement d’accès."
+          }
+        }
+      }
+    },
+    "console.workspace.explicit_flag" : {
+      "comment" : "Message affiché par le CLI.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Outside an interactive terminal, authorize a folder at launch with --workspace."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hors terminal interactif, autorise le dossier au lancement avec --workspace."
           }
         }
       }
@@ -305,6 +492,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Limite d’analyse atteinte. Aucune conclusion finale n’a été produite ; reformulez une demande plus précise."
+          }
+        }
+      }
+    },
+    "console.workspace.none" : {
+      "comment" : "Message affiché par le CLI.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No folder authorized."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucun dossier autorisé."
           }
         }
       }
