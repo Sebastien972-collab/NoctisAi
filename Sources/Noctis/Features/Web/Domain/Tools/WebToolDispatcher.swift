@@ -69,12 +69,8 @@ struct WebToolDispatcher: Sendable {
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.sortedKeys]
             return String(decoding: try encoder.encode(payload), as: UTF8.self)
-        case "web_open":
-            guard call.function.arguments.count == 1,
-                  case .string(let raw) = call.function.arguments["url"] else {
-                throw WebToolError.invalidArguments
-            }
-            _ = try PublicWebURLPolicy.validate(raw)
+        case WebOpenTool.name:
+            _ = try WebOpenTool.validate(call)
             throw WebPageError.publicAccessDisabled
         default:
             throw WebToolError.unsupportedTool("unsupported")

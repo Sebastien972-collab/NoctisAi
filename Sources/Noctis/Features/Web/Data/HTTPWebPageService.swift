@@ -26,6 +26,11 @@ struct HTTPWebPageService: WebPageService {
         guard ["text/html", "application/xhtml+xml"].contains(response.mimeType?.lowercased() ?? "") else {
             throw WebPageError.unsupportedContentType
         }
+        let compression = response.value(forHTTPHeaderField: "Content-Encoding")?
+            .trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard compression == nil || compression == "identity" else {
+            throw WebPageError.unsupportedCompression
+        }
         let encoding: String.Encoding
         switch response.textEncodingName?.lowercased() ?? "utf-8" {
         case "utf-8", "utf8": encoding = .utf8

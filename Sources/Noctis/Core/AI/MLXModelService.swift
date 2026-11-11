@@ -17,29 +17,29 @@ private final class MLXChatSession: ModelSession {
     private var session: ChatSession
     private let workspaceAccess: WorkspaceToolAccess
     private let webDispatcher: WebToolDispatcher
+    private let presentation: NoctisPresentationInstructions
+    private var additionalInstructions: [String] = []
 
     init(
         model: ModelContainer, session: ChatSession,
-        workspaceAccess: WorkspaceToolAccess, webDispatcher: WebToolDispatcher
+        workspaceAccess: WorkspaceToolAccess, webDispatcher: WebToolDispatcher,
+        presentation: NoctisPresentationInstructions
     ) {
         self.model = model
         self.session = session
         self.workspaceAccess = workspaceAccess
         self.webDispatcher = webDispatcher
+        self.presentation = presentation
     }
 
     func streamResponse(to prompt: String) -> AsyncThrowingStream<String, Error> {
-        let registry = workspaceAccess.registry
-        session.tools = MLXModelService.conversationToolSchemas(registry: registry)
-        if let registry {
-            let dispatcher = ConversationToolDispatcher(registry: registry)
-            session.toolDispatch = { call in try await dispatcher.execute(call) }
-            session.generateParameters.maxTokens = 2_048
-        } else {
-            let dispatcher = webDispatcher
-            session.toolDispatch = { call in try await dispatcher.execute(call) }
-            session.generateParameters.maxTokens = nil
-        }
+        let registry = NoctisToolRegistry(workspace: workspaceAccess.registry)
+        session.instructions = ([NoctisSystemPromptBuilder.build(registry: registry, presentation: presentation)]
+            + additionalInstructions).joined(separator: "\n\n")
+        session.tools = registry.schemas
+        let dispatcher = NoctisToolDispatcher(registry: registry, web: webDispatcher)
+        session.toolDispatch = { call in try await dispatcher.execute(call) }
+        session.generateParameters.maxTokens = registry.hasWorkspace ? 2_048 : nil
         return session.streamResponse(to: prompt)
     }
 
@@ -48,20 +48,22 @@ private final class MLXChatSession: ModelSession {
     }
 
     func reset(history: [AIChatMessage]) async throws {
-        var instructions = [NoctisIdentity.systemPrompt + MLXModelService.workspaceInstructions]
+        additionalInstructions = []
         let messages: [Chat.Message] = history.compactMap {
             switch $0.role {
             case .user: return .user($0.content)
             case .assistant: return .assistant($0.content)
             case .system:
-                instructions.append($0.content)
+                additionalInstructions.append($0.content)
                 return nil
             }
         }
         // Reuse the weights with a fresh cache; the stable MLX release has no fork API.
         session = ChatSession(
             model,
-            instructions: instructions.joined(separator: "\n\n"),
+            instructions: ([NoctisSystemPromptBuilder.build(
+                registry: NoctisToolRegistry(workspace: workspaceAccess.registry), presentation: presentation
+            )] + additionalInstructions).joined(separator: "\n\n"),
             history: messages,
             speculativeDecoding: session.speculativeDecoding,
             generateParameters: session.generateParameters,
@@ -148,6 +150,7 @@ public actor MLXModelService: AIModelService, WorkspaceAuthorizing {
     public private(set) var loadState = LoadState.notLoaded
     private let workspaceAccess: WorkspaceToolAccess
     private let agentModelReference: LoadedAgentModel?
+    private let presentation: NoctisPresentationInstructions
     private var isAgentGenerating = false
     private let factory: ModelSessionWorker.Factory
     private var worker: ModelSessionWorker?
@@ -155,21 +158,25 @@ public actor MLXModelService: AIModelService, WorkspaceAuthorizing {
     private var cancellation: GenerationCancellation?
     private var isResetting = false
 
-    public init() {
+    public init(presentation: NoctisPresentationInstructions = .markdown) {
         #if os(macOS)
         if let embedded = try? EmbeddedSearXNGService.bundled() {
-            self.init(webSearchService: embedded)
+            self.init(webSearchService: embedded, presentation: presentation)
             return
         }
         #endif
-        self.init(webSearchService: SearXNGService())
+        self.init(webSearchService: SearXNGService(), presentation: presentation)
     }
 
-    public init(modelID: String) {
-        self.init(webSearchService: SearXNGService(), modelID: modelID)
+    public init(modelID: String, presentation: NoctisPresentationInstructions = .markdown) {
+        self.init(webSearchService: SearXNGService(), modelID: modelID, presentation: presentation)
     }
 
-    public init(webSearchService: any WebSearchService, modelID: String? = nil) {
+    public init(
+        webSearchService: any WebSearchService, modelID: String? = nil,
+        presentation: NoctisPresentationInstructions = .markdown
+    ) {
+        self.presentation = presentation
         let access = WorkspaceToolAccess()
         workspaceAccess = access
         let reference = LoadedAgentModel()
@@ -184,16 +191,21 @@ public actor MLXModelService: AIModelService, WorkspaceAuthorizing {
             )
             let model = ModelContainer(context: context)
             await reference.set(model)
+            let registry = NoctisToolRegistry(workspace: access.registry)
+            let toolDispatcher = NoctisToolDispatcher(registry: registry, web: dispatcher)
             return MLXChatSession(model: model, session: ChatSession(
                 model,
-                instructions: NoctisIdentity.systemPrompt + MLXModelService.workspaceInstructions,
-                tools: [WebSearchTool.schema],
-                toolDispatch: { call in try await dispatcher.execute(call) }
-            ), workspaceAccess: access, webDispatcher: dispatcher)
+                instructions: NoctisSystemPromptBuilder.build(
+                    registry: registry, presentation: presentation
+                ),
+                tools: registry.schemas,
+                toolDispatch: { call in try await toolDispatcher.execute(call) }
+            ), workspaceAccess: access, webDispatcher: dispatcher, presentation: presentation)
         }
     }
 
     init(sessionFactory: @escaping ModelSessionWorker.Factory) {
+        presentation = .markdown
         workspaceAccess = WorkspaceToolAccess()
         agentModelReference = nil
         factory = sessionFactory
@@ -324,7 +336,9 @@ public actor MLXModelService: AIModelService, WorkspaceAuthorizing {
         guard let model = await agentModelReference.get() else {
             throw MLXModelServiceError.modelNotLoaded
         }
-        return try await Self.generateAgentResponse(model: model, messages: messages, tools: tools, limits: limits)
+        return try await Self.generateAgentResponse(
+            model: model, messages: messages, tools: tools, limits: limits, presentation: presentation
+        )
     }
 
     /// Waits for MLX's cache transaction to end before permitting another turn.

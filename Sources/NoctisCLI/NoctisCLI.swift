@@ -77,7 +77,8 @@ struct NoctisCLI {
             embedded = nil
             console.displayError(error)
         }
-        let model = embedded.map { MLXModelService(webSearchService: $0) } ?? MLXModelService()
+        let model = embedded.map { MLXModelService(webSearchService: $0, presentation: .plainText) }
+            ?? MLXModelService(presentation: .plainText)
         try await model.authorizeWorkspace(workspace)
         await NoctisApplication(modelService: model, workspace: workspace).run()
         await embedded?.shutdown()

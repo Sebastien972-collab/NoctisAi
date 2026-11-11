@@ -12,8 +12,8 @@ struct HTTPResponseLimits: Sendable {
          requestTimeout: TimeInterval = 15,
          resourceTimeout: TimeInterval = 30) throws {
         guard maximumBytes > 0, maximumBytes <= 2 * 1_024 * 1_024,
-              requestTimeout.isFinite, requestTimeout > 0,
-              resourceTimeout.isFinite, resourceTimeout > 0 else {
+              requestTimeout.isFinite, requestTimeout > 0, requestTimeout <= 15,
+              resourceTimeout.isFinite, resourceTimeout > 0, resourceTimeout <= 30 else {
             throw WebPageError.invalidConfiguration
         }
         self.maximumBytes = maximumBytes

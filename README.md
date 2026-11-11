@@ -149,6 +149,20 @@ terminal width. `NO_COLOR`, `TERM=dumb` and redirected output disable styling. M
 terminal controls are filtered. Redirected input accepts newline-separated prompts and the same
 backslash continuation convention; it never accepts interactive permission grants.
 
+### System instructions and Web page access
+
+System instructions are composed from permanent identity, reliability, security, authorized tools,
+runtime context and presentation modules. The same session tool registry selects the prompt,
+MLX schemas and dispatch permissions. Date and capabilities refresh before each response.
+The CLI requests plain text; library clients default to simple Markdown and can select
+`MLXModelService(presentation: .plainText)` independently of the platform.
+
+`web_search` remains available only without an authorized workspace. `web_open` has a reserved
+strict HTTPS URL contract but is **disabled and absent from model schemas**: no verified public
+transport binds DNS validation to the actual connection with original-host TLS validation.
+There is no activation switch. See [WEB_SECURITY.md](WEB_SECURITY.md) for the audited behavior,
+transport alternatives, tests and requirements for enabling page retrieval.
+
 ### Workspace and permissions
 
 The host authorizes the workspace, never the LLM. `AuthorizedWorkspace` pins the root inode and
