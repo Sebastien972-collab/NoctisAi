@@ -13,11 +13,16 @@ import Tokenizers
 import MLXHuggingFace
 
 private final class MLXChatSession: ModelSession {
+    private let model: ModelContainer
     private var session: ChatSession
     private let workspaceAccess: WorkspaceToolAccess
     private let webDispatcher: WebToolDispatcher
 
-    init(session: ChatSession, workspaceAccess: WorkspaceToolAccess, webDispatcher: WebToolDispatcher) {
+    init(
+        model: ModelContainer, session: ChatSession,
+        workspaceAccess: WorkspaceToolAccess, webDispatcher: WebToolDispatcher
+    ) {
+        self.model = model
         self.session = session
         self.workspaceAccess = workspaceAccess
         self.webDispatcher = webDispatcher
@@ -53,9 +58,19 @@ private final class MLXChatSession: ModelSession {
                 return nil
             }
         }
-        session = await session.fork(history: messages)
-        // ChatSession prepends instructions itself; Ministral accepts one system message.
-        session.instructions = instructions.joined(separator: "\n\n")
+        // Reuse the weights with a fresh cache; the stable MLX release has no fork API.
+        session = ChatSession(
+            model,
+            instructions: instructions.joined(separator: "\n\n"),
+            history: messages,
+            speculativeDecoding: session.speculativeDecoding,
+            generateParameters: session.generateParameters,
+            components: session.components,
+            processing: session.processing,
+            additionalContext: session.additionalContext,
+            tools: session.tools,
+            toolDispatch: session.toolDispatch
+        )
     }
 }
 
@@ -169,7 +184,7 @@ public actor MLXModelService: AIModelService, WorkspaceAuthorizing {
             )
             let model = ModelContainer(context: context)
             await reference.set(model)
-            return MLXChatSession(session: ChatSession(
+            return MLXChatSession(model: model, session: ChatSession(
                 model,
                 instructions: NoctisIdentity.systemPrompt + MLXModelService.workspaceInstructions,
                 tools: [WebSearchTool.schema],

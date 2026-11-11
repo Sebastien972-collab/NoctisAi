@@ -6,7 +6,25 @@ Noctis is a personal command-line AI assistant, developed in Swift for macOS. It
 
 The project includes streaming conversation and a `web_search` tool connected to SearXNG. Persistent memory and a Vapor API are not yet implemented.
 
-The package exposes the `Noctis` library, which can be imported into an application, and the `NoctisCLI` executable for the terminal.
+The package exposes the `Noctis` library, which can be imported into an application, the `NoctisAgent` library, and the `NoctisCLI` executable for the terminal.
+
+## SwiftPM consumers and releases
+
+`NoctisAgent` is an internal target of this package, using the sources under
+`NoctisAgent/Sources/NoctisAgent`; consumers do not need a separate local package.
+Its tests are included in the root package test suite. The nested manifest remains
+available for testing the standalone agent runtime.
+
+`mlx-swift-lm` is pinned to the stable `3.32.3` release, with its optional
+FoundationModels integration disabled. Versioned SwiftPM packages cannot depend
+on branch-based or local-path packages. Keep all remote dependencies versioned
+when preparing a Noctis release.
+
+The existing `0.1.0` tag still contains the old manifest and is not repaired by
+merging this change. Fullmoon currently requests Noctis starting at `0.1.0` with
+an up-to-next-major requirement. It will need a newly validated SemVer release
+containing this fix, followed by package resolution, to consume the correction.
+Do not move `0.1.0`; publish a new tag only after release validation.
 
 ## Localization
 
