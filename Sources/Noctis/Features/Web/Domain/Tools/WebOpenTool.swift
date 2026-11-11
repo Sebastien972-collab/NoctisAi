@@ -3,7 +3,7 @@
 import Foundation
 import MLXLMCommon
 
-/// Reserved contract only. Never registered until an operational transport has been verified.
+/// Declared only in a network scope with the pinned HTTPS transport available.
 enum WebOpenTool {
     static let name = "web_open"
 

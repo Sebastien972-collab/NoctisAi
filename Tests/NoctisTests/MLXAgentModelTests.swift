@@ -42,7 +42,7 @@ struct MLXAgentModelTests {
     }
     @Test func nativeSchemasFollowHostAuthorization() throws {
         let access = WorkspaceToolAccess()
-        #expect(MLXModelService.conversationToolSchemas(registry: access.registry).count == 1)
+        #expect(MLXModelService.conversationToolSchemas(registry: access.registry).count == 2)
         access.authorize(try AuthorizedWorkspace(authorizing: URL(fileURLWithPath: "/private/tmp")))
         let names = MLXModelService.conversationToolSchemas(registry: access.registry).compactMap {
             ($0["function"] as? [String: any Sendable])?["name"] as? String
