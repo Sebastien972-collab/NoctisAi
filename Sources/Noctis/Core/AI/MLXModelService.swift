@@ -12,7 +12,7 @@ import HuggingFace
 import Tokenizers
 import MLXHuggingFace
 
-private final class MLXChatSession: ModelSession {
+private final class MLXChatSession: StructuredModelSession {
     private let model: ModelContainer
     private var session: ChatSession
     private let workspaceAccess: WorkspaceToolAccess
@@ -47,9 +47,40 @@ private final class MLXChatSession: ModelSession {
         await session.synchronize()
     }
 
+    func streamDetails(
+        messages: [MLXLMCommon.Chat.Message],
+        tools: [ToolSpec],
+        instructions: String
+    ) -> AsyncThrowingStream<Generation, Error> {
+        // AgentLoop sends its complete transcript on every provider turn.  A
+        // persistent ChatSession would append that transcript to its own
+        // conversation again, producing duplicate roles and an invalid Jinja
+        // input on the second turn. Rehydrate one sequential cache from the
+        // complete transcript, then append only the pending message.
+        guard let pending = messages.last else {
+            return session.streamDetails(to: [])
+        }
+        session = ChatSession(
+            model,
+            instructions: instructions,
+            history: Array(messages.dropLast()),
+            speculativeDecoding: session.speculativeDecoding,
+            generateParameters: session.generateParameters,
+            components: session.components,
+            processing: session.processing,
+            additionalContext: session.additionalContext,
+            tools: tools,
+            toolDispatch: nil
+        )
+        // AgentLoop owns every tool execution. MLX must only surface calls.
+        session.generateParameters.maxTokens = 2_048
+        session.generateParameters.toolCallPolicy = .init(recovery: .disabled, validation: .strict)
+        return session.streamDetails(to: [pending])
+    }
+
     func reset(history: [AIChatMessage]) async throws {
         additionalInstructions = []
-        let messages: [Chat.Message] = history.compactMap {
+        let messages: [MLXLMCommon.Chat.Message] = history.compactMap {
             switch $0.role {
             case .user: return .user($0.content)
             case .assistant: return .assistant($0.content)
@@ -149,6 +180,7 @@ public actor MLXModelService: AIModelService, WorkspaceAuthorizing {
 
     public private(set) var loadState = LoadState.notLoaded
     private let workspaceAccess: WorkspaceToolAccess
+    private let webDispatcher: WebToolDispatcher
     private let agentModelReference: LoadedAgentModel?
     private let presentation: NoctisPresentationInstructions
     private var isAgentGenerating = false
@@ -183,6 +215,7 @@ public actor MLXModelService: AIModelService, WorkspaceAuthorizing {
         agentModelReference = reference
         let selectedModelID = modelID ?? NoctisConfiguration.modelID
         let dispatcher = WebToolDispatcher(searchService: webSearchService, pasgeService: HTTPWebPageService())
+        webDispatcher = dispatcher
         factory = { progress in
             let context = try await loadModel(
                 from: CachedModelDownloader(client: HubClient(), phase: progress),
@@ -207,12 +240,34 @@ public actor MLXModelService: AIModelService, WorkspaceAuthorizing {
     init(sessionFactory: @escaping ModelSessionWorker.Factory) {
         presentation = .markdown
         workspaceAccess = WorkspaceToolAccess()
+        webDispatcher = WebToolDispatcher(searchService: SearXNGService(), pasgeService: HTTPWebPageService())
         agentModelReference = nil
         factory = sessionFactory
     }
 
     public func load() async throws {
         try await load(progress: { _ in })
+    }
+
+    /// Creates the CLI AgentLoop over the already loaded worker/session.
+    /// No model or ChatSession is created here.
+    public func makeNoctisCLIAgent() throws -> NoctisCLIAgent {
+        guard loadState == .loaded, worker != nil else { throw MLXModelServiceError.modelNotLoaded }
+        let registry = NoctisToolRegistry(workspace: workspaceAccess.registry)
+        return NoctisCLIAgent(
+            client: try makeNoctisLLMClient(), registry: registry, web: webDispatcher
+        )
+    }
+
+    /// Returns an AgentLoop LLM client over the already loaded worker/session.
+    /// No model or ChatSession is created here.
+    public func makeNoctisLLMClient() throws -> NoctisLLMClient {
+        guard loadState == .loaded, let worker else { throw MLXModelServiceError.modelNotLoaded }
+        let registry = NoctisToolRegistry(workspace: workspaceAccess.registry)
+        return NoctisLLMClient(
+            worker: worker,
+            systemPrompt: NoctisSystemPromptBuilder.build(registry: registry, presentation: presentation)
+        )
     }
 
     public func load(progress: @escaping @Sendable (AIModelLoadPhase) -> Void) async throws {

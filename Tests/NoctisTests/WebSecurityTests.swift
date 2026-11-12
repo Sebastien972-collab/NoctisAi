@@ -166,7 +166,7 @@ struct WebSecurityTests {
     }
     #endif
 
-    private func call(_ name: String, _ arguments: [String: any Sendable]) -> ToolCall {
+    private func call(_ name: String, _ arguments: [String: any Sendable]) -> MLXLMCommon.ToolCall {
         ToolCall(function: .init(name: name, arguments: arguments))
     }
 }

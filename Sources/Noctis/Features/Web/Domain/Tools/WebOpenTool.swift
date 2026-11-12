@@ -21,7 +21,7 @@ enum WebOpenTool {
         ] as [String: any Sendable]
     ]
 
-    static func validate(_ call: ToolCall) throws -> URL {
+    static func validate(_ call: MLXLMCommon.ToolCall) throws -> URL {
         guard call.function.name == name, call.function.arguments.count == 1,
               case .string(let raw) = call.function.arguments["url"] else {
             throw WebToolError.invalidArguments

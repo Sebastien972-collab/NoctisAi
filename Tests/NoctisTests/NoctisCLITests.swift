@@ -16,7 +16,7 @@ struct NoctisCLITests {
             #expect(try NoctisCLI.command(arguments: arguments) == command)
         }
         for arguments in [["unknown"], ["--workspace"], ["--workspace", "relative"], ["doctor", "extra"]] {
-            #expect(throws: AgentError.invalidArguments) { try NoctisCLI.command(arguments: arguments) }
+            #expect(throws: NoctisAgent.AgentError.invalidArguments) { try NoctisCLI.command(arguments: arguments) }
         }
     }
 
@@ -121,7 +121,7 @@ struct NoctisCLITests {
         try FileManager.default.createDirectory(at: root.appendingPathComponent(".ssh"),
                                                withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: root) }
-        #expect(throws: AgentError.accessDenied) {
+        #expect(throws: NoctisAgent.AgentError.accessDenied) {
             try AuthorizedWorkspace(authorizing: root.appendingPathComponent(".ssh"))
         }
     }

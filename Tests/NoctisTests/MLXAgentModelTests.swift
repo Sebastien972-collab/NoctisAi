@@ -16,17 +16,17 @@ struct MLXAgentModelTests {
     }
 
     @Test func structuredCallsRequireStringArguments() throws {
-        let call = ToolCall(function: .init(name: "readFile", arguments: ["path": JSONValue.string("file.swift")]),
+        let call = MLXLMCommon.ToolCall(function: .init(name: "readFile", arguments: ["path": JSONValue.string("file.swift")]),
                             id: "call-1")
         let converted = try MLXModelService.agentCall(call)
         #expect(converted.id == "call-1")
         #expect(converted.arguments == ["path": "file.swift"])
-        let unnamed = ToolCall(function: call.function)
+        let unnamed = MLXLMCommon.ToolCall(function: call.function)
         let fallback = try MLXModelService.agentCall(unnamed)
         #expect(fallback.id.count == 9)
         #expect(fallback.id.allSatisfy { $0.isLetter || $0.isNumber })
-        let invalid = ToolCall(function: .init(name: "readFile", arguments: ["path": JSONValue.int(42)]))
-        #expect(throws: AgentError.invalidArguments) { try MLXModelService.agentCall(invalid) }
+        let invalid = MLXLMCommon.ToolCall(function: .init(name: "readFile", arguments: ["path": JSONValue.int(42)]))
+        #expect(throws: Noctis.AgentError.invalidArguments) { try MLXModelService.agentCall(invalid) }
     }
 
     @Test func schemasDeclareOnlyReadOnlyTools() throws {
@@ -57,12 +57,12 @@ struct MLXAgentModelTests {
         let workspace = try AuthorizedWorkspace(authorizing: URL(fileURLWithPath: "/private/tmp"))
         let dispatcher = ConversationToolDispatcher(registry: ToolRegistry(workspace: workspace))
         for index in 0..<8 {
-            let result = try await dispatcher.execute(ToolCall(
-                function: .init(name: "runCommand", arguments: [String: JSONValue]()), id: "call-\(index)"
+            let result = try await dispatcher.execute(MLXLMCommon.ToolCall(
+                function: .init(name: "runCommand", arguments: [:]), id: "call-\(index)"
             ))
             #expect(result.contains("unsupportedTool"))
         }
-        await #expect(throws: AgentError.iterationLimit) {
+        await #expect(throws: Noctis.AgentError.iterationLimit) {
             try await dispatcher.execute(ToolCall(
                 function: .init(name: "listFiles", arguments: ["path": JSONValue.string(".")]), id: "overflow"
             ))

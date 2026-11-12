@@ -28,7 +28,7 @@ actor ConversationToolDispatcher {
 
     init(registry: ToolRegistry) { self.registry = registry }
 
-    func execute(_ call: ToolCall) throws -> String {
+    func execute(_ call: MLXLMCommon.ToolCall) throws -> String {
         try Task.checkCancellation()
         guard remainingCalls > 0 else { throw AgentError.iterationLimit }
         remainingCalls -= 1
@@ -78,13 +78,13 @@ extension MLXModelService: AgentModel {
         }
     }
 
-    static func agentMessages(_ messages: [AgentMessage]) -> [Chat.Message] {
+    static func agentMessages(_ messages: [AgentMessage]) -> [MLXLMCommon.Chat.Message] {
         messages.map { message in
             switch message.role {
             case .user: return .user(message.content)
             case .assistant:
                 let calls = message.calls.map { call in
-                    ToolCall(function: .init(name: call.name, arguments: call.arguments.mapValues {
+                    MLXLMCommon.ToolCall(function: .init(name: call.name, arguments: call.arguments.mapValues {
                         JSONValue.string($0)
                     }), id: call.id)
                 }
@@ -94,7 +94,7 @@ extension MLXModelService: AgentModel {
         }
     }
 
-    static func agentCall(_ call: ToolCall) throws -> AgentToolCall {
+    static func agentCall(_ call: MLXLMCommon.ToolCall) throws -> AgentToolCall {
         var arguments: [String: String] = [:]
         for (key, value) in call.function.arguments {
             guard case .string(let text) = value else { throw AgentError.invalidArguments }
@@ -173,7 +173,6 @@ extension MLXModelService: AgentModel {
         case .info(let info):
             if info.stopReason == .length { throw AgentError.responseLimit }
             if info.stopReason == .cancelled { throw CancellationError() }
-        default: break
         }
     }
 

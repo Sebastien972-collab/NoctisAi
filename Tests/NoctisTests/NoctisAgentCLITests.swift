@@ -37,7 +37,7 @@ struct NoctisAgentCLITests {
         #expect(try NoctisCLI.authorizedWorkspace(arguments: ["--workspace", "/private/tmp"]) != nil)
         for arguments in [["--workspace"], ["--workspace", "relative"], ["--unknown", "/private/tmp"],
                           ["--workspace", "/private/tmp", "extra"], ["--workspace", "/private/tmp/does-not-exist"]] {
-            #expect(throws: AgentError.self) { try NoctisCLI.authorizedWorkspace(arguments: arguments) }
+            #expect(throws: NoctisAgent.AgentError.self) { try NoctisCLI.authorizedWorkspace(arguments: arguments) }
         }
     }
 

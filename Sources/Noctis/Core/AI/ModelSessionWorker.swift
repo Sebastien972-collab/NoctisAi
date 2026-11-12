@@ -2,12 +2,21 @@
 
 import Foundation
 import os
+import MLXLMCommon
 
 /// Created and used exclusively by the worker task; intentionally not Sendable.
 protocol ModelSession: AnyObject {
     func streamResponse(to prompt: String) -> AsyncThrowingStream<String, Error>
     func synchronize() async
     func reset(history: [AIChatMessage]) async throws
+}
+
+protocol StructuredModelSession: ModelSession {
+    func streamDetails(
+        messages: [MLXLMCommon.Chat.Message],
+        tools: [ToolSpec],
+        instructions: String
+    ) -> AsyncThrowingStream<Generation, Error>
 }
 
 final class GenerationCancellation: Sendable {
@@ -62,8 +71,27 @@ final class ModelSessionWorker: Sendable {
         let completion: CheckedContinuation<Void, Error>
     }
 
+    private final class StructuredInput: @unchecked Sendable {
+        let messages: [MLXLMCommon.Chat.Message]
+        let tools: [ToolSpec]
+        let instructions: String
+        init(messages: [MLXLMCommon.Chat.Message], tools: [ToolSpec], instructions: String) {
+            self.messages = messages
+            self.tools = tools
+            self.instructions = instructions
+        }
+    }
+
+    private struct StructuredRequest: @unchecked Sendable {
+        let input: StructuredInput
+        let output: AsyncThrowingStream<Generation, Error>.Continuation
+        let cancellation: GenerationCancellation
+        let completion: CheckedContinuation<Void, Error>
+    }
+
     private enum Command: Sendable {
         case generate(Request)
+        case structuredGenerate(StructuredRequest)
         case reset([AIChatMessage], CheckedContinuation<Void, Error>)
     }
 
@@ -96,7 +124,42 @@ final class ModelSessionWorker: Sendable {
                             } catch {
                                 completion.resume(throwing: error)
                             }
+                        case .structuredGenerate(let request):
+                            if request.cancellation.isCancelled {
+                                request.completion.resume(throwing: CancellationError())
+                                continue
+                            }
+                            guard let session = session as? any StructuredModelSession else {
+                                request.completion.resume(throwing: MLXModelServiceError.modelNotLoaded)
+                                continue
+                            }
+                            let upstream = session.streamDetails(
+                                messages: request.input.messages, tools: request.input.tools, instructions: request.input.instructions
+                            )
+                            let reader = Task {
+                                for try await event in upstream {
+                                    request.cancellation.arm()
+                                    if request.cancellation.isCancelled { continue }
+                                    if case .terminated = request.output.yield(event) {
+                                        request.cancellation.cancel()
+                                    }
+                                }
+                                try Task.checkCancellation()
+                            }
+                            request.cancellation.install(reader)
+                            let result = await reader.result
+                            await session.synchronize()
+                            request.cancellation.clear()
+                            if request.cancellation.isCancelled {
+                                request.completion.resume(throwing: CancellationError())
+                            } else {
+                                request.completion.resume(with: result)
+                            }
                         case .generate(let request):
+                            if request.cancellation.isCancelled {
+                                request.completion.resume(throwing: CancellationError())
+                                continue
+                            }
                             let upstream = session.streamResponse(to: request.prompt)
                             let reader = Task {
                                 for try await chunk in upstream {
@@ -151,5 +214,34 @@ final class ModelSessionWorker: Sendable {
                 completion.resume(throwing: CancellationError())
             }
         }
+    }
+
+    func streamDetails(
+        messages: [MLXLMCommon.Chat.Message],
+        tools: [ToolSpec],
+        instructions: String
+    ) -> AsyncThrowingStream<Generation, Error> {
+        let (stream, output) = AsyncThrowingStream<Generation, Error>.makeStream()
+        let cancellation = GenerationCancellation()
+        let input = StructuredInput(messages: messages, tools: tools, instructions: instructions)
+        Task {
+            do {
+                try await withCheckedThrowingContinuation { completion in
+                    let request = StructuredRequest(
+                        input: input, output: output, cancellation: cancellation, completion: completion
+                    )
+                    if case .terminated = requests.yield(.structuredGenerate(request)) {
+                        completion.resume(throwing: CancellationError())
+                    }
+                }
+                output.finish()
+            } catch {
+                output.finish(throwing: error)
+            }
+        }
+        output.onTermination = { termination in
+            if case .cancelled = termination { cancellation.cancel() }
+        }
+        return stream
     }
 }

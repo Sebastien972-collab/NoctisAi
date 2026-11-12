@@ -30,7 +30,7 @@ struct NoctisCLI {
         default:
             guard arguments.count == 2, arguments[0] == "--workspace",
                   arguments[1].hasPrefix("/"), !arguments[1].contains("\0") else {
-                throw AgentError.invalidArguments
+                throw NoctisAgent.AgentError.invalidArguments
             }
             return .chat(arguments[1])
         }
@@ -157,7 +157,7 @@ struct NoctisCLI {
     static func authorizedWorkspace(arguments: [String]) throws -> AuthorizedWorkspace? {
         if arguments.isEmpty { return nil }
         guard case .chat(let path) = try command(arguments: arguments), let path else {
-            throw AgentError.invalidArguments
+            throw NoctisAgent.AgentError.invalidArguments
         }
         return try AuthorizedWorkspace(authorizing: URL(fileURLWithPath: path))
     }
