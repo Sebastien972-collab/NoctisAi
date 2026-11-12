@@ -74,7 +74,7 @@ actor NoctisToolDispatcher {
         self.web = web
     }
 
-    func execute(_ call: ToolCall) async throws -> String {
+    func execute(_ call: MLXLMCommon.ToolCall) async throws -> String {
         try Task.checkCancellation()
         guard remainingCalls > 0 else { throw AgentError.iterationLimit }
         remainingCalls -= 1

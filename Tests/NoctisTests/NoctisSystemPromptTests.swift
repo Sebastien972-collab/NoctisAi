@@ -87,21 +87,21 @@ struct NoctisSystemPromptTests {
             let registry = NoctisToolRegistry(workspace: local)
             let dispatcher = NoctisToolDispatcher(registry: registry, web: web)
             for entry in registry.entries {
-                let arguments: [String: JSONValue]
+                let arguments: [String: MLXLMCommon.JSONValue]
                 switch entry.name {
                 case "web_search": arguments = ["query": .string("Swift")]
                 case "searchCode": arguments = ["path": .string("missing-directory"), "query": .string("text")]
                 default: arguments = ["path": .string("missing-file")]
                 }
                 // Missing files produce bounded domain errors, never undeclared_tool.
-                let call = ToolCall(function: .init(name: entry.name, arguments: arguments))
+                let call = MLXLMCommon.ToolCall(function: .init(name: entry.name, arguments: arguments))
                 let output = try await dispatcher.execute(call)
                 #expect(!output.contains("unsupportedTool"))
                 #expect(!output.contains("undeclared_tool"))
             }
             for name in ["unknown", "web_open", authorized ? "web_search" : "readFile"] {
                 await #expect(throws: WebToolError.self) {
-                    try await dispatcher.execute(ToolCall(function: .init(name: name, arguments: [:])))
+                    try await dispatcher.execute(MLXLMCommon.ToolCall(function: .init(name: name, arguments: [:])))
                 }
             }
         }
@@ -139,7 +139,7 @@ struct NoctisSystemPromptTests {
                 group.addTask {
                     do {
                         _ = try await dispatcher.execute(ToolCall(function: .init(
-                            name: "web_search", arguments: ["query": JSONValue.string("Swift")]
+                            name: "web_search", arguments: ["query": MLXLMCommon.JSONValue.string("Swift")]
                         )))
                         return true
                     } catch { return false }
@@ -157,10 +157,10 @@ struct NoctisSystemPromptTests {
         let parameters = try #require(function["parameters"] as? [String: any Sendable])
         #expect(parameters["additionalProperties"] as? Bool == false)
         #expect(parameters["required"] as? [String] == ["url"])
-        for arguments: [String: JSONValue] in [[:], ["url": .int(1)],
+        for arguments: [String: MLXLMCommon.JSONValue] in [[:], ["url": .int(1)],
                                               ["url": .string("https://www.swift.org"), "extra": .string("x")]] {
             #expect(throws: WebToolError.self) {
-                try WebOpenTool.validate(ToolCall(function: .init(name: WebOpenTool.name, arguments: arguments)))
+                try WebOpenTool.validate(MLXLMCommon.ToolCall(function: .init(name: WebOpenTool.name, arguments: arguments)))
             }
         }
         try await withThrowingTaskGroup(of: Void.self) { group in

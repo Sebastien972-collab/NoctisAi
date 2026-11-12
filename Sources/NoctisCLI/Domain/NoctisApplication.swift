@@ -17,6 +17,8 @@ final class NoctisApplication {
     private var input = ConsoleInput()
     private var workspace: AuthorizedWorkspace?
     private var loaded = false
+    private var agentHistory: [ChatMessage] = []
+    private var cliAgent: NoctisCLIAgent?
 
     init(modelService: any AIModelService, workspace: AuthorizedWorkspace? = nil) {
         self.modelService = modelService
@@ -49,11 +51,19 @@ final class NoctisApplication {
                 interrupts.install { load.cancel() }
                 try await load.value
                 loaded = true
+                if let mlx = modelService as? MLXModelService {
+                    cliAgent = try await mlx.makeNoctisCLIAgent()
+                }
                 try Task.checkCancellation()
             }
             let model = modelService
             let console = console
+            let currentAgent = cliAgent
+            let currentHistory = agentHistory
             let generation = Task {
+                if let agent = currentAgent {
+                    return try await Self.renderAgent(agent, prompt: prompt, history: currentHistory, console: console)
+                }
                 console.beginResponse()
                 try await model.withResponse(prompt: prompt) { stream in
                     var renderer = TerminalMarkdown(styled: console.usesColor)
@@ -70,9 +80,12 @@ final class NoctisApplication {
                 }
                 try Task.checkCancellation()
                 print("\n")
+                return nil
             }
             interrupts.install { generation.cancel() }
-            try await generation.value
+            if let history = try await generation.value {
+                agentHistory = history
+            }
         } catch is CancellationError {
             await modelService.cancelGeneration()
             print()
@@ -86,6 +99,36 @@ final class NoctisApplication {
             print()
             console.displayError(error)
             print()
+        }
+    }
+
+    private static func renderAgent(
+        _ agent: NoctisCLIAgent,
+        prompt: String,
+        history: [ChatMessage],
+        console: ConsoleInterface
+    ) async throws -> [ChatMessage]? {
+        console.beginResponse()
+        var renderer = TerminalMarkdown(styled: console.usesColor)
+        var nextHistory: [ChatMessage]?
+        do {
+            for try await event in agent.stream(prompt: prompt, history: history) {
+                try Task.checkCancellation()
+                switch event.kind {
+                case .delta(let text):
+                    console.displayResponse(renderer.append(text))
+                case .finished(_, _, _, let history):
+                    nextHistory = history
+                default:
+                    continue
+                }
+            }
+            console.displayResponse(renderer.finish())
+            print("\n")
+            return nextHistory
+        } catch {
+            console.displayResponse(renderer.finish())
+            throw error
         }
     }
 
@@ -106,6 +149,8 @@ final class NoctisApplication {
         case "/clear":
             do {
                 if loaded { try await modelService.resetConversation(history: []) }
+                agentHistory = []
+                cliAgent = nil
                 input = ConsoleInput()
                 console.displayStatus(String(localized: "console.history.cleared",
                                              defaultValue: "Une nouvelle conversation commence.", bundle: .module))
@@ -128,6 +173,8 @@ final class NoctisApplication {
                 : try NoctisCLI.authorizedWorkspace(arguments: ["--workspace", value])
             if let next, !console.confirmWorkspace(next.path, input: &input) { return }
             try await authorizer.authorizeWorkspace(next)
+            cliAgent = nil
+            agentHistory = []
             workspace = next
             console.displayStatus(String(localized: "console.workspace.context_reset",
                 defaultValue: "Contexte réinitialisé pour ce changement d’accès.", bundle: .module))

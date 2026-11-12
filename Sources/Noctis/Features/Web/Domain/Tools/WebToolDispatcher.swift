@@ -23,7 +23,7 @@ struct WebToolDispatcher: Sendable {
         return result
     }
 
-    func execute(_ call: ToolCall) async throws -> String {
+    func execute(_ call: MLXLMCommon.ToolCall) async throws -> String {
         try Task.checkCancellation()
         
         switch call.function.name {

@@ -53,7 +53,7 @@ let package = Package(
         .package(
             url: "https://github.com/migueldeicaza/SwiftTerm.git",
             exact: "1.99.3"
-        )
+        ),
     ],
     targets: [
         // MARK: - NoctisAgent
@@ -105,7 +105,7 @@ let package = Package(
                     name: "SwiftTerm",
                     package: "SwiftTerm",
                     condition: .when(platforms: [.macOS])
-                )
+                ),
             ],
             resources: [
                 .process("Resources")
