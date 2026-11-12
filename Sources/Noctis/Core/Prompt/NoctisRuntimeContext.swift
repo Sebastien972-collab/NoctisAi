@@ -22,6 +22,9 @@ struct NoctisRuntimeContext: Sendable {
         let permissions = registry.hasWorkspace
             ? "Dossier autorisé en lecture seule. Réseau désactivé pour protéger les données locales."
             : "Aucun accès aux fichiers locaux. Recherche réseau via le service SearXNG configuré."
+        let pageAccess = registry.permits(WebOpenTool.name)
+            ? "Consultation HTTPS publique disponible dans les limites des outils déclarés."
+            : "Consultation des pages indisponible dans cette session."
         return """
             CONTEXTE DE SESSION
             Date actuelle : \(formatter.string(from: date)) (\(timeZone.identifier)).
@@ -29,7 +32,7 @@ struct NoctisRuntimeContext: Sendable {
             Plateforme : \(platform). Modèle exécuté localement.
             Permissions effectives : \(permissions)
             Outils activés : \(registry.entries.map(\.name).joined(separator: ", ")).
-            Restriction : consultation des pages désactivée, transport public non validé.
+            \(pageAccess)
             Aucun outil d'écriture, de commande système ou d'accès aux applications personnelles.
             """
     }

@@ -1,6 +1,161 @@
-# Web Security Audit and Hardening — November 3, 2026
+# Public Web Security — Noctis
 
-## Current review — November 12, 2026
+## Pinned public transport — November 12, 2026
+
+**Current implementation: `web_open` is enabled in Web-only sessions when the TLS context can
+initialize. It remains absent from workspace sessions.** The following historical reports describe
+the earlier blocked implementation and do not describe this transport.
+
+### Isolation and dependencies
+
+Work is isolated in the managed worktree `noctis-secure-web-transport`, branch
+`feat/pinned-public-web-transport`, based on `596ff50`. The original checkout is not edited.
+Only transport-required dependencies were added: SwiftNIO **2.105.0**, SwiftNIO SSL **2.37.5**,
+and transitive swift-atomics **1.3.1**. Previously locked dependency revisions are retained.
+No SDK/deployment target, Docker, remote LLM, telemetry, filesystem permission or generated
+application-resource changes are introduced. SwiftNIO's HTTP parser and NIOSSL's TLS implementation
+are used; Noctis does not implement TLS, HTTP framing or decompression.
+
+### Actual outbound path
+
+`MLXChatSession` → per-turn `NoctisToolDispatcher` → `WebToolDispatcher` → `HTTPWebPageService`
+→ `SecureWebTransport` → bounded DNS worker → `PublicWebDestination` → numeric NIOPosix
+socket → NIOSSL → NIOHTTP1 → bounded SwiftSoup/SwiftReadability extraction.
+
+- URL syntax continues to use SafeURLKit: HTTPS/443 only, no userinfo, ambiguous URL forms,
+  IP-literal URL hosts, local/reserved names or fragments. Public IP literals in user URLs
+  remain deliberately unsupported.
+- `getaddrinfo` resolves the original host once with TCP/443 and both address families. Every
+  returned address must pass SafeURLKit's public-address policy; empty/over-64 sets and any
+  mixed public/private set are rejected before connecting. One numeric address is retained
+  from that immutable snapshot, respecting resolver ordering. No fallback, retry or second
+  hostname resolution occurs. This closes the application-level validation/connect TOCTOU gap.
+- `ClientBootstrap.connect(to: SocketAddress)` opens the numeric socket. The connected peer is
+  checked against the selected endpoint before HTTP is written. NIOPosix does not consult
+  URLSession, proxy environment variables, PAC, HTTP proxy discovery or a fallback transport.
+- Original hostname is passed to NIOSSL for SNI, and to `SecPolicyCreateSSL` for hostname
+  verification. TLS 1.2 minimum; HTTP/1.1 ALPN only. `PublicWebTLS` validates the complete chain
+  against normal system trust with Security.framework. Its custom verification callback replaces
+  library trust evaluation specifically to call `SecTrustSetNetworkFetchAllowed(false)` before
+  evaluation, and adds a revocation policy with `kSecRevocationNetworkAccessDisabled`:
+  certificate AIA/OCSP/CRL locations cannot cause secondary network fetches.
+- Test fixtures can supply their own test root via internal types. Production uses system roots;
+  there is no public insecure mode, trust bypass or arbitrary-root option on MLXModelService.
+- GET sends only the explicit URL path/query, original Host, fixed Accept/Accept-Encoding,
+  User-Agent and Connection headers. No conversation, local file, cookies, credentials or Referer
+  are automatically attached. The extraction response retains Content-Type only; Set-Cookie,
+  authentication and unrelated server headers never enter the model output.
+- All 3xx responses are rejected. Informational/upgrade responses, 206, unsupported MIME,
+  duplicate sensitive framing headers, unsupported compression and ambiguous framing are rejected.
+  Chunked framing is handled by NIO, not handwritten. Trailers are conservatively rejected.
+
+Primary APIs inspected in the pinned source:
+- [Numeric client bootstrap](https://github.com/apple/swift-nio/blob/2.105.0/Sources/NIOPosix/Bootstrap.swift)
+- [NIO HTTP decoder and limits](https://github.com/apple/swift-nio/blob/2.105.0/Sources/NIOHTTP1/HTTPDecoder.swift)
+- [NIOSSL client hostname/SNI contract](https://github.com/apple/swift-nio-ssl/blob/2.37.5/Sources/NIOSSL/NIOSSLClientHandler.swift)
+- [NIOSSL custom verification contract](https://github.com/apple/swift-nio-ssl/blob/2.37.5/Sources/NIOSSL/SSLCallbacks.swift)
+
+### Bounds, efficiency and cancellation
+
+A shared one-thread NIO event loop and reusable TLS context avoid creating a networking runtime
+per page. There is no connection pool or content cache in this first implementation. Independent
+limits allow two concurrent public requests, two DNS workers and two trust-evaluation jobs. A
+cancelled blocking DNS call keeps its worker slot until it actually returns; late DNS results cannot
+start a connection. Busy slots reject promptly instead of accumulating an unbounded waiting queue.
+
+Body limit is 2 MiB, with early Content-Length rejection and streaming byte checks. A separate
+3-MiB encrypted-wire budget covers TLS handshake/header overhead before feeding the protocol
+parsers. Socket reads are bounded to 32 KiB per receive allocation and one message per read cycle.
+HTTP field/list/count limits are 8 KiB/32 KiB/100. Request deadline is 15 seconds from connection
+setup through response; global network deadline is 30 seconds including DNS. Cancellation, failure,
+timeout and success complete once and abort the socket below TLS rather than waiting for a malicious
+peer's close_notify. The request slot is held until the actual socket closes.
+
+Extraction runs off the caller/UI executor, at most two jobs simultaneously. SwiftSoup parses once;
+its document is passed directly to SwiftReadability. Before parsing, input with over 20,000 '<'
+markers is conservatively rejected; after parsing an iterative walk caps all nodes at 20,000 and
+DOM depth at 128 before Readability transforms the tree. Existing Readability extensions remain.
+Unused extracted HTML serialization is skipped: only title and main text are needed.
+The model receives at most 20,000 content characters/64 KiB and 512 title characters/2 KiB, with
+an accurate truncation flag. Empty bounded output is rejected. These limits reduce model context
+cost and allocation pressure; no claim of a measured speedup or OS-wide memory ceiling is made.
+
+### Model-facing controls and prompts
+
+The effective registry still drives instructions, MLX schemas and dispatch. The registry may suppress
+page opening with `allowsWebOpen: false`; enabling that parameter cannot bypass TLS availability
+or workspace isolation. Noctis remains a general personal assistant. Its tool guidance describes
+reading, summarizing and translating requested pages; it never grants development-agent privileges.
+
+Code, independently of the prompt, admits a page URL only if it appears in the current user message
+or is an actual normalized URL field returned by this turn's search. URLs buried in search snippets
+or retrieved page text do not expand that set. URL query changes require their own authorization.
+The set resets every turn. Page calls are capped at four, within the existing eight total tool calls.
+Workspace mode declares neither Web tool and the per-turn dispatcher rejects both.
+
+The page result is JSON with `trust: UNTRUSTED_EXTERNAL_DATA`, `status: retrieved`, verified URL,
+title, extracted content and `isTruncated`. Structured encoding prevents structural envelope escape;
+this label is not a model-behavior guarantee. Permanent security instructions explicitly reject page
+requests to call tools, search secrets, change rules/language, hide information or split secrets across
+requests. Reading/translating such instructions treats them as content. Failures are normalized and
+do not expose certificate dumps, system paths or private error descriptions.
+
+### Verification of this implementation
+
+Final checks in this worktree:
+
+- Dependency resolution succeeded; `Package.resolved` adds only the three required pins.
+- `swift build --disable-sandbox --force-resolved-versions`: succeeded.
+- `RUN_PUBLIC_WEB_SMOKE=1 swift test --disable-sandbox --force-resolved-versions`: **133 NoctisTests
+  and 14 NoctisAgentTests, zero failures**. Two pre-existing live SearXNG tests are skipped.
+- The opted-in public smoke test traverses the actual per-turn registry, dispatcher, production
+  system TLS trust, network transport and HTML extraction for `https://www.swift.org/documentation/`.
+  Verified status, original URL, nonempty title and extracted text. No model is loaded for this check.
+- iOS Simulator arm64 library build via `xcodebuild`, with code signing disabled: **succeeded**
+  on the final source version. Physical devices and App Store packaging were not tested.
+- CLI `--help`: succeeded without loading the model.
+- SwiftLint: succeeded, with the two existing complexity warnings in the extraction and search
+  dispatcher functions. No lint configuration or baseline changed.
+- `git diff --check`: succeeded.
+
+Controlled tests cover real
+TLS over numeric IPv4/IPv6 loopback sockets, original-domain SNI and HTTP Host, a test-root-trusted
+chain, untrusted chain, wrong hostname, network-fetch-disabled trust, redirect/private destinations,
+HTTP downgrade redirects, malformed/partial framing, compression, MIME, oversized fixed/chunked
+bodies and headers, deadlines, cancellation, DNS-worker results, private/public/mixed IPv4/IPv6
+address sets and immutable destination snapshots. No offensive third-party tests are used.
+
+Model-facing tests use MLX's actual Ministral tool parser with strict schemas, plus mock services for
+provenance, workspace isolation, output quoting/truncation, unknown tools and per-turn budgets.
+Adversarial page instructions remain data and cannot authorize an extra URL through code.
+These tests do not claim to prove what a real Ministral model will say or summarize.
+
+### Remaining limitations and activation procedure
+
+There is no separate insecure activation flag. In this branch the standard Web-only session includes
+the tool if TLS initializes; use `/workspace off`, then provide a public HTTPS URL or request a search
+and consult one of that turn's result URLs. Ordinary history resets on changing workspace permissions
+are preserved. A URL referenced only in a previous turn must be provided again or rediscovered.
+
+The OS routing table, local trust store and resolver infrastructure remain trusted. Application-level
+numeric pinning cannot defend against a compromised OS or administrator-controlled routing/trust.
+The DNS rebinding tests verify immutable address validation and numeric dialing composition, not a
+hostile Internet DNS deployment. Conservative special-address policy may reject IPv6 transition
+networks; a chosen unreachable public address fails without retrying another address.
+
+System trust evaluation cannot fetch missing intermediates or online revocation data. Servers must
+present a usable chain; cached system trust information may still be used. This is a compatibility
+tradeoff required to exclude certificate-induced network requests. No independent security audit is
+claimed. Cookies, authentication, redirects, compression and non-HTML downloads are unsupported.
+
+The 30-second deadline bounds networking, not a preemptible HTML sandbox. SwiftSoup/Readability are
+synchronous: cancellation is checked before/after parsing and during the bounded traversal, but cannot
+interrupt a single parser operation. Parser/OS/TLS allocations are not a process-wide memory cap.
+Prompt rules cannot guarantee resistance to every injection or detect a secret the user supplied in
+an ordinary Web query. Provenance limits navigation; they do not infer semantic user intent. Model
+inference, live upstream search and physical-device behavior require separate runtime validation.
+
+## Historical prompt-only review — November 12, 2026
 
 **`web_open` remains disabled. No public transport has been implemented or certified.**
 The November 3 sections below are historical. This section describes the current change.

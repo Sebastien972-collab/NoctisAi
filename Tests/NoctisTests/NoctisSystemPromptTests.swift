@@ -54,12 +54,12 @@ struct NoctisSystemPromptTests {
                 return try #require(function["name"] as? String)
             }
             #expect(names == registry.entries.map(\.name))
-            #expect(names == (authorized ? ["listFiles", "readFile", "searchCode"] : ["web_search"]))
+            #expect(names == (authorized ? ["listFiles", "readFile", "searchCode"] : ["web_search", "web_open"]))
             let prompt = NoctisSystemPromptBuilder.build(registry: registry)
             for name in names { #expect(prompt.contains("\(name) :")) }
-            #expect(!prompt.contains("web_open"))
+            #expect(prompt.contains("web_open") == !authorized)
             #expect(!prompt.contains("/private/tmp"))
-            #expect(!registry.permits(WebOpenTool.name))
+            #expect(registry.permits(WebOpenTool.name) == !authorized)
             if authorized {
                 #expect(!prompt.contains("web_search"))
                 #expect(prompt.contains("Réseau désactivé"))
@@ -85,11 +85,14 @@ struct NoctisSystemPromptTests {
             let local = authorized ? ToolRegistry(workspace: try AuthorizedWorkspace(
                 authorizing: URL(fileURLWithPath: "/private/tmp"))) : nil
             let registry = NoctisToolRegistry(workspace: local)
-            let dispatcher = NoctisToolDispatcher(registry: registry, web: web)
+            let dispatcher = NoctisToolDispatcher(
+                registry: registry, web: web, userPrompt: "Résume https://www.swift.org/article"
+            )
             for entry in registry.entries {
                 let arguments: [String: JSONValue]
                 switch entry.name {
                 case "web_search": arguments = ["query": .string("Swift")]
+                case "web_open": arguments = ["url": .string("https://www.swift.org/article")]
                 case "searchCode": arguments = ["path": .string("missing-directory"), "query": .string("text")]
                 default: arguments = ["path": .string("missing-file")]
                 }
@@ -112,8 +115,13 @@ struct NoctisSystemPromptTests {
             authorizing: URL(fileURLWithPath: "/private/tmp")))
         for registry in [NoctisToolRegistry(), NoctisToolRegistry(workspace: workspace)] {
             for entry in registry.entries {
-                let arguments = entry.name == "web_search" ? ["query": "Swift"]
-                    : entry.name == "searchCode" ? ["path": ".", "query": "Swift"] : ["path": "."]
+                let arguments: [String: String]
+                switch entry.name {
+                case "web_search": arguments = ["query": "Swift"]
+                case "web_open": arguments = ["url": "https://www.swift.org/article"]
+                case "searchCode": arguments = ["path": ".", "query": "Swift"]
+                default: arguments = ["path": "."]
+                }
                 let json = try #require(String(data: JSONEncoder().encode(arguments), encoding: .utf8))
                 let parser = ToolCallProcessor(format: .mistral, tools: registry.schemas,
                                                toolCallPolicy: .init(validation: .strict))
@@ -122,7 +130,7 @@ struct NoctisSystemPromptTests {
                 #expect(parser.toolCalls.map { $0.function.name } == [entry.name])
                 #expect(parser.rejectedToolCalls.isEmpty)
             }
-            for name in ["unknown", "web_open"] {
+            for name in ["unknown", "web_open"].filter({ !registry.permits($0) }) {
                 let parser = ToolCallProcessor(format: .mistral, tools: registry.schemas)
                 _ = parser.processChunk("[TOOL_CALLS]\(name)[ARGS]{\"url\":\"https://www.swift.org\"}")
                 parser.processEOS()
@@ -163,23 +171,22 @@ struct NoctisSystemPromptTests {
                 try WebOpenTool.validate(ToolCall(function: .init(name: WebOpenTool.name, arguments: arguments)))
             }
         }
-        try await withThrowingTaskGroup(of: Void.self) { group in
-            for _ in 0..<16 {
-                group.addTask {
-                    await #expect(throws: WebPageError.publicAccessDisabled) {
-                        try await HTTPWebPageService().open(url: #require(URL(string: "https://www.swift.org")))
-                    }
-                }
-            }
-            try await group.waitForAll()
-        }
+        let disabled = NoctisToolRegistry(allowsWebOpen: false)
+        #expect(!disabled.permits(WebOpenTool.name))
+        #expect(!NoctisSystemPromptBuilder.build(registry: disabled).contains("web_open"))
     }
 
     private var web: WebToolDispatcher {
-        WebToolDispatcher(searchService: PromptSearchStub(), pasgeService: HTTPWebPageService())
+        WebToolDispatcher(searchService: PromptSearchStub(), pasgeService: PromptPageStub())
     }
 }
 
 private struct PromptSearchStub: WebSearchService {
     func search(query: String) async throws -> [SearchResult] { [] }
+}
+
+private struct PromptPageStub: WebPageService {
+    func open(url: URL) async throws -> WebPage {
+        WebPage(url: url.absoluteString, title: "Test", content: "Texte de la page", isTruncated: false)
+    }
 }
