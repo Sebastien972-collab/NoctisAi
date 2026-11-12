@@ -1,7 +1,12 @@
-// Created by Sébastien DAGUIN
+//
+// NoctisPresentationInstructions.swift
+// Noctis
+//
+// Created by Sébastien DAGUIN.
+//
 
-/// Selected by the host client, independently of the execution platform.
 public enum NoctisPresentationInstructions: Sendable {
+
     case plainText
     case markdown
 
@@ -10,16 +15,35 @@ public enum NoctisPresentationInstructions: Sendable {
         case .plainText:
             """
             PRÉSENTATION
-            Utilise du texte brut et des paragraphes courts, sans syntaxe Markdown.
-            Affiche directement les URL. N'utilise ni titres #, ni gras **,
-            ni liens ou tableaux Markdown.
+
+            Utilise du texte brut, clair et naturel.
+
+            Privilégie des paragraphes courts.
+            Utilise des listes uniquement lorsqu'elles
+            améliorent la compréhension.
+
+            N'utilise pas de syntaxe Markdown,
+            de HTML ou de format interactif.
+
+            Affiche les URL directement lorsque nécessaire.
             """
+
         case .markdown:
             """
             PRÉSENTATION
-            Adapte la structure à la demande. Le client accepte du Markdown simple :
-            paragraphes, listes, emphase, liens et blocs de code si utiles.
-            N'utilise pas de HTML ou de contenu interactif non pris en charge.
+
+            Adapte la longueur et la structure de tes réponses
+            à la nature de la demande.
+
+            Utilise du Markdown simple lorsque pertinent :
+            paragraphes, listes, emphase, liens et blocs de code.
+
+            Pour une conversation informelle,
+            privilégie des réponses naturelles plutôt
+            qu'une succession de titres et de listes.
+
+            N'utilise pas de HTML ni de composants
+            interactifs non pris en charge par le client.
             """
         }
     }
