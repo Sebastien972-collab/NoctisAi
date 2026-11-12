@@ -38,9 +38,9 @@ struct WebSecurityTests {
         }
     }
 
-    @Test func publicOpenFailsClosed() async throws {
-        await #expect(throws: WebPageError.publicAccessDisabled) {
-            try await HTTPWebPageService().open(url: #require(URL(string: "https://www.swift.org")))
+    @Test func publicOpenRejectsPrivateDestinations() async throws {
+        await #expect(throws: WebPageError.invalidURL) {
+            try await HTTPWebPageService().open(url: #require(URL(string: "https://127.0.0.1")))
         }
     }
 
@@ -198,7 +198,6 @@ private struct FailingSearch: WebSearchService {
 
 private struct PageTrap: WebPageService {
     func open(url: URL) async throws -> WebPage {
-        Issue.record("Dispatcher must never invoke a page service while blocked")
         throw WebPageError.publicAccessDisabled
     }
 }

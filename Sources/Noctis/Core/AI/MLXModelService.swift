@@ -37,7 +37,7 @@ private final class MLXChatSession: StructuredModelSession {
         session.instructions = ([NoctisSystemPromptBuilder.build(registry: registry, presentation: presentation)]
             + additionalInstructions).joined(separator: "\n\n")
         session.tools = registry.schemas
-        let dispatcher = NoctisToolDispatcher(registry: registry, web: webDispatcher)
+        let dispatcher = NoctisToolDispatcher(registry: registry, web: webDispatcher, userPrompt: prompt)
         session.toolDispatch = { call in try await dispatcher.execute(call) }
         session.generateParameters.maxTokens = registry.hasWorkspace ? 2_048 : nil
         return session.streamResponse(to: prompt)

@@ -25,6 +25,8 @@ let package = Package(
         )
     ],
     dependencies: [
+        .package(url: "https://github.com/apple/swift-nio.git", exact: "2.105.0"),
+        .package(url: "https://github.com/apple/swift-nio-ssl.git", exact: "2.37.5"),
         .package(
             url: "https://github.com/adamtheturtle/SafeURLKit.git",
             exact: "0.2.0"
@@ -69,6 +71,10 @@ let package = Package(
             name: "Noctis",
             dependencies: [
                 "NoctisAgent",
+                .product(name: "NIOCore", package: "swift-nio"),
+                .product(name: "NIOPosix", package: "swift-nio"),
+                .product(name: "NIOHTTP1", package: "swift-nio"),
+                .product(name: "NIOSSL", package: "swift-nio-ssl"),
                 .product(
                     name: "SafeURLKit",
                     package: "SafeURLKit"

@@ -157,11 +157,21 @@ MLX schemas and dispatch permissions. Date and capabilities refresh before each 
 The CLI requests plain text; library clients default to simple Markdown and can select
 `MLXModelService(presentation: .plainText)` independently of the platform.
 
-`web_search` remains available only without an authorized workspace. `web_open` has a reserved
-strict HTTPS URL contract but is **disabled and absent from model schemas**: no verified public
-transport binds DNS validation to the actual connection with original-host TLS validation.
-There is no activation switch. See [WEB_SECURITY.md](WEB_SECURITY.md) for the audited behavior,
-transport alternatives, tests and requirements for enabling page retrieval.
+`web_search` and `web_open` are available only without an authorized workspace. Public page
+retrieval uses a dedicated SwiftNIO transport: HTTPS/443, all DNS candidates checked, a numeric
+connection pinned to one checked address, original-domain certificate validation and SNI, and
+no redirects, proxies, cookies or secondary resources. Search retains its separate SearXNG transport.
+
+For example, revoke local access with `/workspace off`, then ask Noctis to summarize or translate
+an explicit HTTPS URL, or search and consult one of that turn's result URLs. Opening a workspace
+revokes both Web tools and resets history. A URL appearing only inside a retrieved page does not
+become authorized. For a later turn, supply the URL again or perform a fresh search.
+
+Limits: two page requests and two extractions concurrently, four page calls per turn, 2 MiB per
+body, 15-second request/30-second network deadline, and up to 20,000 characters/64 KiB of extracted
+text returned to the model. Unavailable, redirected, untrusted-TLS or unsupported pages produce
+errors. The tool is omitted when TLS initialization is unavailable or the host disables it.
+See [WEB_SECURITY.md](WEB_SECURITY.md) for the exact architecture, tests and remaining limitations.
 
 ### Workspace and permissions
 

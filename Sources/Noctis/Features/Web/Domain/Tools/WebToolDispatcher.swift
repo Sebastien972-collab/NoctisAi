@@ -3,10 +3,11 @@ import MLXLMCommon
 
 struct WebToolDispatcher: Sendable {
     private let searchService: any WebSearchService
+    private let pageService: any WebPageService
 
     init(searchService: any WebSearchService, pasgeService: any WebPageService) {
         self.searchService = searchService
-        // Kept source-compatible; no page service may bypass the public-access gate.
+        self.pageService = pasgeService
     }
 
     // A single grapheme may contain thousands of combining scalars. Bound both
@@ -70,10 +71,47 @@ struct WebToolDispatcher: Sendable {
             encoder.outputFormatting = [.sortedKeys]
             return String(decoding: try encoder.encode(payload), as: UTF8.self)
         case WebOpenTool.name:
-            _ = try WebOpenTool.validate(call)
-            throw WebPageError.publicAccessDisabled
+            return try await openPage(call)
         default:
             throw WebToolError.unsupportedTool("unsupported")
         }
     }
+
+    private func openPage(_ call: ToolCall) async throws -> String {
+        let url = try WebOpenTool.validate(call)
+        do {
+            let page = try await pageService.open(url: url)
+            try Task.checkCancellation()
+            guard page.url == url.absoluteString else { throw WebPageError.invalidResponse }
+            let title = boundedText(page.title, characters: 512, bytes: 2_048)
+            let content = boundedText(page.content, characters: 20_000, bytes: 65_536)
+            guard !content.isEmpty else { throw WebPageError.noContent }
+            let payload = ExternalPage(
+                trust: "UNTRUSTED_EXTERNAL_DATA", status: "retrieved", url: url.absoluteString,
+                title: title.isEmpty ? "Sans titre" : title, content: content,
+                isTruncated: page.isTruncated || content != page.content || title != page.title
+            )
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.sortedKeys]
+            guard let output = String(data: try encoder.encode(payload), encoding: .utf8) else {
+                throw WebPageError.transportFailure
+            }
+            return output
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            if Task.isCancelled { throw CancellationError() }
+            throw error as? WebPageError ?? .transportFailure
+        }
+    }
+
+}
+
+private struct ExternalPage: Encodable {
+    let trust: String
+    let status: String
+    let url: String
+    let title: String
+    let content: String
+    let isTruncated: Bool
 }
