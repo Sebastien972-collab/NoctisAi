@@ -74,6 +74,7 @@ private final class MLXChatSession: StructuredModelSession {
         )
         // AgentLoop owns every tool execution. MLX must only surface calls.
         session.generateParameters.maxTokens = 2_048
+        session.generateParameters.toolCallPolicy = .init(recovery: .disabled, validation: .strict)
         return session.streamDetails(to: [pending])
     }
 

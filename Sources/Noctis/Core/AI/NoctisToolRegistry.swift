@@ -79,7 +79,14 @@ actor NoctisToolDispatcher {
         guard remainingCalls > 0 else { throw AgentError.iterationLimit }
         remainingCalls -= 1
         guard registry.permits(call.function.name) else { throw WebToolError.unsupportedTool("unsupported") }
-        if let local { return try await local.execute(call) }
+        if let local {
+            let output = try await local.execute(call)
+            if let object = try JSONSerialization.jsonObject(with: Data(output.utf8)) as? [String: String],
+               object.count == 1, let code = object["error"], let error = NoctisAgent.AgentError(rawValue: code) {
+                throw error
+            }
+            return output
+        }
         return try await web.execute(call)
     }
 }

@@ -26,9 +26,14 @@ public protocol AnyTool<Context>: Sendable {
     var strict: Bool? { get }
 
     func execute(arguments: Data, context: Context) async throws -> ToolResult
+    func execute(call: ToolCall, context: Context) async throws -> ToolResult
 }
 
 public extension AnyTool {
+    func execute(call: ToolCall, context: Context) async throws -> ToolResult {
+        try await execute(arguments: call.argumentsData, context: context)
+    }
+
     var isConcurrencySafe: Bool {
         false
     }

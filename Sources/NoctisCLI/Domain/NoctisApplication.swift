@@ -36,6 +36,7 @@ final class NoctisApplication {
             if await handleCommand(prompt) { fflush(stdout); continue }
             await respond(to: prompt, interrupts: interrupts)
         }
+        cliAgent?.endSession()
         console.displayStatus(String(localized: "console.status.terminated",
                                      defaultValue: "À bientôt. Prends soin de toi.", bundle: .module))
     }
@@ -87,11 +88,13 @@ final class NoctisApplication {
                 agentHistory = history
             }
         } catch is CancellationError {
+            if let history = cliAgent?.recoveryHistory { agentHistory = history }
             await modelService.cancelGeneration()
             print()
             console.displayStatus(String(localized: "console.status.cancelled",
                 defaultValue: "Réponse interrompue. On peut continuer.", bundle: .module))
         } catch {
+            if let history = cliAgent?.recoveryHistory { agentHistory = history }
             if !loaded {
                 console.displayStatus(String(localized: "console.error.startup_failed",
                     defaultValue: "Impossible de démarrer Noctis.", bundle: .module))
@@ -117,6 +120,22 @@ final class NoctisApplication {
                 switch event.kind {
                 case .delta(let text):
                     console.displayResponse(renderer.append(text))
+                case .toolCallStarted(let name, _):
+                    console.displayResponse(renderer.finish())
+                    renderer = TerminalMarkdown(styled: console.usesColor)
+                    let action: String
+                    switch name {
+                    case "web_search": action = "Recherche Web…"
+                    case "readFile": action = "Lecture du fichier…"
+                    case "listFiles": action = "Liste des fichiers…"
+                    default: action = "Recherche dans les fichiers…"
+                    }
+                    print()
+                    console.displayStatus(action)
+                case .toolCallCompleted(_, _, let result) where result.isError:
+                    print()
+                    console.displayStatus(result.content == "Action refusée : permission insuffisante"
+                        ? "Action refusée : permission insuffisante" : "Action échouée")
                 case .finished(_, _, _, let history):
                     nextHistory = history
                 default:
@@ -136,7 +155,12 @@ final class NoctisApplication {
         switch prompt {
         case "/help": print(NoctisCLI.interactiveHelp)
         case "/model": print(NoctisConfiguration.modelID)
+        case "/diagnostics on": cliAgent?.traceRecorder.diagnosticsEnabled = true
+        case "/diagnostics off": cliAgent?.traceRecorder.diagnosticsEnabled = false
         case "/permissions":
+            console.displayStatus(workspace == nil
+                ? "Aucun accès aux fichiers locaux. Recherche Web autorisée ; disponibilité du service non garantie."
+                : "Lecture seule dans le dossier autorisé. Accès réseau désactivé pour ce contexte.")
             console.displayStatus(String(localized: "console.permissions.summary", defaultValue: """
                 Lecture limitée au dossier autorisé, uniquement pour répondre à tes demandes.
                 Fichiers sensibles, liens symboliques et fichiers de plus de 64 Kio : refusés.
@@ -150,7 +174,8 @@ final class NoctisApplication {
             do {
                 if loaded { try await modelService.resetConversation(history: []) }
                 agentHistory = []
-                cliAgent = nil
+                cliAgent?.endSession()
+                cliAgent = loaded ? try await (modelService as? MLXModelService)?.makeNoctisCLIAgent() : nil
                 input = ConsoleInput()
                 console.displayStatus(String(localized: "console.history.cleared",
                                              defaultValue: "Une nouvelle conversation commence.", bundle: .module))
@@ -173,7 +198,8 @@ final class NoctisApplication {
                 : try NoctisCLI.authorizedWorkspace(arguments: ["--workspace", value])
             if let next, !console.confirmWorkspace(next.path, input: &input) { return }
             try await authorizer.authorizeWorkspace(next)
-            cliAgent = nil
+            cliAgent?.endSession()
+            cliAgent = loaded ? try await (modelService as? MLXModelService)?.makeNoctisCLIAgent() : nil
             agentHistory = []
             workspace = next
             console.displayStatus(String(localized: "console.workspace.context_reset",

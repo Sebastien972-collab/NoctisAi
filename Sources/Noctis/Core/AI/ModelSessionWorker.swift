@@ -125,6 +125,10 @@ final class ModelSessionWorker: Sendable {
                                 completion.resume(throwing: error)
                             }
                         case .structuredGenerate(let request):
+                            if request.cancellation.isCancelled {
+                                request.completion.resume(throwing: CancellationError())
+                                continue
+                            }
                             guard let session = session as? any StructuredModelSession else {
                                 request.completion.resume(throwing: MLXModelServiceError.modelNotLoaded)
                                 continue
@@ -152,6 +156,10 @@ final class ModelSessionWorker: Sendable {
                                 request.completion.resume(with: result)
                             }
                         case .generate(let request):
+                            if request.cancellation.isCancelled {
+                                request.completion.resume(throwing: CancellationError())
+                                continue
+                            }
                             let upstream = session.streamResponse(to: request.prompt)
                             let reader = Task {
                                 for try await chunk in upstream {

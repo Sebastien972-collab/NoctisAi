@@ -100,7 +100,7 @@ struct ToolCallRunner<C: ToolContext> {
         guard let subAgentTool = tool as? any SubAgentExecutableTool<C> else {
             return try await convertingToolErrors {
                 try await withToolTimeout(timeout, toolName: call.name) {
-                    try await tool.execute(arguments: call.argumentsData, context: context)
+                    try await tool.execute(call: call, context: context)
                 }
             }
         }

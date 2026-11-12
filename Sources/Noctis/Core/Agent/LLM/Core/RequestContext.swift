@@ -70,6 +70,7 @@ public enum OpenAIChatCustomToolGrammarSyntax: String, Sendable, Equatable, Coda
 
 /// Per-request metadata and provider-specific parameters.
 public struct RequestContext: Sendable {
+    var agentTrace: AgentTraceScope?
     public let extraFields: [String: JSONValue]
     public let onResponse: (@Sendable (HTTPURLResponse) -> Void)?
     /// Invoked synchronously for each live stream event; replayed events bypass it.

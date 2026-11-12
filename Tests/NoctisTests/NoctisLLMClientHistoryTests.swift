@@ -1,3 +1,5 @@
+// Created by Sébastien DAGUIN
+
 import Foundation
 import Testing
 import MLXLMCommon
@@ -5,7 +7,7 @@ import MLXLMCommon
 
 @Suite("Noctis LLM history serialization")
 struct NoctisLLMClientHistoryTests {
-    @Test func ordinaryTurnsKeepOrderAndDropTheTransportSystemMessage() {
+    @Test func ordinaryTurnsKeepOrderAndDropTheTransportSystemMessage() throws {
         let messages: [ChatMessage] = [
             .system("Noctis identity"),
             .user("Bonjour"),
@@ -13,14 +15,14 @@ struct NoctisLLMClientHistoryTests {
             .user("Comment vas-tu ?")
         ]
 
-        let converted = NoctisLLMClient.messages(messages)
+        let converted = try NoctisLLMClient.messages(messages)
 
         #expect(converted.map(\.role) == [.user, .assistant, .user])
         #expect(converted.map(\.content) == ["Bonjour", "Bonsoir", "Comment vas-tu ?"])
     }
 
-    @Test func toolTurnsPreserveTheToolMessageBoundaryAndStructuredArguments() {
-        let arguments = NoctisLLMClient.decodedArguments(
+    @Test func toolTurnsPreserveTheToolMessageBoundaryAndStructuredArguments() throws {
+        let arguments = try NoctisLLMClient.decodedArguments(
             "{\"path\":\"Sources\",\"limit\":3,\"recursive\":true,\"filters\":[\"swift\"]}"
         )
 
@@ -32,23 +34,23 @@ struct NoctisLLMClientHistoryTests {
         let messages: [ChatMessage] = [
             .user("Liste les fichiers"),
             .assistant(AssistantMessage(content: "", toolCalls: [
-                ToolCall(id: "call-1", name: "listFiles", arguments: "{\"path\":\"Sources\"}")
+                ToolCall(id: "call00001", name: "listFiles", arguments: "{\"path\":\"Sources\"}")
             ])),
-            .tool(id: "call-1", name: "listFiles", content: "[\"Sources/Noctis\"]"),
+            .tool(id: "call00001", name: "listFiles", content: "[\"Sources/Noctis\"]"),
             .assistant(AssistantMessage(content: "Voici le résultat."))
         ]
 
-        let converted = NoctisLLMClient.messages(messages)
+        let converted = try NoctisLLMClient.messages(messages)
         #expect(converted.map(\.role) == [.user, .assistant, .tool, .assistant])
         #expect(converted[2].content == "[\"Sources/Noctis\"]")
     }
 
-    @Test func consecutiveProviderRequestsCanBeRehydratedFromCompleteHistory() {
+    @Test func consecutiveProviderRequestsCanBeRehydratedFromCompleteHistory() throws {
         let first: [ChatMessage] = [.user("Un"), .assistant(AssistantMessage(content: "Deux"))]
         let second = first + [.user("Trois")]
 
-        let firstMLX = NoctisLLMClient.messages(first)
-        let secondMLX = NoctisLLMClient.messages(second)
+        let firstMLX = try NoctisLLMClient.messages(first)
+        let secondMLX = try NoctisLLMClient.messages(second)
 
         #expect(firstMLX.map(\.role) == [.user, .assistant])
         #expect(secondMLX.map(\.role) == [.user, .assistant, .user])
