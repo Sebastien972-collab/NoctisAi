@@ -6,6 +6,8 @@
 // Created by Sébastien DAGUIN.
 //
 
+/// Describes only the tools actually exposed by the host for this session.
+/// The registry and tool schemas remain the authority for permissions and arguments.
 enum NoctisToolInstructions {
 
     static func text(registry: NoctisToolRegistry) -> String {
