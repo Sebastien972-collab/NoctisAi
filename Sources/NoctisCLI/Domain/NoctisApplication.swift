@@ -63,22 +63,7 @@ final class NoctisApplication {
                 if let agent = currentAgent {
                     return try await Self.renderAgent(agent, prompt: prompt, history: currentHistory, console: console)
                 }
-                console.beginResponse()
-                try await model.withResponse(prompt: prompt) { stream in
-                    var renderer = TerminalMarkdown(styled: console.usesColor)
-                    do {
-                        for try await chunk in stream {
-                            try Task.checkCancellation()
-                            console.displayResponse(renderer.append(chunk))
-                        }
-                    } catch {
-                        console.displayResponse(renderer.finish())
-                        throw error
-                    }
-                    console.displayResponse(renderer.finish())
-                }
-                try Task.checkCancellation()
-                print("\n")
+                try await Self.renderLegacyModel(model, prompt: prompt, console: console)
                 return nil
             }
             interrupts.install { generation.cancel() }
@@ -104,6 +89,29 @@ final class NoctisApplication {
             print()
             return false
         }
+    }
+
+    private static func renderLegacyModel(
+        _ model: any AIModelService,
+        prompt: String,
+        console: ConsoleInterface
+    ) async throws {
+        console.beginResponse()
+        try await model.withResponse(prompt: prompt) { stream in
+            var renderer = TerminalMarkdown(styled: console.usesColor)
+            do {
+                for try await chunk in stream {
+                    try Task.checkCancellation()
+                    console.displayResponse(renderer.append(chunk))
+                }
+            } catch {
+                console.displayResponse(renderer.finish())
+                throw error
+            }
+            console.displayResponse(renderer.finish())
+        }
+        try Task.checkCancellation()
+        print("\n")
     }
 
     private func prepareModel(interrupts: ConsoleInterrupts) async throws {
