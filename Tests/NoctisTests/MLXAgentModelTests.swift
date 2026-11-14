@@ -16,7 +16,8 @@ struct MLXAgentModelTests {
     }
 
     @Test func structuredCallsRequireStringArguments() throws {
-        let call = MLXLMCommon.ToolCall(function: .init(name: "readFile", arguments: ["path": JSONValue.string("file.swift")]),
+        let call = MLXLMCommon.ToolCall(function: .init(name: "readFile",
+                arguments: ["path": JSONValue.string("file.swift")]),
                             id: "call-1")
         let converted = try MLXModelService.agentCall(call)
         #expect(converted.id == "call-1")

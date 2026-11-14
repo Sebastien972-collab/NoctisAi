@@ -1,6 +1,9 @@
+// Created by Sébastien DAGUIN
 import Foundation
 
 extension Agent {
+    // Keep the existing explicit execution contract without an unrelated API change.
+    // swiftlint:disable:next function_parameter_count
     func yieldIterationCompleted(
         iteration: StreamIteration,
         iterationNumber: Int,
@@ -31,11 +34,14 @@ extension Agent {
         eventFactory: StreamEventFactory
     ) throws -> StreamEvent {
         let decoded = try decodeFinishArguments(from: finishCall.argumentsData)
-        return try makeFinishedEvent(
+        var terminalHistory = try history.sanitizedTerminalHistory()
+        if case .assistant = terminalHistory.last { terminalHistory.removeLast() }
+        terminalHistory.append(.assistant(AssistantMessage(content: decoded.content)))
+        return makeFinishedEvent(
             tokenUsage: tokenUsage,
             content: decoded.content,
             reason: FinishReason(decoded.reason ?? "completed"),
-            history: history.sanitizedTerminalHistory(),
+            history: terminalHistory,
             eventFactory: eventFactory
         )
     }

@@ -374,6 +374,78 @@
           }
         }
       }
+    },
+    "error.model.context_limit" : {
+      "comment" : "Limite de sécurité ou état de session affiché par le moteur.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contexte trop volumineux. Commence une nouvelle conversation ; l’historique reste conservé."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The context is too large. Start a new conversation; the existing history is preserved."
+          }
+        }
+      }
+    },
+    "error.model.session_invalidated" : {
+      "comment" : "Limite de sécurité ou état de session affiché par le moteur.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les permissions ont changé. Crée une nouvelle session pour continuer."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Permissions have changed. Create a new session to continue."
+          }
+        }
+      }
+    },
+    "error.model.response_limit" : {
+      "comment" : "Limite de sécurité ou état de session affiché par le moteur.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La réponse a atteint la limite de génération et reste incomplète."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The response reached the generation limit and remains incomplete."
+          }
+        }
+      }
+    },
+    "error.model.tool_limit" : {
+      "comment" : "Limite de sécurité ou état de session affiché par le moteur.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La limite d’outils a été atteinte. La tâche reste incomplète."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The tool limit was reached. The task remains incomplete."
+          }
+        }
+      }
     }
   },
   "version" : "1.3"

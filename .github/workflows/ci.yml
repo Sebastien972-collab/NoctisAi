@@ -16,6 +16,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  GH_TOKEN: ${{ github.token }}
   DEVELOPER_DIR: /Applications/Xcode_27.2.app/Contents/Developer
 
 jobs:
@@ -37,6 +38,10 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
+      - name: Authenticate dependency downloads
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh auth setup-git --hostname github.com
       - name: Check toolchain and prepare Metal
         run: |
           test "$(uname -m)" = arm64
@@ -46,5 +51,23 @@ jobs:
       - name: Build and test without model inference
         run: >-
           xcodebuild -scheme Noctis-Package -destination 'platform=macOS'
-          -derivedDataPath .build/CI -skipPackageUpdates -skipMacroValidation
+          -derivedDataPath .build/CI -skipPackageUpdates -skipMacroValidation -skipPackagePluginValidation
           ARCHS=arm64 ONLY_ACTIVE_ARCH=YES CODE_SIGNING_ALLOWED=NO test
+
+  ios:
+    name: iOS library build
+    runs-on: xcode-27
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Authenticate dependency downloads
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh auth setup-git --hostname github.com
+      - name: Build iOS library without model inference
+        run: >-
+          xcodebuild -scheme Noctis -destination 'generic/platform=iOS'
+          -derivedDataPath .build/iOS -skipMacroValidation -skipPackagePluginValidation
+          ARCHS=arm64 CODE_SIGNING_ALLOWED=NO build

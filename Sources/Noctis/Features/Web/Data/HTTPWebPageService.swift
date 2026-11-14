@@ -33,13 +33,7 @@ struct HTTPWebPageService: WebPageService {
         guard compression == nil || compression == "identity" else {
             throw WebPageError.unsupportedCompression
         }
-        let encoding: String.Encoding
-        switch response.textEncodingName?.lowercased() ?? "utf-8" {
-        case "utf-8", "utf8": encoding = .utf8
-        case "iso-8859-1", "latin1", "windows-1252": encoding = .windowsCP1252
-        case "us-ascii": encoding = .ascii
-        default: throw WebPageError.invalidEncoding
-        }
+        let encoding = try textEncoding(response)
         guard let html = String(data: data, encoding: encoding) else { throw WebPageError.invalidEncoding }
         guard !html.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw WebPageError.noContent
@@ -67,6 +61,17 @@ struct HTTPWebPageService: WebPageService {
         } catch {
             throw WebPageError.noContent
         }
+    }
+
+    private func textEncoding(_ response: HTTPURLResponse) throws -> String.Encoding {
+        let encoding: String.Encoding
+        switch response.textEncodingName?.lowercased() ?? "utf-8" {
+        case "utf-8", "utf8": encoding = .utf8
+        case "iso-8859-1", "latin1", "windows-1252": encoding = .windowsCP1252
+        case "us-ascii": encoding = .ascii
+        default: throw WebPageError.invalidEncoding
+        }
+        return encoding
     }
 
     private func boundedDocument(html: String, url: URL) throws -> Document {

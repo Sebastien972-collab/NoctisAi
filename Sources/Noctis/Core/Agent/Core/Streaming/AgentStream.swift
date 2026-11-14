@@ -1,3 +1,4 @@
+// Created by Sébastien DAGUIN
 import Foundation
 import Observation
 
@@ -186,6 +187,8 @@ extension AgentStream {
         handle(event, toolCallIdPath: [], toolNamePath: [])
     }
 
+    // Dispatch each event of the exhaustive streaming state machine explicitly.
+    // swiftlint:disable:next cyclomatic_complexity
     func handle(_ event: StreamEvent, toolCallIdPath: [String], toolNamePath: [String]) {
         observeEnvelope(event)
         switch event.kind {

@@ -32,7 +32,7 @@ struct ContextCompactor {
         "\n\n...[truncated]...\n\n",
         "...[truncated]...",
         "[truncated]",
-        "...",
+        "..."
     ]
 
     private var consecutiveSummarizationFailures = 0

@@ -11,9 +11,19 @@ public struct AgentToolSchema: Sendable {
 
 public struct ToolRegistry: Sendable {
     private let workspace: AuthorizedWorkspace
+    private let withAccess: @Sendable (@Sendable () throws -> String) throws -> String
 
     /// Construct only after the host has obtained explicit authorization for this directory.
-    public init(workspace: AuthorizedWorkspace) { self.workspace = workspace }
+    public init(workspace: AuthorizedWorkspace) {
+        self.workspace = workspace
+        withAccess = { try $0() }
+    }
+
+    package init(workspace: AuthorizedWorkspace,
+                 withAccess: @escaping @Sendable (@Sendable () throws -> String) throws -> String) {
+        self.workspace = workspace
+        self.withAccess = withAccess
+    }
 
     public var schemas: [AgentToolSchema] {
         [
@@ -28,6 +38,10 @@ public struct ToolRegistry: Sendable {
     }
 
     public func execute(_ call: AgentToolCall) throws -> String {
+        try withAccess { try executeAuthorized(call) }
+    }
+
+    private func executeAuthorized(_ call: AgentToolCall) throws -> String {
         try Task.checkCancellation()
         do {
             guard let schema = schemas.first(where: { $0.name == call.name }) else {

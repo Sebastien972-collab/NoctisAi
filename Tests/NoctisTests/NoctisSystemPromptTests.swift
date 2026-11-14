@@ -26,9 +26,9 @@ struct NoctisSystemPromptTests {
         let rich = NoctisSystemPromptBuilder.build(registry: registry, context: context, presentation: .markdown)
         #expect(plain.contains("1969-12-31"))
         #expect(plain.contains("Plateforme : iOS"))
-        #expect(plain.contains("sans syntaxe Markdown"))
-        #expect(!rich.contains("sans syntaxe Markdown"))
-        #expect(rich.contains("Le client accepte du Markdown simple"))
+        #expect(plain.contains("N'utilise pas de syntaxe Markdown"))
+        #expect(!rich.contains("N'utilise pas de syntaxe Markdown"))
+        #expect(rich.contains("Utilise du Markdown simple"))
         let repeated = NoctisSystemPromptBuilder.build(
             registry: registry, context: context, presentation: .plainText
         )
@@ -62,10 +62,10 @@ struct NoctisSystemPromptTests {
             #expect(registry.permits(WebOpenTool.name) == !authorized)
             if authorized {
                 #expect(!prompt.contains("web_search"))
-                #expect(prompt.contains("Réseau désactivé"))
+                #expect(prompt.contains("Le réseau est désactivé"))
             } else {
                 #expect(!prompt.contains("readFile"))
-                #expect(prompt.contains("Aucun accès aux fichiers locaux"))
+                #expect(prompt.contains("Les fichiers locaux ne sont pas accessibles"))
             }
         }
     }
@@ -83,7 +83,7 @@ struct NoctisSystemPromptTests {
     @Test func everyAnnouncedToolHasWorkingDispatch() async throws {
         for authorized in [false, true] {
             let local = authorized ? ToolRegistry(workspace: try AuthorizedWorkspace(
-                authorizing: URL(fileURLWithPath: "/private/tmp"))) : nil
+                                                    authorizing: URL(fileURLWithPath: "/private/tmp"))) : nil
             let registry = NoctisToolRegistry(workspace: local)
             let dispatcher = NoctisToolDispatcher(
                 registry: registry, web: web, userPrompt: "Résume https://www.swift.org/article"
@@ -98,9 +98,14 @@ struct NoctisSystemPromptTests {
                 }
                 // Missing files produce bounded domain errors, never undeclared_tool.
                 let call = MLXLMCommon.ToolCall(function: .init(name: entry.name, arguments: arguments))
-                let output = try await dispatcher.execute(call)
-                #expect(!output.contains("unsupportedTool"))
-                #expect(!output.contains("undeclared_tool"))
+                if authorized {
+                    await #expect(throws: NoctisAgent.AgentError.accessDenied) {
+                        _ = try await dispatcher.execute(call) }
+                } else {
+                    let output = try await dispatcher.execute(call)
+                    #expect(!output.contains("unsupportedTool"))
+                    #expect(!output.contains("undeclared_tool"))
+                }
             }
             for name in ["unknown", "web_open", authorized ? "web_search" : "readFile"] {
                 await #expect(throws: WebToolError.self) {
@@ -112,7 +117,7 @@ struct NoctisSystemPromptTests {
 
     @Test func ministralParserAcceptsExactlyTheDeclaredTools() throws {
         let workspace = ToolRegistry(workspace: try AuthorizedWorkspace(
-            authorizing: URL(fileURLWithPath: "/private/tmp")))
+                                        authorizing: URL(fileURLWithPath: "/private/tmp")))
         for registry in [NoctisToolRegistry(), NoctisToolRegistry(workspace: workspace)] {
             for entry in registry.entries {
                 let arguments: [String: String]
@@ -166,9 +171,11 @@ struct NoctisSystemPromptTests {
         #expect(parameters["additionalProperties"] as? Bool == false)
         #expect(parameters["required"] as? [String] == ["url"])
         for arguments: [String: MLXLMCommon.JSONValue] in [[:], ["url": .int(1)],
-                                              ["url": .string("https://www.swift.org"), "extra": .string("x")]] {
+                                                           ["url": .string("https://www.swift.org"),
+                    "extra": .string("x")]] {
             #expect(throws: WebToolError.self) {
-                try WebOpenTool.validate(MLXLMCommon.ToolCall(function: .init(name: WebOpenTool.name, arguments: arguments)))
+                try WebOpenTool.validate(MLXLMCommon.ToolCall(function: .init(name: WebOpenTool.name,
+                    arguments: arguments)))
             }
         }
         let disabled = NoctisToolRegistry(allowsWebOpen: false)

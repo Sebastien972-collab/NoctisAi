@@ -13,6 +13,7 @@ private enum ScriptStep: Sendable {
     case call(String, String, [String: MLXLMCommon.JSONValue])
     case rejected
     case pause
+    case contextLimit
 }
 
 private final class ScriptProbe: Sendable {
@@ -36,7 +37,7 @@ private final class ScriptSession: StructuredModelSession {
         AsyncThrowingStream { $0.finish() }
     }
     func streamDetails(messages: [MLXLMCommon.Chat.Message], tools: [ToolSpec], instructions: String)
-        -> AsyncThrowingStream<Generation, Error> {
+    -> AsyncThrowingStream<Generation, Error> {
         let roles = messages.map { $0.role.rawValue }
         let steps = probe.state.withLock { state in
             state.histories.append(roles)
@@ -56,11 +57,13 @@ private final class ScriptSession: StructuredModelSession {
                         switch step {
                         case .text(let text): output.yield(.chunk(text))
                         case let .call(name, id, arguments):
-                            output.yield(.toolCall(MLXLMCommon.ToolCall(function: .init(name: name, arguments: arguments), id: id)))
+                            output.yield(.toolCall(MLXLMCommon.ToolCall(
+                                function: .init(name: name, arguments: arguments), id: id)))
                         case .rejected:
                             output.yield(.rejectedToolCall(.init(reason: .invalidArguments, format: .mistral,
                                                                  rawText: "SECRET_REJECTED_PAYLOAD")))
                         case .pause: try await Task.sleep(for: .seconds(30))
+                        case .contextLimit: throw MLXModelServiceError.contextLimit
                         }
                     }
                     output.finish()
@@ -82,8 +85,9 @@ private struct ReliabilityFixture {
     let probe: ScriptProbe
     let directory: URL
 
-    init(_ scripts: [[ScriptStep]]) async throws {
-        directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    init(_ scripts: [[ScriptStep]], workspaceEnabled: Bool = true,
+         pageService: any WebPageService = ReliabilityPageService()) async throws {
+        directory = URL(fileURLWithPath: "/private/tmp").appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         try Data("SECRET_FILE_BODY".utf8).write(to: directory.appendingPathComponent("example.swift"))
         let probe = ScriptProbe(scripts)
@@ -91,8 +95,9 @@ private struct ReliabilityFixture {
         let worker = try await ModelSessionWorker.load(factory: { _ in ScriptSession(probe) }, progress: { _ in })
         client = NoctisLLMClient(worker: worker, systemPrompt: "SECRET_SYSTEM_PROMPT")
         let workspace = try AuthorizedWorkspace(authorizing: directory)
-        agent = NoctisCLIAgent(client: client, registry: NoctisToolRegistry(workspace: ToolRegistry(workspace: workspace)),
-                               web: WebToolDispatcher(searchService: OfflineTraceSearch(), pasgeService: HTTPWebPageService()))
+        agent = NoctisCLIAgent(client: client,
+            registry: NoctisToolRegistry(workspace: workspaceEnabled ? ToolRegistry(workspace: workspace) : nil),
+                               web: WebToolDispatcher(searchService: OfflineTraceSearch(), pasgeService: pageService))
     }
     func cleanup() { try? FileManager.default.removeItem(at: directory) }
     func run(_ prompt: String = "SECRET_USER_PROMPT", history: [ChatMessage] = []) async throws -> [StreamEvent] {
@@ -219,7 +224,8 @@ struct AgentReliabilityTests {
         }
         let history = try #require(fixture.agent.recoveryHistory)
         let events = try await fixture.run("Suite", history: history)
-        let text = events.compactMap { event -> String? in if case .delta(let text) = event.kind { text } else { nil } }.joined()
+        let text = events.compactMap { event -> String? in
+            if case .delta(let text) = event.kind { text } else { nil } }.joined()
         #expect(text == "NEW")
         #expect(fixture.probe.state.withLock { $0.maxActive } == 1)
         #expect(fixture.agent.traceRecorder.events().contains { $0.kind == .runCancelled })
@@ -249,16 +255,19 @@ struct AgentReliabilityTests {
         #expect(parameters["enum"] == nil)
     }
 
-    @Test func cachedMinistralTemplateAcceptsCompleteMultiTurnToolsAndRejectsRepeatedAssistant() async throws {
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["NOCTIS_REAL_MODEL_TESTS"] == "1"))
+    func cachedMinistralTemplateAcceptsCompleteMultiTurnToolsAndRejectsRepeatedAssistant() async throws {
         let root = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(
             ".cache/huggingface/hub/models--mlx-community--Ministral-3-14B-Instruct-2512-4bit/snapshots")
         guard let folders = try? FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil),
-              let folder = folders.first(where: { FileManager.default.fileExists(atPath: $0.appendingPathComponent("tokenizer.json").path) })
+              let folder = folders.first(where: {
+                  FileManager.default.fileExists(atPath: $0.appendingPathComponent("tokenizer.json").path) })
         else { return }
         let tokenizer = try await AutoTokenizer.from(modelFolder: folder)
         let messages: [ChatMessage] = [
             .user("Bonjour"), .assistant(AssistantMessage(content: "Bonsoir")), .user("Lis"),
-            .assistant(AssistantMessage(content: "", toolCalls: [ToolCall(id: "read00001", name: "readFile", arguments: "{\"path\":\"a\"}")])),
+            .assistant(AssistantMessage(content: "", toolCalls: [ToolCall(id: "read00001", name: "readFile",
+                arguments: "{\"path\":\"a\"}")])),
             .tool(id: "read00001", name: "readFile", content: "observed"),
             .assistant(AssistantMessage(content: "Lu")), .user("Suite")
         ]
@@ -270,5 +279,111 @@ struct AgentReliabilityTests {
         #expect(throws: (any Error).self) {
             try tokenizer.applyChatTemplate(messages: invalid.map { generator.generate(message: $0) })
         }
+    }
+}
+
+private struct ReliabilityPageService: WebPageService {
+    func open(url: URL) async throws -> WebPage {
+        WebPage(url: url.absoluteString, title: "Fixture", content: "Offline fixture", isTruncated: false)
+    }
+}
+
+extension AgentReliabilityTests {
+    @Test func cliAuthorizesExplicitURLButDoesNotCarryItIntoTheNextTurn() async throws {
+        let url = "https://www.swift.org/article"
+        let fixture = try await ReliabilityFixture([
+            [.call("web_open", "open00001", ["url": .string(url)])], [.text("Lu")],
+            [.call("web_open", "open00002", ["url": .string(url)])], [.text("Refusé")]
+        ], workspaceEnabled: false)
+        defer { fixture.cleanup() }
+        let first = try await fixture.run("Résume " + url)
+        #expect(first.contains { if case .toolCallCompleted(_, _,
+            let result) = $0.kind { !result.isError } else { false } })
+        let history = try #require(fixture.agent.recoveryHistory)
+        let second = try await fixture.run("Encore", history: history)
+        #expect(second.contains { if case .toolCallCompleted(_, _,
+            let result) = $0.kind { result.isError } else { false } })
+    }
+
+    @Test func finishPreservesTheActualAnswerInMultiturnHistory() async throws {
+        let fixture = try await ReliabilityFixture([
+            [.call("finish", "fin000001", ["content": .string("Réponse finale")])], [.text("Suite")]
+        ])
+        defer { fixture.cleanup() }
+        let events = try await fixture.run()
+        let finished = events.filter { if case .finished = $0.kind { true } else { false } }
+        #expect(finished.count == 1)
+        let history = try #require(fixture.agent.recoveryHistory)
+        #expect(history.last == .assistant(AssistantMessage(content: "Réponse finale")))
+        _ = try await fixture.run("Suite", history: history)
+        #expect(fixture.probe.state.withLock { $0.histories.last } == ["user", "assistant", "user"])
+    }
+
+    @Test func refusedContextDoesNotAlterAcceptedHistory() async throws {
+        let fixture = try await ReliabilityFixture([[.contextLimit]])
+        defer { fixture.cleanup() }
+        let history: [ChatMessage] = [.user("Avant"), .assistant(AssistantMessage(content: "Conservé"))]
+        await #expect(throws: MLXModelServiceError.contextLimit) {
+            _ = try await fixture.run("Trop long", history: history)
+        }
+        #expect(fixture.agent.recoveryHistory == history)
+    }
+
+    @Test func nativeAndAgentAPIsShareOneGenerationLease() async throws {
+        let probe = ScriptProbe([[.text("Début"), .pause]])
+        let service = MLXModelService(sessionFactory: { _ in ScriptSession(probe) })
+        try await service.load()
+        let agent = try await service.makeNoctisCLIAgent()
+        let (signal, ready) = AsyncStream<Void>.makeStream()
+        let task = Task {
+            for try await event in agent.stream(prompt: "Bonjour") {
+                if case .delta = event.kind { ready.yield(()); ready.finish() }
+            }
+            try Task.checkCancellation()
+        }
+        for await _ in signal { break }
+        await #expect(throws: MLXModelServiceError.generationInProgress) {
+            _ = try await service.generate(prompt: "Concurrent")
+        }
+        await #expect(throws: MLXModelServiceError.generationInProgress) {
+            try await service.authorizeWorkspace(nil)
+        }
+        await #expect(throws: MLXModelServiceError.generationInProgress) {
+            try await service.resetConversation(history: [])
+        }
+        task.cancel()
+        await #expect(throws: CancellationError.self) { try await task.value }
+        for _ in 0..<100 where agent.recoveryHistory == nil { try await Task.sleep(for: .milliseconds(2)) }
+        #expect(agent.recoveryHistory != nil)
+        try await service.withResponse(prompt: "Suite") { stream in
+            for try await _ in stream {}
+        }
+        #expect(probe.state.withLock { $0.maxActive } == 1)
+    }
+
+    @Test func revocationAlsoInvalidatesTaskRuntimes() async throws {
+        let probe = ScriptProbe([])
+        let service = MLXModelService(sessionFactory: { _ in ScriptSession(probe) })
+        try await service.load()
+        let runtime = try await service.makeAgentRuntime(
+            workspace: AuthorizedWorkspace(authorizing: URL(fileURLWithPath: "/private/tmp")),
+            limits: AgentLimits())
+        try await service.authorizeWorkspace(nil)
+        await #expect(throws: MLXModelServiceError.sessionInvalidated) {
+            _ = try await runtime.run(prompt: "Liste les fichiers")
+        }
+    }
+
+    @Test func revocationInvalidatesPreviouslyCreatedClients() async throws {
+        let probe = ScriptProbe([[.text("Ne doit pas être généré")]])
+        let service = MLXModelService(sessionFactory: { _ in ScriptSession(probe) })
+        try await service.load()
+        let client = try await service.makeNoctisLLMClient()
+        try await service.authorizeWorkspace(nil)
+        await #expect(throws: MLXModelServiceError.sessionInvalidated) {
+            _ = try await client.generate(messages: [.user("Bonjour")], tools: [],
+                                          responseFormat: nil, requestContext: nil)
+        }
+        #expect(probe.state.withLock { $0.histories.isEmpty })
     }
 }

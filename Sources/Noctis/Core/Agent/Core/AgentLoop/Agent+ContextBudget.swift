@@ -1,3 +1,4 @@
+// Created by Sébastien DAGUIN
 import Foundation
 
 extension Agent {
@@ -105,6 +106,8 @@ extension Agent {
         return allResults.sorted { $0.index < $1.index }
     }
 
+    // Keep the existing explicit execution contract without an unrelated API change.
+    // swiftlint:disable:next function_parameter_count
     func executeStreamingResults(
         _ calls: [IndexedToolCall], context: C, messages: [ChatMessage],
         options: InvocationOptions,

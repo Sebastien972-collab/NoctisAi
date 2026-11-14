@@ -81,6 +81,19 @@ package extension [ChatMessage] {
         }
     }
 
+    private func validateToolResult(_ message: ChatMessage, pending: inout [ToolCall],
+                                    boundary: Int) -> ToolCallHistoryProblem? {
+        guard case let .tool(id, _, _) = message else {
+            return .unfinishedToolCallBatch(ids: pending.map(\.id), boundary: boundary)
+        }
+        let expected = pending.removeFirst()
+        guard expected.id != id else { return nil }
+        if pending.contains(where: { $0.id == id }) {
+            return .toolResultOrderMismatch(expectedID: expected.id, actualID: id, boundary: boundary)
+        }
+        return .unexpectedToolResult(id: id, boundary: boundary)
+    }
+
     private func toolCallHistoryValidation(using mode: ToolCallHistoryValidationMode) -> ToolCallHistoryValidation {
         var pendingCalls: [ToolCall] = []
         var lastResolvedBoundary = 0
@@ -109,29 +122,8 @@ package extension [ChatMessage] {
                 continue
             }
 
-            guard case let .tool(id, _, _) = message else {
-                return ToolCallHistoryValidation(
-                    problem: .unfinishedToolCallBatch(
-                        ids: pendingCalls.map(\.id),
-                        boundary: lastResolvedBoundary
-                    )
-                )
-            }
-
-            let expectedCall = pendingCalls.removeFirst()
-            if expectedCall.id != id {
-                if pendingCalls.contains(where: { $0.id == id }) {
-                    return ToolCallHistoryValidation(
-                        problem: .toolResultOrderMismatch(
-                            expectedID: expectedCall.id,
-                            actualID: id,
-                            boundary: lastResolvedBoundary
-                        )
-                    )
-                }
-                return ToolCallHistoryValidation(
-                    problem: .unexpectedToolResult(id: id, boundary: lastResolvedBoundary)
-                )
+            if let problem = validateToolResult(message, pending: &pendingCalls, boundary: lastResolvedBoundary) {
+                return ToolCallHistoryValidation(problem: problem)
             }
 
             if pendingCalls.isEmpty {

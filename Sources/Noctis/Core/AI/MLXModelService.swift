@@ -35,12 +35,31 @@ private final class MLXChatSession: StructuredModelSession {
     func streamResponse(to prompt: String) -> AsyncThrowingStream<String, Error> {
         let registry = NoctisToolRegistry(workspace: workspaceAccess.registry)
         session.instructions = ([NoctisSystemPromptBuilder.build(registry: registry, presentation: presentation)]
-            + additionalInstructions).joined(separator: "\n\n")
+                                    + additionalInstructions).joined(separator: "\n\n")
         session.tools = registry.schemas
         let dispatcher = NoctisToolDispatcher(registry: registry, web: webDispatcher, userPrompt: prompt)
         session.toolDispatch = { call in try await dispatcher.execute(call) }
-        session.generateParameters.maxTokens = registry.hasWorkspace ? 2_048 : nil
-        return session.streamResponse(to: prompt)
+        session.generateParameters.maxTokens = 2_048
+        session.generateParameters.toolCallPolicy = .init(recovery: .disabled, validation: .strict)
+        let upstream = session.streamDetails(to: prompt)
+        return AsyncThrowingStream { output in
+            let task = Task {
+                do {
+                    for try await event in upstream {
+                        switch event {
+                        case .chunk(let chunk): output.yield(chunk)
+                        case .rejectedToolCall: throw AgentError.invalidToolCall
+                        case .info(let info):
+                            if info.stopReason == .length { throw MLXModelServiceError.responseLimit }
+                            if info.stopReason == .cancelled { throw CancellationError() }
+                        default: break
+                        }
+                    }
+                    output.finish()
+                } catch { output.finish(throwing: error) }
+            }
+            output.onTermination = { _ in task.cancel() }
+        }
     }
 
     func synchronize() async {
@@ -107,72 +126,6 @@ private final class MLXChatSession: StructuredModelSession {
     }
 }
 
-/// Resolve the installed snapshot before allowing any request to the Hub.
-struct CachedModelDownloader: Downloader {
-    let client: HubClient
-    let phase: @Sendable (AIModelLoadPhase) -> Void
-
-    func download(
-        id: String, revision: String?, matching patterns: [String], useLatest: Bool,
-        progressHandler: @escaping @Sendable (Progress) -> Void
-    ) async throws -> URL {
-        guard let repo = Repo.ID(rawValue: id) else { throw CocoaError(.fileReadInvalidFileName) }
-        let cached: URL?
-        do {
-            cached = try await client.downloadSnapshot(
-                of: repo, revision: revision ?? "main", matching: patterns, localFilesOnly: true
-            )
-        } catch HubCacheError.cachedPathResolutionFailed {
-            cached = nil
-        }
-        if let cached, Self.isCompleteModel(at: cached) {
-            phase(.loading)
-            return cached
-        }
-        try Task.checkCancellation()
-        phase(.downloading)
-        let directory = try await client.downloadSnapshot(
-            of: repo, revision: revision ?? "main", matching: patterns,
-            progressHandler: { progressHandler($0) }
-        )
-        guard Self.isCompleteModel(at: directory) else { throw CocoaError(.fileReadCorruptFile) }
-        phase(.loading)
-        return directory
-    }
-
-    // A local-only Hub lookup can return a partially downloaded snapshot.
-    static func isCompleteModel(at directory: URL) -> Bool {
-        let files = FileManager.default
-        func exists(_ name: String) -> Bool {
-            let path = directory.appendingPathComponent(name).path
-            return files.isReadableFile(atPath: path)
-                && ((try? files.attributesOfItem(atPath: path)[.size] as? NSNumber)?.intValue ?? 0) > 0
-        }
-        guard ["config.json", "tokenizer_config.json", "tokenizer.json"].allSatisfy(exists) else {
-            return false
-        }
-        let index = directory.appendingPathComponent("model.safetensors.index.json")
-        if let data = try? Data(contentsOf: index),
-           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-           let weights = json["weight_map"] as? [String: String], !weights.isEmpty,
-           Set(weights.values).allSatisfy(exists) {
-            return true
-        }
-        // Quantized repositories can retain an index from the unquantized model.
-        // Accept their conventional shards only when the whole numbered set exists.
-        let weights = (try? files.contentsOfDirectory(atPath: directory.path))?
-            .filter { $0.hasPrefix("model") && $0.hasSuffix(".safetensors") } ?? []
-        if weights == ["model.safetensors"] { return exists("model.safetensors") }
-        guard let first = weights.first else { return false }
-        let parts = first.replacingOccurrences(of: ".safetensors", with: "").split(separator: "-")
-        guard parts.count == 4, parts[0] == "model", parts[2] == "of",
-              let count = Int(parts[3]), count > 0, count == weights.count else { return false }
-        return (1...count).allSatisfy {
-            exists(String(format: "model-%05d-of-%05d.safetensors", $0, count))
-        }
-    }
-}
-
 public actor MLXModelService: AIModelService, WorkspaceAuthorizing {
     public enum LoadState: Equatable, Sendable {
         case notLoaded, loading, loaded, failed
@@ -183,6 +136,7 @@ public actor MLXModelService: AIModelService, WorkspaceAuthorizing {
     private let webDispatcher: WebToolDispatcher
     private let agentModelReference: LoadedAgentModel?
     private let presentation: NoctisPresentationInstructions
+    let generationAccess = ModelGenerationAccess()
     private var isAgentGenerating = false
     private let factory: ModelSessionWorker.Factory
     private var worker: ModelSessionWorker?
@@ -223,6 +177,15 @@ public actor MLXModelService: AIModelService, WorkspaceAuthorizing {
                 id: selectedModelID
             )
             let model = ModelContainer(context: context)
+            let configurationURL = try await model.modelDirectory.appendingPathComponent("config.json")
+            let data = try Data(contentsOf: configurationURL)
+            let configuration = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
+            let text = configuration["text_config"] as? [String: Any] ?? configuration
+            let window = text["max_position_embeddings"] as? Int ?? 8_192
+            guard window > 2_048 else { throw MLXModelServiceError.contextLimit }
+            await model.update { context in
+                context.processor = BoundedModelProcessor(base: context.processor, maximumInputTokens: window - 2_048)
+            }
             await reference.set(model)
             let registry = NoctisToolRegistry(workspace: access.registry)
             let toolDispatcher = NoctisToolDispatcher(registry: registry, web: dispatcher)
@@ -264,9 +227,12 @@ public actor MLXModelService: AIModelService, WorkspaceAuthorizing {
     public func makeNoctisLLMClient() throws -> NoctisLLMClient {
         guard loadState == .loaded, let worker else { throw MLXModelServiceError.modelNotLoaded }
         let registry = NoctisToolRegistry(workspace: workspaceAccess.registry)
+        let presentation = presentation
         return NoctisLLMClient(
             worker: worker,
-            systemPrompt: NoctisSystemPromptBuilder.build(registry: registry, presentation: presentation)
+            systemPrompt: NoctisSystemPromptBuilder.build(registry: registry, presentation: presentation),
+            access: generationAccess,
+            instructions: { NoctisSystemPromptBuilder.build(registry: registry, presentation: presentation) }
         )
     }
 
@@ -301,12 +267,14 @@ public actor MLXModelService: AIModelService, WorkspaceAuthorizing {
         guard generation == nil, !isResetting, !isAgentGenerating, loadState != .loading else {
             throw MLXModelServiceError.generationInProgress
         }
+        let lease = try generationAccess.acquire()
         isResetting = true
-        defer { isResetting = false }
+        defer { isResetting = false; generationAccess.release(lease) }
         // Reset before changing capability scopes: local file contents must never enter Web-only history.
         try await worker?.reset(history: [])
         try Task.checkCancellation()
         workspaceAccess.authorize(workspace)
+        generationAccess.invalidate()
     }
 
     public func resetConversation(history: [AIChatMessage]) async throws {
@@ -316,7 +284,10 @@ public actor MLXModelService: AIModelService, WorkspaceAuthorizing {
         defer { isResetting = false }
         await cancelGeneration()
         try Task.checkCancellation()
+        let lease = try generationAccess.acquire()
+        defer { generationAccess.release(lease) }
         try await worker.reset(history: history)
+        generationAccess.invalidate()
     }
 
     public func generate(prompt: String) async throws -> AsyncThrowingStream<String, Error> {
@@ -353,6 +324,7 @@ public actor MLXModelService: AIModelService, WorkspaceAuthorizing {
             throw MLXModelServiceError.generationInProgress
         }
 
+        let lease = try generationAccess.acquire()
         let (stream, output) = AsyncThrowingStream<String, Error>.makeStream()
         let cancellation = GenerationCancellation()
         self.cancellation = cancellation
@@ -368,6 +340,7 @@ public actor MLXModelService: AIModelService, WorkspaceAuthorizing {
             } catch {
                 failure = error
             }
+            self.generationAccess.release(lease)
             self.generation = nil
             self.cancellation = nil
             output.finish(throwing: failure)
@@ -379,6 +352,12 @@ public actor MLXModelService: AIModelService, WorkspaceAuthorizing {
     public func respond(
         messages: [AgentMessage], tools: [AgentToolSchema], limits: AgentLimits
     ) async throws -> AgentResponse {
+        try await respond(messages: messages, tools: tools, limits: limits, revision: nil)
+    }
+
+    func respond(messages: [AgentMessage], tools: [AgentToolSchema], limits: AgentLimits,
+                 revision: Int?) async throws -> AgentResponse {
+        if let revision, revision != generationAccess.revision { throw MLXModelServiceError.sessionInvalidated }
         try Task.checkCancellation()
         guard loadState == .loaded, let agentModelReference else {
             throw MLXModelServiceError.modelNotLoaded
@@ -386,6 +365,8 @@ public actor MLXModelService: AIModelService, WorkspaceAuthorizing {
         guard generation == nil, !isResetting, !isAgentGenerating else {
             throw MLXModelServiceError.generationInProgress
         }
+        let lease = try generationAccess.acquire(revision: revision)
+        defer { generationAccess.release(lease) }
         isAgentGenerating = true
         defer { isAgentGenerating = false }
         guard let model = await agentModelReference.get() else {

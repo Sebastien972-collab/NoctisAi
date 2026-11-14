@@ -1,3 +1,4 @@
+// Created by Sébastien DAGUIN
 import Foundation
 import MLXLMCommon
 import os
@@ -53,6 +54,7 @@ private struct NoctisDynamicTool: AnyTool {
 /// CLI-facing AgentLoop wrapper. It owns no model and only references the loaded MLX worker.
 public final class NoctisCLIAgent: Sendable {
     private let agent: Agent<NoctisToolContext>
+    private let client: NoctisLLMClient
     private let registry: NoctisToolRegistry
     private let web: WebToolDispatcher
     public let traceRecorder: AgentTraceRecorder
@@ -73,6 +75,7 @@ public final class NoctisCLIAgent: Sendable {
 
     init(client: NoctisLLMClient, registry: NoctisToolRegistry, web: WebToolDispatcher,
          traceRecorder: AgentTraceRecorder = AgentTraceRecorder()) {
+        self.client = client
         self.registry = registry
         self.web = web
         self.traceRecorder = traceRecorder
@@ -102,86 +105,115 @@ public final class NoctisCLIAgent: Sendable {
         let runID = RunID()
         state.withLock { $0.lastRunID = runID }
         let trace = AgentTraceScope(recorder: traceRecorder, runID: runID)
-        let context = NoctisToolContext(dispatcher: NoctisToolDispatcher(registry: registry, web: web), trace: trace)
+        let context = NoctisToolContext(dispatcher: NoctisToolDispatcher(registry: registry, web: web,
+            userPrompt: prompt), trace: trace)
         var requestContext = RequestContext(onStreamEvent: { event in
             if case let .toolCallStarted(name, id) = event.kind,
                self.registry.permits(name), NoctisLLMClient.isValidCallID(id) {
                 trace.tool(ToolCall(id: id, name: name, arguments: ""), status: .requested)
             }
         })
+        let lease: UUID
+        do { lease = try client.beginRun() } catch {
+            state.withLock { $0.running = false }
+            return AsyncThrowingStream { $0.finish(throwing: error) }
+        }
+        requestContext.modelLease = lease
         requestContext.agentTrace = trace
         let options = InvocationOptions(tokenBudget: nil, requestContext: requestContext,
-                                        systemPromptOverride: nil, approvalHandler: nil, sessionID: SessionID(), runID: runID)
+                                        systemPromptOverride: nil, approvalHandler: nil,
+                    sessionID: SessionID(), runID: runID)
         return AsyncThrowingStream { output in
             let task = Task {
-                defer { state.withLock { $0.running = false } }
-                trace.record(.runStarted)
-                var resolved = history + [.user(prompt)]
-                var pending: [ChatMessage]?
-                let (events, continuation) = AsyncThrowingStream<StreamEvent, Error>.makeStream()
-                let run = Task {
-                    do {
-                        try await agent.performStream(userMessage: .user(prompt), history: history,
-                                                      context: context, options: options, continuation: continuation)
-                    } catch { continuation.finish(throwing: error) }
-                }
-                continuation.onTermination = { _ in run.cancel() }
-                do {
-                    for try await event in events {
-                        try Task.checkCancellation()
-                        switch event.kind {
-                        case .iterationCompleted(_, _, let messages): pending = messages
-                        case .toolCallCompleted(let id, let name, let result):
-                            pending?.append(.tool(id: id, name: name, content: result.content))
-                            if let candidate = pending, (try? candidate.validateForAgentHistory()) != nil {
-                                resolved = candidate
-                            }
-                        case .finished(_, _, _, let messages):
-                            state.withLock { $0.recoveryHistory = messages }
-                        default: break
-                        }
-                        output.yield(event)
-                    }
-                    try Task.checkCancellation()
-                    await run.value
-                    trace.record(.runCompleted)
-                    state.withLock { $0.running = false }
-                    output.finish()
-                } catch {
-                    run.cancel()
-                    await run.value
-                    if var candidate = pending,
-                       let callIndex = candidate.lastIndex(where: {
-                           if case .assistant(let message) = $0 { return !message.toolCalls.isEmpty }
-                           return false
-                       }), case .assistant(let message) = candidate[callIndex] {
-                        let completed = Set(candidate.dropFirst(callIndex + 1).compactMap { item -> String? in
-                            if case .tool(let id, _, _) = item { return id }
-                            return nil
-                        })
-                        for call in message.toolCalls where !completed.contains(call.id) {
-                            candidate.append(.tool(id: call.id, name: call.name,
-                                                   content: "Action interrompue ; aucun résultat confirmé."))
-                        }
-                        if (try? candidate.validateForAgentHistory()) != nil { resolved = candidate }
-                    }
-                    // Keep completed tool exchanges. An explicit interruption turn restores
-                    // strict user/assistant alternation without discarding the conversation.
-                    if case .assistant(let message) = resolved.last, message.toolCalls.isEmpty {
-                        // A complete ordinary response already closes this turn.
-                    } else {
-                        resolved.append(.assistant(AssistantMessage(content: "Réponse interrompue avant la fin.")))
-                    }
-                    let recovery = resolved
-                    state.withLock { $0.recoveryHistory = recovery }
-                    trace.record(error is CancellationError ? .runCancelled : .runFailed,
-                                 reason: AgentTraceEvent.Reason.classify(error))
-                    state.withLock { $0.running = false }
-                    output.finish(throwing: error)
-                }
+                await perform(prompt: prompt, history: history, context: context, options: options, output: output)
             }
             output.onTermination = { _ in task.cancel() }
         }
+    }
+
+    private func perform(prompt: String, history: [ChatMessage], context: NoctisToolContext,
+                         options: InvocationOptions,
+                         output: AsyncThrowingStream<StreamEvent, Error>.Continuation) async {
+        let trace = context.trace
+        trace.record(.runStarted)
+        var resolved = history + [.user(prompt)]
+        var pending: [ChatMessage]?
+        var completed = false
+        let (events, continuation) = AsyncThrowingStream<StreamEvent, Error>.makeStream()
+        let run = Task {
+            do {
+                try await agent.performStream(userMessage: .user(prompt), history: history,
+                                              context: context, options: options, continuation: continuation)
+            } catch { continuation.finish(throwing: error) }
+        }
+        continuation.onTermination = { _ in run.cancel() }
+        do {
+            for try await event in events {
+                try Task.checkCancellation()
+                switch event.kind {
+                case .iterationCompleted(_, _, let messages): pending = messages
+                case .toolCallCompleted(let id, let name, let result):
+                    pending?.append(.tool(id: id, name: name, content: result.content))
+                    if let candidate = pending, (try? candidate.validateForAgentHistory()) != nil {
+                        resolved = candidate
+                    }
+                case .finished(_, _, let reason, let messages):
+                    completed = reason == .completed
+                    state.withLock { $0.recoveryHistory = messages }
+                default: break
+                }
+                output.yield(event)
+            }
+            try Task.checkCancellation()
+            await run.value
+            trace.record(completed ? .runCompleted : .runFailed)
+            if let lease = options.requestContext?.modelLease { client.endRun(lease) }
+            state.withLock { $0.running = false }
+            output.finish()
+        } catch {
+            run.cancel()
+            await run.value
+            resolved = recoveredHistory(pending: pending, resolved: resolved, history: history, error: error)
+            let recovery = resolved
+            state.withLock { $0.recoveryHistory = recovery }
+            trace.record(error is CancellationError ? .runCancelled : .runFailed,
+                         reason: AgentTraceEvent.Reason.classify(error))
+            if let lease = options.requestContext?.modelLease { client.endRun(lease) }
+            state.withLock { $0.running = false }
+            output.finish(throwing: error)
+        }
+    }
+
+    private func recoveredHistory(pending: [ChatMessage]?, resolved: [ChatMessage],
+                                  history: [ChatMessage], error: any Error) -> [ChatMessage] {
+        var resolved = resolved
+        if var candidate = pending,
+           let callIndex = candidate.lastIndex(where: {
+            if case .assistant(let message) = $0 { return !message.toolCalls.isEmpty }
+            return false
+           }), case .assistant(let message) = candidate[callIndex] {
+            let completed = Set(candidate.dropFirst(callIndex + 1).compactMap { item -> String? in
+                if case .tool(let id, _, _) = item { return id }
+                return nil
+            })
+            for call in message.toolCalls where !completed.contains(call.id) {
+                candidate.append(.tool(id: call.id, name: call.name,
+                                       content: "Action interrompue ; aucun résultat confirmé."))
+            }
+            if (try? candidate.validateForAgentHistory()) != nil { resolved = candidate }
+        }
+        // Keep completed tool exchanges. An explicit interruption turn restores
+        // strict user/assistant alternation without discarding the conversation.
+        let rejectedContext = error as? MLXModelServiceError == .contextLimit && pending == nil
+        if rejectedContext { resolved = history }
+        if rejectedContext {
+            // The refused input never becomes part of the accepted conversation.
+        } else if case .assistant(let message) = resolved.last, message.toolCalls.isEmpty {
+            // A complete ordinary response already closes this turn.
+        } else {
+            resolved.append(.assistant(AssistantMessage(content: "Réponse interrompue avant la fin.")))
+        }
+        return resolved
     }
 
     private static func schemaFromToolSpec(_ spec: ToolSpec) -> JSONSchema {

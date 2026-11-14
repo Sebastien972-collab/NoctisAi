@@ -1,4 +1,3 @@
-
 //
 // NoctisToolInstructions.swift
 // Noctis
@@ -10,6 +9,8 @@
 /// The registry and tool schemas remain the authority for permissions and arguments.
 enum NoctisToolInstructions {
 
+    // Preserve the ordering and wording of the existing system instructions.
+    // swiftlint:disable:next function_body_length
     static func text(registry: NoctisToolRegistry) -> String {
         let entries = registry.entries
 
@@ -85,6 +86,8 @@ enum NoctisToolInstructions {
             """
     }
 
+    // Preserve the ordering and wording of the existing system instructions.
+    // swiftlint:disable:next function_body_length
     private static func instructions(
         for name: String
     ) -> String {

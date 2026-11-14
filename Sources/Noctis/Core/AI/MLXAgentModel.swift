@@ -57,7 +57,15 @@ extension MLXModelService: AgentModel {
     public func makeAgentRuntime(
         workspace: AuthorizedWorkspace, limits: AgentLimits
     ) -> AgentRuntime {
-        AgentRuntime(model: self, registry: ToolRegistry(workspace: workspace), limits: limits)
+        let access = generationAccess
+        let revision = access.revision
+        let registry = ToolRegistry(workspace: workspace, withAccess: { operation in
+            let lease = try access.acquire(revision: revision)
+            defer { access.release(lease) }
+            return try operation()
+        })
+        return AgentRuntime(model: ScopedAgentModel(service: self, revision: revision),
+                            registry: registry, limits: limits)
     }
 
     static func agentSchemas(_ tools: [AgentToolSchema]) -> [ToolSpec] {
@@ -176,4 +184,14 @@ extension MLXModelService: AgentModel {
         }
     }
 
+}
+
+private struct ScopedAgentModel: AgentModel {
+    let service: MLXModelService
+    let revision: Int
+
+    func respond(messages: [AgentMessage], tools: [AgentToolSchema],
+                 limits: AgentLimits) async throws -> AgentResponse {
+        try await service.respond(messages: messages, tools: tools, limits: limits, revision: revision)
+    }
 }

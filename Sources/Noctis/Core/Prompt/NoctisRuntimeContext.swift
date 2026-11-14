@@ -1,4 +1,3 @@
-
 //
 // NoctisRuntimeContext.swift
 // Noctis
@@ -23,6 +22,8 @@ struct NoctisRuntimeContext: Sendable {
         #endif
     }()
 
+    // Preserve the ordering and wording of the existing system instructions.
+    // swiftlint:disable:next function_body_length
     func text(registry: NoctisToolRegistry) -> String {
         let formatter = ISO8601DateFormatter()
         formatter.timeZone = timeZone

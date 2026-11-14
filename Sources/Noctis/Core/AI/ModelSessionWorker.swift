@@ -90,6 +90,7 @@ final class ModelSessionWorker: Sendable {
     }
 
     private enum Command: Sendable {
+        case synchronize(CheckedContinuation<Void, Never>)
         case generate(Request)
         case structuredGenerate(StructuredRequest)
         case reset([AIChatMessage], CheckedContinuation<Void, Error>)
@@ -116,79 +117,93 @@ final class ModelSessionWorker: Sendable {
                     let session = try await factory(progress)
                     ready.resume(returning: ModelSessionWorker(requests: requests))
                     for await command in stream {
-                        switch command {
-                        case .reset(let history, let completion):
-                            do {
-                                try await session.reset(history: history)
-                                completion.resume()
-                            } catch {
-                                completion.resume(throwing: error)
-                            }
-                        case .structuredGenerate(let request):
-                            if request.cancellation.isCancelled {
-                                request.completion.resume(throwing: CancellationError())
-                                continue
-                            }
-                            guard let session = session as? any StructuredModelSession else {
-                                request.completion.resume(throwing: MLXModelServiceError.modelNotLoaded)
-                                continue
-                            }
-                            let upstream = session.streamDetails(
-                                messages: request.input.messages, tools: request.input.tools, instructions: request.input.instructions
-                            )
-                            let reader = Task {
-                                for try await event in upstream {
-                                    request.cancellation.arm()
-                                    if request.cancellation.isCancelled { continue }
-                                    if case .terminated = request.output.yield(event) {
-                                        request.cancellation.cancel()
-                                    }
-                                }
-                                try Task.checkCancellation()
-                            }
-                            request.cancellation.install(reader)
-                            let result = await reader.result
-                            await session.synchronize()
-                            request.cancellation.clear()
-                            if request.cancellation.isCancelled {
-                                request.completion.resume(throwing: CancellationError())
-                            } else {
-                                request.completion.resume(with: result)
-                            }
-                        case .generate(let request):
-                            if request.cancellation.isCancelled {
-                                request.completion.resume(throwing: CancellationError())
-                                continue
-                            }
-                            let upstream = session.streamResponse(to: request.prompt)
-                            let reader = Task {
-                                for try await chunk in upstream {
-                                    request.cancellation.arm()
-                                    // Re-enter next() to trigger upstream onTermination.
-                                    if request.cancellation.isCancelled { continue }
-                                    if case .terminated = request.output.yield(chunk) {
-                                        request.cancellation.cancel()
-                                    }
-                                }
-                                try Task.checkCancellation()
-                            }
-                            request.cancellation.install(reader)
-                            let result = await reader.result
-                            // Cancelling an iterator does not join MLX's producer.
-                            await session.synchronize()
-                            request.cancellation.clear()
-                            if request.cancellation.isCancelled {
-                                request.completion.resume(throwing: CancellationError())
-                            } else {
-                                request.completion.resume(with: result)
-                            }
-                        }
+                        await execute(command, session: session)
                     }
                 } catch {
                     requests.finish()
                     ready.resume(throwing: error)
                 }
             }
+        }
+    }
+
+    private static func execute(_ command: Command, session: any ModelSession) async {
+        switch command {
+        case .synchronize(let completion):
+            await session.synchronize()
+            completion.resume()
+        case .reset(let history, let completion):
+            do {
+                try await session.reset(history: history)
+                completion.resume()
+            } catch {
+                completion.resume(throwing: error)
+            }
+        case .structuredGenerate(let request): await structured(request, session: session)
+        case .generate(let request): await generate(request, session: session)
+        }
+    }
+
+    private static func structured(_ request: StructuredRequest, session: any ModelSession) async {
+        if request.cancellation.isCancelled {
+            request.completion.resume(throwing: CancellationError())
+            return
+        }
+        guard let session = session as? any StructuredModelSession else {
+            request.completion.resume(throwing: MLXModelServiceError.modelNotLoaded)
+            return
+        }
+        let upstream = session.streamDetails(
+            messages: request.input.messages, tools: request.input.tools,
+            instructions: request.input.instructions
+        )
+        let reader = Task {
+            for try await event in upstream {
+                request.cancellation.arm()
+                if request.cancellation.isCancelled { continue }
+                if case .terminated = request.output.yield(event) {
+                    request.cancellation.cancel()
+                }
+            }
+            try Task.checkCancellation()
+        }
+        request.cancellation.install(reader)
+        let result = await reader.result
+        await session.synchronize()
+        request.cancellation.clear()
+        if request.cancellation.isCancelled {
+            request.completion.resume(throwing: CancellationError())
+        } else {
+            request.completion.resume(with: result)
+        }
+    }
+
+    private static func generate(_ request: Request, session: any ModelSession) async {
+        if request.cancellation.isCancelled {
+            request.completion.resume(throwing: CancellationError())
+            return
+        }
+        let upstream = session.streamResponse(to: request.prompt)
+        let reader = Task {
+            for try await chunk in upstream {
+                request.cancellation.arm()
+                // Re-enter next() to trigger upstream onTermination.
+                if request.cancellation.isCancelled { continue }
+                if case .terminated = request.output.yield(chunk) {
+                    request.cancellation.cancel()
+                }
+            }
+            try Task.checkCancellation()
+        }
+        request.cancellation.install(reader)
+        let result = await reader.result
+        // Cancelling an iterator does not join MLX's producer.
+        await session.synchronize()
+        request.cancellation.clear()
+        if request.cancellation.isCancelled {
+            request.completion.resume(throwing: CancellationError())
+        } else {
+            request.completion.resume(with: result)
         }
     }
 
@@ -205,6 +220,12 @@ final class ModelSessionWorker: Sendable {
             if case .terminated = requests.yield(.generate(request)) {
                 completion.resume(throwing: CancellationError())
             }
+        }
+    }
+
+    func synchronize() async {
+        await withCheckedContinuation { completion in
+            if case .terminated = requests.yield(.synchronize(completion)) { completion.resume() }
         }
     }
 
@@ -244,4 +265,35 @@ final class ModelSessionWorker: Sendable {
         }
         return stream
     }
+}
+
+/// One lease covers an entire response, including tool execution and cancellation cleanup.
+final class ModelGenerationAccess: Sendable {
+    private struct State {
+        var revision = 0
+        var lease: UUID?
+    }
+    private let state = OSAllocatedUnfairLock(initialState: State())
+    var revision: Int { state.withLock { $0.revision } }
+
+    func acquire(revision: Int? = nil) throws -> UUID {
+        try state.withLock { state in
+            if let revision, revision != state.revision { throw MLXModelServiceError.sessionInvalidated }
+            guard state.lease == nil else { throw MLXModelServiceError.generationInProgress }
+            let lease = UUID()
+            state.lease = lease
+            return lease
+        }
+    }
+
+    func validate(_ lease: UUID, revision: Int) throws {
+        try state.withLock { state in
+            guard state.revision == revision, state.lease == lease else {
+                throw MLXModelServiceError.sessionInvalidated
+            }
+        }
+    }
+
+    func release(_ lease: UUID) { state.withLock { if $0.lease == lease { $0.lease = nil } } }
+    func invalidate() { state.withLock { $0.revision += 1 } }
 }

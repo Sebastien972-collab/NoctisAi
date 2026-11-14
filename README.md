@@ -712,3 +712,32 @@ The test job uses the `Noctis-Package` Xcode scheme to also build translation ca
 ```sh
 xcodebuild -scheme Noctis-Package -destination 'platform=macOS' -skipMacroValidation test
 ```
+
+
+## Private beta stabilization
+
+The beta retains the existing three execution paths and public `AIModelService` signatures.
+All loaded MLX models use a bounded processor before every prefill, including continuations after tools:
+256 KiB serialized input (instructions, messages, tool arguments and schemas), at most 6,144 input tokens,
+and 2,048 generated tokens. A smaller model window lowers the input budget. Context overflow is an
+explicit error; no automatic summarization or history pruning is enabled in the standard CLI.
+
+A shared generation lease prevents concurrent use of the same weights through chat, AgentLoop and
+workspace task APIs. Permission changes invalidate existing model clients and task runtimes. Completed
+tool exchanges remain inspectable after interruption. The CLI displays terminal `finish` content once
+and reports incomplete runs explicitly. Web URLs supplied in the current question are authorized for
+that response only; page content cannot grant access to another URL.
+
+Ordinary tests do not load model weights. The opt-in qualification suite runs twenty fixed scenarios,
+a conversation of up to thirty turns and three cancellation/recovery cycles. It reports timings,
+observed tool outcomes, token counts and MLX peak allocation without recording prompt or result bodies:
+
+```sh
+NOCTIS_REAL_MODEL_TESTS=1 swift test -c release --filter RealModelQualificationTests
+```
+
+This suite uses a controlled empty search provider; it does not certify live SearXNG. Its explicit
+public page scenario needs a network connection. Successful completion is not a semantic quality audit.
+Device tests, signed distribution tests, license notices and at least seven days of private beta
+observation remain separate release gates. Do not interpret source availability or a successful
+simulator build as physical-device qualification. See `BETA_QUALIFICATION.md` for the release procedure.

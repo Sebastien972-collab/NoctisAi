@@ -1079,6 +1079,24 @@
           }
         }
       }
+    },
+    "console.status.incomplete_response" : {
+      "comment" : "Une exécution s’est arrêtée sans réussite confirmée.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La tâche reste incomplète."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The task remains incomplete."
+          }
+        }
+      }
     }
   },
   "version" : "1.3"

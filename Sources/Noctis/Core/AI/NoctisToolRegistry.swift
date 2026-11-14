@@ -1,4 +1,3 @@
-
 //
 // NoctisToolRegistry.swift
 // Noctis
@@ -25,6 +24,8 @@ struct NoctisToolRegistry: Sendable {
     let workspace: ToolRegistry?
     let hasWorkspace: Bool
 
+    // Preserve the existing tool instructions as one ordered capability declaration.
+    // swiftlint:disable:next function_body_length
     init(
         workspace: ToolRegistry? = nil,
         allowsWebOpen: Bool = true
@@ -167,6 +168,7 @@ actor NoctisToolDispatcher {
     private let local: ConversationToolDispatcher?
     private let web: WebToolDispatcher
 
+    private var remainingBytes = 262_144
     private var remainingCalls = 8
     private var remainingOpens = 4
 
@@ -218,7 +220,7 @@ actor NoctisToolDispatcher {
                 throw error
             }
 
-            return output
+            return try bounded(output)
         }
 
         // MARK: Web authorization
@@ -260,6 +262,12 @@ actor NoctisToolDispatcher {
             }
         }
 
+        return try bounded(output)
+    }
+
+    private func bounded(_ output: String) throws -> String {
+        guard output.utf8.count <= remainingBytes else { throw MLXModelServiceError.contextLimit }
+        remainingBytes -= output.utf8.count
         return output
     }
 
