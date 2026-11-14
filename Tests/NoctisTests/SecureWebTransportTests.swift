@@ -81,11 +81,16 @@ struct SecureWebTransportTests {
             limits: try HTTPResponseLimits(requestTimeout: 1, resourceTimeout: 0.1)))
         let url = try #require(URL(string: "https://www.swift.org"))
         await #expect(throws: WebPageError.timedOut) { try await transport.get(url) }
-        let task = Task { try await transport.get(url) }
-        try await Task.sleep(for: .milliseconds(20))
+        resolver.complete()
+        let (started, ready) = AsyncStream<Void>.makeStream()
+        let cancellationResolver = FixtureResolver(addresses: nil, onResolve: { ready.yield(()); ready.finish() })
+        let cancellable = SecureWebTransport(resolver: cancellationResolver, client: PinnedHTTPClient(
+            limits: try HTTPResponseLimits(requestTimeout: 10, resourceTimeout: 10)))
+        let task = Task { try await cancellable.get(url) }
+        for await _ in started { break }
         task.cancel()
         await #expect(throws: CancellationError.self) { try await task.value }
-        resolver.complete()
+        cancellationResolver.complete()
     }
 
     @Test func concurrentRequestsAreBounded() async throws {
@@ -191,12 +196,17 @@ private final class FixtureResolver: PublicWebResolving, Sendable {
     private struct State { var calls = 0; var promises: [EventLoopPromise<[SocketAddress]>] = [] }
     private let state = OSAllocatedUnfairLock(initialState: State())
     let addresses: [SocketAddress]?
-    init(addresses: [SocketAddress]?) { self.addresses = addresses }
+    private let onResolve: @Sendable () -> Void
+    init(addresses: [SocketAddress]?, onResolve: @escaping @Sendable () -> Void = {}) {
+        self.addresses = addresses
+        self.onResolve = onResolve
+    }
     var count: Int { state.withLock { $0.calls } }
     func resolve(host: String, on eventLoop: any EventLoop) -> EventLoopFuture<[SocketAddress]> {
         let promise = eventLoop.makePromise(of: [SocketAddress].self)
         state.withLock { $0.calls += 1; if addresses == nil { $0.promises.append(promise) } }
         if let addresses { promise.succeed(addresses) }
+        onResolve()
         return promise.futureResult
     }
     func complete() {

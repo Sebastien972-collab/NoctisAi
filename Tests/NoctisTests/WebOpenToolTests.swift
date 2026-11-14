@@ -67,6 +67,17 @@ struct WebOpenToolTests {
         await #expect(throws: WebPageError.transportFailure) { try await failed.execute(open(article)) }
     }
 
+    @Test func emptySearchStopsWithoutAuthorizingPages() async throws {
+        let web = WebToolDispatcher(searchService: EmptyPageSearch(), pasgeService: PageAudit())
+        let dispatcher = NoctisToolDispatcher(registry: NoctisToolRegistry(), web: web)
+        let call = MLXLMCommon.ToolCall(function: .init(name: "web_search", arguments: ["query": .string("Swift")]))
+        let output = try await web.execute(call)
+        let payload = try #require(JSONSerialization.jsonObject(with: Data(output.utf8)) as? [String: Any])
+        await #expect(throws: MLXModelServiceError.noSearchResults) { _ = try await dispatcher.execute(call) }
+        #expect((payload["results"] as? [Any])?.isEmpty == true)
+        await #expect(throws: WebToolError.self) { _ = try await dispatcher.execute(open(article)) }
+    }
+
     @Test func webResultsShareOneCumulativeResponseBudget() async throws {
         let dispatcher = NoctisToolDispatcher(registry: NoctisToolRegistry(),
             web: WebToolDispatcher(searchService: LargeSearchPage(), pasgeService: PageAudit()))
@@ -116,4 +127,8 @@ private struct LargeSearchPage: WebSearchService {
             url: URL(string: "https://www.swift.org/article")!,
             content: String(repeating: "日", count: 2_000)), count: 5)
     }
+}
+
+private struct EmptyPageSearch: WebSearchService {
+    func search(query: String) async throws -> [SearchResult] { [] }
 }
