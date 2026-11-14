@@ -25,6 +25,14 @@ final class NoctisApplication {
         self.workspace = workspace
     }
 
+    /// Execute one task and return to the shell without opening an input loop.
+    func runOnce(prompt: String) async {
+        let interrupts = ConsoleInterrupts()
+        defer { interrupts.stop() }
+        await respond(to: prompt, interrupts: interrupts)
+        cliAgent?.endSession()
+    }
+
     func run() async {
         let interrupts = ConsoleInterrupts()
         defer { interrupts.stop() }
