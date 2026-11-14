@@ -26,11 +26,12 @@ final class NoctisApplication {
     }
 
     /// Execute one task and return to the shell without opening an input loop.
-    func runOnce(prompt: String) async {
+    func runOnce(prompt: String) async -> Bool {
         let interrupts = ConsoleInterrupts()
         defer { interrupts.stop() }
-        await respond(to: prompt, interrupts: interrupts)
+        let succeeded = await respond(to: prompt, interrupts: interrupts)
         cliAgent?.endSession()
+        return succeeded
     }
 
     func run() async {
@@ -49,7 +50,8 @@ final class NoctisApplication {
                                      defaultValue: "À bientôt. Prends soin de toi.", bundle: .module))
     }
 
-    private func respond(to prompt: String, interrupts: ConsoleInterrupts) async {
+    @discardableResult
+    private func respond(to prompt: String, interrupts: ConsoleInterrupts) async -> Bool {
         defer { interrupts.install(nil) }
         do {
             try await prepareModel(interrupts: interrupts)
@@ -83,12 +85,14 @@ final class NoctisApplication {
             if let history = try await generation.value {
                 agentHistory = history
             }
+            return true
         } catch is CancellationError {
             if let history = cliAgent?.recoveryHistory { agentHistory = history }
             await modelService.cancelGeneration()
             print()
             console.displayStatus(String(localized: "console.status.cancelled",
                                          defaultValue: "Réponse interrompue. On peut continuer.", bundle: .module))
+            return false
         } catch {
             if let history = cliAgent?.recoveryHistory { agentHistory = history }
             if !loaded {
@@ -98,6 +102,7 @@ final class NoctisApplication {
             print()
             console.displayError(error)
             print()
+            return false
         }
     }
 
