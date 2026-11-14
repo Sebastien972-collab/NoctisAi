@@ -4,6 +4,7 @@ import Foundation
 public enum MLXModelServiceError: LocalizedError, Equatable {
     case modelNotLoaded
     case modelLoading
+    case noSearchResults
     case contextLimit
     case sessionInvalidated
     case responseLimit
@@ -12,6 +13,10 @@ public enum MLXModelServiceError: LocalizedError, Equatable {
 
     public var errorDescription: String? {
         switch self {
+        case .noSearchResults:
+            return String(localized: "error.web.no_search_results", defaultValue:
+                "Aucune source n’a été trouvée pour cette recherche. Tu peux essayer une nouvelle demande.",
+                bundle: .module)
         case .contextLimit:
             return String(localized: "error.model.context_limit", defaultValue:
             "Contexte trop volumineux. Commence une nouvelle conversation ; l’historique reste conservé.",

@@ -74,11 +74,9 @@ private final class ScriptSession: StructuredModelSession {
         }
     }
 }
-
 private struct OfflineTraceSearch: WebSearchService {
     func search(query: String) async throws -> [SearchResult] { [] }
 }
-
 private struct ReliabilityFixture {
     let agent: NoctisCLIAgent
     let client: NoctisLLMClient
@@ -281,13 +279,11 @@ struct AgentReliabilityTests {
         }
     }
 }
-
 private struct ReliabilityPageService: WebPageService {
     func open(url: URL) async throws -> WebPage {
         WebPage(url: url.absoluteString, title: "Fixture", content: "Offline fixture", isTruncated: false)
     }
 }
-
 extension AgentReliabilityTests {
     @Test func cliAuthorizesExplicitURLButDoesNotCarryItIntoTheNextTurn() async throws {
         let url = "https://www.swift.org/article"
@@ -327,6 +323,20 @@ extension AgentReliabilityTests {
             _ = try await fixture.run("Trop long", history: history)
         }
         #expect(fixture.agent.recoveryHistory == history)
+    }
+
+    @Test func emptySearchStopsBeforeAnyRetryAndKeepsAValidHistory() async throws {
+        let fixture = try await ReliabilityFixture([
+            [.call("web_search", "find00001", ["query": .string("Swift")])],
+            [.call("web_search", "find00002", ["query": .string("retry")])]
+        ], workspaceEnabled: false)
+        defer { fixture.cleanup() }
+        await #expect(throws: MLXModelServiceError.noSearchResults) { _ = try await fixture.run("Recherche Swift") }
+        #expect(fixture.probe.state.withLock { $0.histories.count } == 1)
+        let history = try #require(fixture.agent.recoveryHistory)
+        #expect(history.last == .assistant(AssistantMessage(
+            content: MLXModelServiceError.noSearchResults.localizedDescription)))
+        _ = try NoctisLLMClient.messages(history + [.user("Suite")])
     }
 
     @Test func nativeAndAgentAPIsShareOneGenerationLease() async throws {

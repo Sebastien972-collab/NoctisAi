@@ -446,6 +446,24 @@
           }
         }
       }
+    },
+    "error.web.no_search_results" : {
+      "comment" : "Recherche terminée sans source ; aucun appel supplémentaire ne doit être effectué pour cette réponse.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucune source n’a été trouvée pour cette recherche. Tu peux essayer une nouvelle demande."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No sources were found for this search. You can try a new request."
+          }
+        }
+      }
     }
   },
   "version" : "1.3"

@@ -46,8 +46,14 @@ struct RealModelQualificationTests {
             if index == 12 { try await service.authorizeWorkspace(nil) }
             try await service.resetConversation(history: [])
             let agent = try await service.makeNoctisCLIAgent()
+            if index == 14 {
+                await #expect(throws: MLXModelServiceError.noSearchResults) {
+                    for try await _ in agent.stream(prompt: prompt) {}
+                }
+                continue
+            }
             _ = try await measure(agent, prompt: prompt, history: [], scenario: "fixed-\(index + 1)")
-            let requiredTools = [5: "listFiles", 6: "readFile", 7: "searchCode", 14: "web_search"]
+            let requiredTools = [5: "listFiles", 6: "readFile", 7: "searchCode"]
             if let required = requiredTools[index] {
                 #expect(agent.traceRecorder.events().contains {
                     $0.tool?.tool == required && $0.tool?.status == .succeeded
@@ -55,7 +61,7 @@ struct RealModelQualificationTests {
             }
         }
         try await service.resetConversation(history: [])
-        var agent = try await service.makeNoctisCLIAgent()
+        let agent = try await service.makeNoctisCLIAgent()
         var history: [ChatMessage] = []
         for index in 1...30 {
             do {
@@ -67,13 +73,42 @@ struct RealModelQualificationTests {
                 break
             }
         }
-        for index in 1...3 {
-            try await service.resetConversation(history: [])
-            agent = try await service.makeNoctisCLIAgent()
-            try await cancelAndResume(agent, scenario: index)
-        }
+        try await repeatCancellation(service)
         #expect(try String(contentsOf: root.appendingPathComponent("answer.swift"), encoding: .utf8)
             == "let referenceAnswer = 42\n")
+    }
+
+    @Test(.timeLimit(.minutes(5)))
+    func emptySearchTerminatesWithoutLooping() async throws {
+        let resources = Bundle(for: QualificationBundleAnchor.self).resourceURL
+        let metalBundleURL = try #require(resources?.appendingPathComponent("mlx-swift_Cmlx.bundle"))
+        let metalBundle = try #require(Bundle(url: metalBundleURL))
+        GPU.metallib = metalBundle.url(forResource: "default", withExtension: "metallib")
+        let service = MLXModelService(webSearchService: QualificationSearch())
+        try await service.load()
+        for index in 1...3 {
+            try await service.resetConversation(history: [])
+            let agent = try await service.makeNoctisCLIAgent()
+            let started = ProcessInfo.processInfo.systemUptime
+            await #expect(throws: MLXModelServiceError.noSearchResults) {
+                for try await _ in agent.stream(prompt: "Recherche sur le Web la documentation Swift.") {}
+            }
+            #expect(agent.traceRecorder.events().compactMap(\.tool).filter { $0.status == .executing }.count == 1)
+            let history = try #require(agent.recoveryHistory)
+            #expect(history.last == .assistant(AssistantMessage(
+                content: MLXModelServiceError.noSearchResults.localizedDescription)))
+            _ = try NoctisLLMClient.messages(history + [.user("Suite")])
+            print("QUALIFICATION empty_search_\(index)_seconds=\(ProcessInfo.processInfo.systemUptime - started)")
+            fflush(stdout)
+        }
+    }
+
+    private func repeatCancellation(_ service: MLXModelService) async throws {
+        for index in 1...3 {
+            try await service.resetConversation(history: [])
+            let agent = try await service.makeNoctisCLIAgent()
+            try await cancelAndResume(agent, scenario: index)
+        }
     }
 
     private func measure(_ agent: NoctisCLIAgent, prompt: String,

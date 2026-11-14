@@ -139,7 +139,7 @@ struct EmbeddedSearXNGServiceTests {
         try await waitForExit(pid)
     }
 
-    @Test func lifetimePipeStopsOrphan() async throws {
+    @Test(.timeLimit(.minutes(1))) func lifetimePipeStopsOrphan() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false)
         defer { try? FileManager.default.removeItem(at: root) }
@@ -151,12 +151,18 @@ struct EmbeddedSearXNGServiceTests {
         child.standardInput = pipe
         child.standardOutput = FileHandle.nullDevice
         child.standardError = FileHandle.nullDevice
+        let (exits, exited) = AsyncStream<Int32>.makeStream()
+        child.terminationHandler = { process in
+            exited.yield(process.terminationStatus)
+            exited.finish()
+        }
         try child.run()
         defer { if child.isRunning { child.terminate() } }
         try pipe.fileHandleForReading.close()
         try pipe.fileHandleForWriting.close()
-        try await waitForExit(child.processIdentifier)
-        #expect(child.terminationStatus == 0)
+        var status: Int32?
+        for await exitStatus in exits { status = exitStatus; break }
+        #expect(status == 0)
     }
 
     @Test func cancellationConcurrencyAndCrashRecovery() async throws {
