@@ -92,7 +92,9 @@ struct WebToolDispatcher: Sendable {
             try Task.checkCancellation()
             guard page.url == url.absoluteString else { throw WebPageError.invalidResponse }
             let title = boundedText(page.title, characters: 512, bytes: 2_048)
-            let content = boundedText(page.content, characters: 20_000, bytes: 65_536)
+            // Bound model-facing page excerpts well below the model's 6,144-token
+            // input ceiling. Full HTML is still processed with separate safety limits.
+            let content = boundedText(page.content, characters: 3_000, bytes: 8_192)
             guard !content.isEmpty else { throw WebPageError.noContent }
             let payload = ExternalPage(
                 trust: "UNTRUSTED_EXTERNAL_DATA", status: "retrieved", url: url.absoluteString,
