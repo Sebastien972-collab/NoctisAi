@@ -77,7 +77,8 @@ struct NoctisCLI {
         }
         let model = MLXModelService(presentation: .plainText)
         try await model.authorizeWorkspace(workspace)
-        await NoctisApplication(modelService: model, workspace: workspace).runOnce(prompt: prompt)
+        let success = await NoctisApplication(modelService: model, workspace: workspace).runOnce(prompt: prompt)
+        if !success { exit(EXIT_FAILURE) }
     }
 
     private static func chat(workspacePath: String?) async throws {
