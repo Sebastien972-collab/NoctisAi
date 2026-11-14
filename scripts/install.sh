@@ -4,6 +4,7 @@ set -eu
 umask 077
 
 project_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
+. "$project_root/scripts/terminal-ui.sh"
 prefix=${NOCTIS_PREFIX:-"$HOME/.local"}
 case "$prefix" in /*) ;; *) echo 'NOCTIS_PREFIX doit être absolu.' >&2; exit 1 ;; esac
 [ "$prefix" != / ] || { echo 'Préfixe racine refusé.' >&2; exit 1; }
@@ -56,6 +57,7 @@ committed=false
 switched=false
 cleanup() {
     status=$?
+    noctis_ui_stop
     if [ "$switched" = true ] && [ "$committed" = false ]; then
         if [ -n "$old" ]; then
             ln -s "$old" "$link.restore"
@@ -85,7 +87,7 @@ if [ "$rollback" = true ]; then
 else
     stage=$(mktemp -d "$data/versions/.stage.XXXXXX")
     rmdir "$stage"
-    NOCTIS_SOURCE_ROOT="$source_root" "$project_root/scripts/package-cli.sh" "$stage"
+    noctis_ui_run "Compilation et packaging" env NOCTIS_SOURCE_ROOT="$source_root" "$project_root/scripts/package-cli.sh" "$stage"
     target="versions/build-$(date +%Y%m%d%H%M%S)-${stage##*.}"
     mv "$stage" "$data/$target"
     stage=

@@ -20,6 +20,26 @@ struct NoctisCLITests {
         }
     }
 
+    @Test func directCommandsRouteToTheCorrectScope() throws {
+        #expect(try NoctisCLI.command(arguments: ["tools", "doctor"]) == .toolsDoctor)
+        let search = try NoctisCLI.command(arguments: ["search", "iPhone Duo"])
+        if case .task(let prompt, let workspace) = search {
+            #expect(prompt.contains("web_search"))
+            #expect(workspace == nil)
+        } else {
+            Issue.record("search must be a one-shot Web command")
+        }
+        let review = try NoctisCLI.command(arguments: ["review"])
+        if case .task(_, let workspace) = review {
+            #expect(workspace == FileManager.default.currentDirectoryPath)
+        } else {
+            Issue.record("review must explicitly authorize the current directory")
+        }
+        #expect(throws: NoctisAgent.AgentError.invalidArguments) {
+            try NoctisCLI.command(arguments: ["summarize", "http://example.com"])
+        }
+    }
+
     @Test func maintenanceAndInteractiveCommandsDoNotLoadModel() async throws {
         try await #require(processExitsWith: .success) {
             let service = MockAIModelService()
