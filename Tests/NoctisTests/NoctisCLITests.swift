@@ -40,6 +40,25 @@ struct NoctisCLITests {
         }
     }
 
+    @Test func unquotedSearchQueryAndHelpAlias() throws {
+        #expect(try NoctisCLI.command(arguments: ["help"]) == .help)
+        #expect(try NoctisCLI.command(arguments: ["--help"]) == .help)
+        let search = try NoctisCLI.command(arguments: ["search", "Iphone", "Duo"])
+        let quoted = try NoctisCLI.command(arguments: ["search", "Iphone Duo"])
+        #expect(search == quoted)
+        if case .task(let prompt, let workspace) = search {
+            #expect(prompt.contains("Iphone Duo"))
+            #expect(workspace == nil)
+        } else {
+            Issue.record("search must route to a Web task")
+        }
+        let ask = try NoctisCLI.command(arguments: ["ask", "Bonjour", "Noctis"])
+        #expect(ask == .task("Bonjour Noctis", nil))
+        #expect(throws: NoctisAgent.AgentError.invalidArguments) {
+            try NoctisCLI.command(arguments: ["summarize", "https://apple.com", "unexpected"])
+        }
+    }
+
     @Test func maintenanceAndInteractiveCommandsDoNotLoadModel() async throws {
         try await #require(processExitsWith: .success) {
             let service = MockAIModelService()
