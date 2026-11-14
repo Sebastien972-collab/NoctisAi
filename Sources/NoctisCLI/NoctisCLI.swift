@@ -64,7 +64,7 @@ struct NoctisCLI {
         case ["tools", "doctor"]: return .toolsDoctor
         default:
             guard arguments.count == 2, arguments[0] == "--workspace",
-                  arguments[1].hasPrefix("/"), !arguments[1].contains("\\0") else {
+                  arguments[1].hasPrefix("/"), !arguments[1].contains("\0") else {
                 throw NoctisAgent.AgentError.invalidArguments
             }
             return .chat(arguments[1])
