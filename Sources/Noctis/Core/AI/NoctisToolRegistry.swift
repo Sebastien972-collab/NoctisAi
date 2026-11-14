@@ -247,22 +247,18 @@ actor NoctisToolDispatcher {
 
         // Authorize only URLs returned by a successful
         // web_search call in the current turn.
-        if call.function.name == WebSearchTool.name,
-           let data = output.data(using: .utf8),
-           let envelope = try? JSONDecoder().decode(
-               SearchPageURLs.self,
-               from: data
-           ) {
-            for result in envelope.results.prefix(5) {
-                if let url = try? PublicWebURLPolicy.validate(
-                    result.url
-                ) {
-                    pageURLs.insert(url.absoluteString)
-                }
-            }
-        }
+        if call.function.name == WebSearchTool.name { try authorizeSearchResults(output) }
 
         return try bounded(output)
+    }
+
+    private func authorizeSearchResults(_ output: String) throws {
+        guard let data = output.data(using: .utf8),
+              let envelope = try? JSONDecoder().decode(SearchPageURLs.self, from: data) else { return }
+        guard !envelope.results.isEmpty else { throw MLXModelServiceError.noSearchResults }
+        for result in envelope.results.prefix(5) {
+            if let url = try? PublicWebURLPolicy.validate(result.url) { pageURLs.insert(url.absoluteString) }
+        }
     }
 
     private func bounded(_ output: String) throws -> String {

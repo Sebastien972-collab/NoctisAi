@@ -45,6 +45,7 @@ private struct NoctisDynamicTool: AnyTool {
                 : (reason == .permissionDenied || reason == .invalidArguments ? .refused : .failed)
             context.trace.tool(call, status: status, duration: ContinuousClock.now - started, reason: reason)
             if error is CancellationError { throw CancellationError() }
+            if error is MLXModelServiceError { throw error }
             // The error result goes back to the model, but no raw error is retained in traces.
             return .error(reason == .permissionDenied ? "Action refusée : permission insuffisante" : "Échec de l’outil")
         }
@@ -205,7 +206,9 @@ public final class NoctisCLIAgent: Sendable {
             })
             for call in message.toolCalls where !completed.contains(call.id) {
                 candidate.append(.tool(id: call.id, name: call.name,
-                                       content: "Action interrompue ; aucun résultat confirmé."))
+                                       content: error as? MLXModelServiceError == .noSearchResults
+                                        && call.name == "web_search" ? "Recherche terminée sans source."
+                                        : "Action interrompue ; aucun résultat confirmé."))
             }
             if (try? candidate.validateForAgentHistory()) != nil { resolved = candidate }
         }
@@ -218,7 +221,9 @@ public final class NoctisCLIAgent: Sendable {
         } else if case .assistant(let message) = resolved.last, message.toolCalls.isEmpty {
             // A complete ordinary response already closes this turn.
         } else {
-            resolved.append(.assistant(AssistantMessage(content: "Réponse interrompue avant la fin.")))
+            let content = error as? MLXModelServiceError == .noSearchResults
+                ? MLXModelServiceError.noSearchResults.localizedDescription : "Réponse interrompue avant la fin."
+            resolved.append(.assistant(AssistantMessage(content: content)))
         }
         return resolved
     }

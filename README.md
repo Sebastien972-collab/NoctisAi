@@ -726,7 +726,9 @@ A shared generation lease prevents concurrent use of the same weights through ch
 workspace task APIs. Permission changes invalidate existing model clients and task runtimes. Completed
 tool exchanges remain inspectable after interruption. The CLI displays terminal `finish` content once
 and reports incomplete runs explicitly. Web URLs supplied in the current question are authorized for
-that response only; page content cannot grant access to another URL.
+that response only; page content cannot grant access to another URL. A search returning no sources
+ends the response with the typed `noSearchResults` outcome. The model cannot retry that empty result;
+accepted history is retained so the caller can start a new request.
 
 Ordinary tests do not load model weights. The opt-in qualification suite runs twenty fixed scenarios,
 a conversation of up to thirty turns and three cancellation/recovery cycles. It reports timings,

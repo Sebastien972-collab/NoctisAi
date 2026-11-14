@@ -1,3 +1,4 @@
+// Created by Sébastien DAGUIN
 import Foundation
 
 enum ToolFeedback {
@@ -141,6 +142,9 @@ private func convertingToolErrors(
     do {
         return try await body()
     } catch let error as CancellationError {
+        throw error
+    } catch let error as MLXModelServiceError {
+        // Host-enforced limits and terminal domain outcomes cannot be retried by the model.
         throw error
     } catch let error as AgentError {
         return .error(error.feedbackMessage)

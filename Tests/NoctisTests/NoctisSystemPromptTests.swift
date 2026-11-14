@@ -189,7 +189,10 @@ struct NoctisSystemPromptTests {
 }
 
 private struct PromptSearchStub: WebSearchService {
-    func search(query: String) async throws -> [SearchResult] { [] }
+    func search(query: String) async throws -> [SearchResult] {
+        [SearchResult(title: "Swift fixture", url: try #require(URL(string: "https://www.swift.org/article")),
+                      content: "Offline search fixture")]
+    }
 }
 
 private struct PromptPageStub: WebPageService {
