@@ -174,14 +174,9 @@ public final class NoctisCLIAgent: Sendable {
         } catch {
             run.cancel()
             await run.value
-            // A rejected model context must not poison subsequent turns with
-            // oversized tool results. Restore the last accepted history.
-            if error as? MLXModelServiceError == .contextLimit ||
-                error as? AgentError == .contextLimit {
-                resolved = history
-            } else {
-                resolved = recoveredHistory(pending: pending, resolved: resolved, history: history, error: error)
-            }
+            resolved = historyAfterFailure(
+                pending: pending, resolved: resolved, history: history, error: error
+            )
             let recovery = resolved
             state.withLock { $0.recoveryHistory = recovery }
             trace.record(error is CancellationError ? .runCancelled : .runFailed,
@@ -190,6 +185,19 @@ public final class NoctisCLIAgent: Sendable {
             state.withLock { $0.running = false }
             output.finish(throwing: error)
         }
+    }
+
+    private func historyAfterFailure(
+        pending: [ChatMessage]?,
+        resolved: [ChatMessage],
+        history: [ChatMessage],
+        error: any Error
+    ) -> [ChatMessage] {
+        if error as? MLXModelServiceError == .contextLimit ||
+            error as? AgentError == .contextLimit {
+            return history
+        }
+        return recoveredHistory(pending: pending, resolved: resolved, history: history, error: error)
     }
 
     private func recoveredHistory(pending: [ChatMessage]?, resolved: [ChatMessage],
