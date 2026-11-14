@@ -18,6 +18,40 @@ struct NoctisCLI {
     }
 
     static func command(arguments: [String]) throws -> Command {
+        if let task = directTask(arguments) { return task }
+        return try maintenanceCommand(arguments)
+    }
+
+    private static func directTask(_ arguments: [String]) -> Command? {
+        switch arguments {
+        case ["review"]:
+            return .task(
+                "Analyse le workspace autorisé en lecture seule. Identifie les bugs et risques, avec chemins et preuves.",
+                FileManager.default.currentDirectoryPath
+            )
+        case ["search", let query] where !query.isEmpty:
+            return .task(
+                "Utilise web_search pour rechercher : \(query). Cite les URL effectivement retournées.",
+                nil
+            )
+        case ["summarize", let url] where url.hasPrefix("https://"):
+            return .task(
+                "Utilise web_open pour lire et résumer cette page, et signale les troncatures : \(url)",
+                nil
+            )
+        case ["ask", let question] where !question.isEmpty:
+            return .task(question, nil)
+        case ["explain", let path] where !path.isEmpty && !path.hasPrefix("/"):
+            return .task(
+                "Lis puis explique ce fichier relatif au workspace : \(path). Ne suppose aucun contenu.",
+                FileManager.default.currentDirectoryPath
+            )
+        default:
+            return nil
+        }
+    }
+
+    private static func maintenanceCommand(_ arguments: [String]) throws -> Command {
         switch arguments {
         case []: return .chat(nil)
         case ["--help"], ["-h"]: return .help
@@ -28,19 +62,9 @@ struct NoctisCLI {
         case ["update", "--dev"]: return .updateMode(.development)
         case ["update", "--rollback"]: return .updateMode(.rollback)
         case ["tools", "doctor"]: return .toolsDoctor
-        case ["review"]:
-            return .task("Analyse le workspace autorisé en lecture seule. Identifie les bugs et risques, avec chemins et preuves.", FileManager.default.currentDirectoryPath)
-        case ["search", let query] where !query.isEmpty:
-            return .task("Utilise web_search pour rechercher : \(query). Cite les URL effectivement retournées.", nil)
-        case ["summarize", let url] where url.hasPrefix("https://"):
-            return .task("Utilise web_open pour lire et résumer cette page, et signale les troncatures : \(url)", nil)
-        case ["ask", let question] where !question.isEmpty:
-            return .task(question, nil)
-        case ["explain", let path] where !path.isEmpty && !path.hasPrefix("/"):
-            return .task("Lis puis explique ce fichier relatif au workspace : \(path). Ne suppose aucun contenu.", FileManager.default.currentDirectoryPath)
         default:
             guard arguments.count == 2, arguments[0] == "--workspace",
-                  arguments[1].hasPrefix("/"), !arguments[1].contains("\0") else {
+                  arguments[1].hasPrefix("/"), !arguments[1].contains("\\0") else {
                 throw NoctisAgent.AgentError.invalidArguments
             }
             return .chat(arguments[1])
@@ -49,25 +73,30 @@ struct NoctisCLI {
 
     static func main() async {
         do {
-            switch try command(arguments: Array(CommandLine.arguments.dropFirst())) {
-            case .help: print(usage)
-            case .version: print(CLIBuildIdentity.installed.display)
-            case .doctor:
-                if !doctor() { exit(EXIT_FAILURE) }
-            case .toolsDoctor:
-                print("Web : disponible sans workspace ; vérifier SearXNG avec une recherche réelle.")
-                print("Fichiers : autorisation explicite du workspace nécessaire.")
-                if !doctor() { exit(EXIT_FAILURE) }
-            case .task(let prompt, let path):
-                try await oneShot(prompt: prompt, workspacePath: path)
-            case .update: try await update(.stable)
-            case .updateMode(let mode): try await update(mode)
-            case .chat(let path): try await chat(workspacePath: path)
-            }
+            let parsed = try command(arguments: Array(CommandLine.arguments.dropFirst()))
+            try await execute(parsed)
         } catch {
             ConsoleInterface().displayError(error)
             print(usage)
             exit(EXIT_FAILURE)
+        }
+    }
+
+    private static func execute(_ command: Command) async throws {
+        switch command {
+        case .help: print(usage)
+        case .version: print(CLIBuildIdentity.installed.display)
+        case .doctor:
+            if !doctor() { exit(EXIT_FAILURE) }
+        case .toolsDoctor:
+            print("Web : disponible sans workspace ; vérifier SearXNG avec une recherche réelle.")
+            print("Fichiers : autorisation explicite du workspace nécessaire.")
+            if !doctor() { exit(EXIT_FAILURE) }
+        case .task(let prompt, let path):
+            try await oneShot(prompt: prompt, workspacePath: path)
+        case .update: try await update(.stable)
+        case .updateMode(let mode): try await update(mode)
+        case .chat(let path): try await chat(workspacePath: path)
         }
     }
 
