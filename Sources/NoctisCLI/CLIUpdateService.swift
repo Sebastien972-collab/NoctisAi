@@ -142,16 +142,11 @@ struct UpdateCommandRunner: UpdateCommandRunning {
         environment["GIT_TERMINAL_PROMPT"] = "0"
         environment["GH_HOST"] = "github.com"
         child.process.environment = environment
-        try await withTaskCancellationHandler {
-            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+        let status = try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Int32, Error>) in
                 child.process.terminationHandler = { process in
-                    if process.terminationReason == .exit && process.terminationStatus == 0 {
-                        continuation.resume()
-                    } else {
-                        continuation.resume(
-                            throwing: UpdateFailure(
-                                "Command failed. Check Swift, Xcode, Git or GitHub CLI authentication."))
-                    }
+                    let code = process.terminationStatus
+                    continuation.resume(returning: process.terminationReason == .exit ? code : -code)
                 }
                 do { try child.start() } catch { continuation.resume(throwing: error) }
             }
@@ -163,7 +158,15 @@ struct UpdateCommandRunner: UpdateCommandRunning {
         defer { try? handle.close() }
         let bytes = try handle.read(upToCount: 8 * 1024 * 1024 + 1) ?? Data()
         guard bytes.count <= 8 * 1024 * 1024, let text = String(data: bytes, encoding: .utf8) else {
-            throw UpdateFailure("Invalid GitHub response or download.")
+            throw UpdateFailure("Invalid command output (over 8 MiB or invalid UTF-8).")
+        }
+        guard status == 0 else {
+            // Retain only bounded command output; no private log file survives the operation.
+            let diagnostics = String(text.suffix(4_096))
+            throw UpdateFailure(
+                "Command exited with status \(status).\n" +
+                (diagnostics.isEmpty ? "No diagnostic output was produced." : diagnostics)
+            )
         }
         return text
     }
