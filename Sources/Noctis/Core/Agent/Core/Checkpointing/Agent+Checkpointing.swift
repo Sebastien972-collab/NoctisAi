@@ -1,7 +1,10 @@
+// Created by Sébastien DAGUIN
 import Foundation
 
 extension Agent {
     @discardableResult
+    // Keep the existing explicit execution contract without an unrelated API change.
+    // swiftlint:disable:next function_parameter_count
     func checkpointIfConfigured(
         iterationNumber: Int,
         state: AgentLoopState,

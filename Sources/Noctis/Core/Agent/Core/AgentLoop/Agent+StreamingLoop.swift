@@ -1,6 +1,9 @@
+// Created by Sébastien DAGUIN
 import Foundation
 
 extension Agent {
+    // Keep the existing explicit execution contract without an unrelated API change.
+    // swiftlint:disable:next function_parameter_count
     func compactStreamingMessagesIfNeeded(
         _ messages: inout [ChatMessage],
         totalUsage: inout TokenUsageTotals,
@@ -27,6 +30,8 @@ extension Agent {
         )
     }
 
+    // Keep the ordered prompt or streaming transaction together.
+    // swiftlint:disable:next function_body_length
     func resolveStreamingIteration(
         iteration: StreamIteration,
         iterationNumber: Int,
@@ -69,7 +74,7 @@ extension Agent {
         case .none:
             if completionPolicy.allowsContentOnlyTermination,
                shouldTerminateOnContent(
-                   client: client, toolCalls: iteration.toolCalls, content: iteration.effectiveContent
+                client: client, toolCalls: iteration.toolCalls, content: iteration.effectiveContent
                ) {
                 try finishStreaming(
                     continuation: continuation,
@@ -92,6 +97,8 @@ extension Agent {
         }
     }
 
+    // Keep the existing explicit execution contract without an unrelated API change.
+    // swiftlint:disable:next function_parameter_count
     private func completeStreamingIteration(
         call: ToolCall,
         iteration: StreamIteration,
@@ -137,6 +144,8 @@ extension Agent {
         }
     }
 
+    // Keep the existing explicit execution contract without an unrelated API change.
+    // swiftlint:disable:next function_parameter_count
     private func finalizeStreamingIteration(
         toolCalls: [ToolCall],
         context: C,
@@ -184,6 +193,8 @@ extension Agent {
         try state.messages.validateForAgentHistory()
     }
 
+    // Keep the existing explicit execution contract without an unrelated API change.
+    // swiftlint:disable:next function_parameter_count
     func generateStreamingResponse(
         processor: StreamProcessor,
         messages: inout [ChatMessage],

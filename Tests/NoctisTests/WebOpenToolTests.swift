@@ -14,7 +14,7 @@ struct WebOpenToolTests {
     @Test func userURLWorksButPageInstructionsCannotAuthorizeAnotherURL() async throws {
         let pages = PageAudit()
         let dispatcher = NoctisToolDispatcher(registry: NoctisToolRegistry(), web: web(pages),
-                                             userPrompt: "Résume [cette page](\(article)).")
+                                              userPrompt: "Résume [cette page](\(article)).")
         let output = try await dispatcher.execute(open(article))
         let payload = try #require(JSONSerialization.jsonObject(with: Data(output.utf8)) as? [String: Any])
         #expect(payload["trust"] as? String == "UNTRUSTED_EXTERNAL_DATA")
@@ -48,7 +48,7 @@ struct WebOpenToolTests {
         await #expect(throws: WebPageError.requestLimit) { try await dispatcher.execute(open(article)) }
         let local = ToolRegistry(workspace: try AuthorizedWorkspace(authorizing: URL(fileURLWithPath: "/private/tmp")))
         let localDispatcher = NoctisToolDispatcher(registry: NoctisToolRegistry(workspace: local),
-                                                  web: web(pages), userPrompt: article)
+                                                   web: web(pages), userPrompt: article)
         await #expect(throws: WebToolError.self) { try await localDispatcher.execute(open(article)) }
         #expect(await pages.urls.count == 4)
     }
@@ -67,7 +67,15 @@ struct WebOpenToolTests {
         await #expect(throws: WebPageError.transportFailure) { try await failed.execute(open(article)) }
     }
 
-    private func open(_ url: String) -> ToolCall {
+    @Test func webResultsShareOneCumulativeResponseBudget() async throws {
+        let dispatcher = NoctisToolDispatcher(registry: NoctisToolRegistry(),
+            web: WebToolDispatcher(searchService: LargeSearchPage(), pasgeService: PageAudit()))
+        let call = MLXLMCommon.ToolCall(function: .init(name: "web_search", arguments: ["query": .string("Swift")]))
+        for _ in 0..<6 { _ = try await dispatcher.execute(call) }
+        await #expect(throws: MLXModelServiceError.contextLimit) { _ = try await dispatcher.execute(call) }
+    }
+
+    private func open(_ url: String) -> MLXLMCommon.ToolCall {
         ToolCall(function: .init(name: "web_open", arguments: ["url": .string(url)]))
     }
     private func web(_ pages: PageAudit) -> WebToolDispatcher {
@@ -100,4 +108,12 @@ private struct ChangedPage: WebPageService {
 }
 private struct SecretPageError: WebPageService {
     func open(url: URL) async throws -> WebPage { throw NSError(domain: "TOP_SECRET", code: 1) }
+}
+
+private struct LargeSearchPage: WebSearchService {
+    func search(query: String) async throws -> [SearchResult] {
+        [SearchResult](repeating: SearchResult(title: String(repeating: "日", count: 512),
+            url: URL(string: "https://www.swift.org/article")!,
+            content: String(repeating: "日", count: 2_000)), count: 5)
+    }
 }

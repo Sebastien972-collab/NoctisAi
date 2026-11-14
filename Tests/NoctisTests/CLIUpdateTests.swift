@@ -249,18 +249,18 @@ extension CLIUpdateTests {
         let service = CLIUpdateService(transport: transport, runner: runner)
         await #expect(throws: UpdateFailure.self) {
             try await NoctisCLI.developmentPayload(service: service, temporary: fixture.base,
-                                                    interactive: false, readConfirmation: { "yes" })
+                                                   interactive: false, readConfirmation: { "yes" })
         }
         #expect(await runner.calls.isEmpty)
         await #expect(throws: UpdateFailure.self) {
             try await NoctisCLI.developmentPayload(service: service, temporary: fixture.base,
-                                                    interactive: true, readConfirmation: { "no" })
+                                                   interactive: true, readConfirmation: { "no" })
         }
         #expect(await !runner.calls.contains { $0.contains("swift build") })
         let payload = try await NoctisCLI.developmentPayload(service: service, temporary: fixture.base,
                                                              interactive: true, readConfirmation: { "yes" })
         let identity = try JSONDecoder().decode(CLIBuildIdentity.self,
-                            from: Data(contentsOf: payload.appendingPathComponent("version.json")))
+                                                from: Data(contentsOf: payload.appendingPathComponent("version.json")))
         #expect(identity.channel == "main")
         #expect(identity.commit == String(repeating: "a", count: 40))
         let calls = await runner.calls
@@ -293,8 +293,8 @@ extension CLIUpdateTests {
                                  ["-cf", archive.path, "-C", payload.path, "."], directory: fixture.base)
         let checksum = "\(try ManagedCLIInstallation.digest(archive))  \(name)\n"
         let release = CLIRelease(tagName: "1.0.0", draft: false, prerelease: false, body: nil,
-            assets: [name, name + ".sha256"].map { .init(name: $0, browserDownloadURL:
-                URL(string: "https://github.com/\(CLIUpdateService.repository)/releases/download/1.0.0/\($0)")!) })
+                                 assets: [name, name + ".sha256"].map { .init(name: $0, browserDownloadURL:
+            URL(string: "https://github.com/\(CLIUpdateService.repository)/releases/download/1.0.0/\($0)")!) })
         let transport = FixtureUpdateTransport(responses: [try Data(contentsOf: archive), Data(checksum.utf8)])
         let service = CLIUpdateService(transport: transport, runner: FixtureArchiveRunner())
         let verified = try await service.fetchVerified(release, in: fixture.base,
@@ -320,7 +320,10 @@ extension CLIUpdateTests {
     @Test func maintenanceBinaryRunsWithoutModelOrMutableVersionSidecar() async throws {
         let project = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
             .deletingLastPathComponent().deletingLastPathComponent()
-        let binary = project.appendingPathComponent(".build/debug/NoctisCLI")
+        let candidate = Bundle(for: CLIUpdateBundleAnchor.self).bundleURL
+            .deletingLastPathComponent().appendingPathComponent("NoctisCLI")
+        let binary = FileManager.default.isExecutableFile(atPath: candidate.path)
+            ? candidate : project.appendingPathComponent(".build/debug/NoctisCLI")
         let runner = UpdateCommandRunner()
         let help = try await runner.run(binary, ["--help"], directory: URL(fileURLWithPath: "/"))
         let version = try await runner.run(binary, ["--version"], directory: URL(fileURLWithPath: "/"))
@@ -329,3 +332,5 @@ extension CLIUpdateTests {
         #expect(version.hasPrefix("Noctis unknown (local)"))
     }
 }
+
+private final class CLIUpdateBundleAnchor: NSObject {}

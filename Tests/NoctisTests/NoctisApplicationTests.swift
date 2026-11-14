@@ -197,3 +197,11 @@ private func runApplication(input: String, modelService: MockAIModelService) asy
 
     await NoctisApplication(modelService: modelService).run()
 }
+
+extension NoctisApplicationTests {
+    @Test func terminalAnswerIsDisplayedExactlyOnce() {
+        #expect(NoctisApplication.finalSuffix("Bonjour", streamed: "Bonjour") == "")
+        #expect(NoctisApplication.finalSuffix("Bonjour", streamed: "Bon") == "jour")
+        #expect(NoctisApplication.finalSuffix("Bonjour", streamed: "") == "Bonjour")
+    }
+}

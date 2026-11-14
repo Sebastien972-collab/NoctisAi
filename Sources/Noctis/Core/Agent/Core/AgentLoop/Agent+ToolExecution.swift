@@ -1,3 +1,4 @@
+// Created by Sébastien DAGUIN
 import Foundation
 
 struct IndexedToolCall {
@@ -66,6 +67,8 @@ extension Agent {
         return completionAttempt(for: result, toolName: call.name)
     }
 
+    // Keep the existing explicit execution contract without an unrelated API change.
+    // swiftlint:disable:next function_parameter_count
     func executeStreamingCompletionCall(
         _ call: ToolCall,
         context: C,

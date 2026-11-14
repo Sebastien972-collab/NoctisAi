@@ -44,19 +44,7 @@ final class NoctisApplication {
     private func respond(to prompt: String, interrupts: ConsoleInterrupts) async {
         defer { interrupts.install(nil) }
         do {
-            if !loaded {
-                console.displayStatus(String(localized: "console.status.loading_model",
-                    defaultValue: "Je me prépare pour notre conversation…", bundle: .module))
-                let model = modelService
-                let load = Task { try await model.load() }
-                interrupts.install { load.cancel() }
-                try await load.value
-                loaded = true
-                if let mlx = modelService as? MLXModelService {
-                    cliAgent = try await mlx.makeNoctisCLIAgent()
-                }
-                try Task.checkCancellation()
-            }
+            try await prepareModel(interrupts: interrupts)
             let model = modelService
             let console = console
             let currentAgent = cliAgent
@@ -92,16 +80,32 @@ final class NoctisApplication {
             await modelService.cancelGeneration()
             print()
             console.displayStatus(String(localized: "console.status.cancelled",
-                defaultValue: "Réponse interrompue. On peut continuer.", bundle: .module))
+                                         defaultValue: "Réponse interrompue. On peut continuer.", bundle: .module))
         } catch {
             if let history = cliAgent?.recoveryHistory { agentHistory = history }
             if !loaded {
                 console.displayStatus(String(localized: "console.error.startup_failed",
-                    defaultValue: "Impossible de démarrer Noctis.", bundle: .module))
+                                             defaultValue: "Impossible de démarrer Noctis.", bundle: .module))
             }
             print()
             console.displayError(error)
             print()
+        }
+    }
+
+    private func prepareModel(interrupts: ConsoleInterrupts) async throws {
+        if !loaded {
+            console.displayStatus(String(localized: "console.status.loading_model",
+                                         defaultValue: "Je me prépare pour notre conversation…", bundle: .module))
+            let model = modelService
+            let load = Task { try await model.load() }
+            interrupts.install { load.cancel() }
+            try await load.value
+            loaded = true
+            if let mlx = modelService as? MLXModelService {
+                cliAgent = try await mlx.makeNoctisCLIAgent()
+            }
+            try Task.checkCancellation()
         }
     }
 
@@ -114,30 +118,27 @@ final class NoctisApplication {
         console.beginResponse()
         var renderer = TerminalMarkdown(styled: console.usesColor)
         var nextHistory: [ChatMessage]?
+        var streamedText = ""
         do {
             for try await event in agent.stream(prompt: prompt, history: history) {
                 try Task.checkCancellation()
                 switch event.kind {
                 case .delta(let text):
+                    streamedText += text
                     console.displayResponse(renderer.append(text))
                 case .toolCallStarted(let name, _):
+                    streamedText = ""
                     console.displayResponse(renderer.finish())
                     renderer = TerminalMarkdown(styled: console.usesColor)
-                    let action: String
-                    switch name {
-                    case "web_search": action = "Recherche Web…"
-                    case "readFile": action = "Lecture du fichier…"
-                    case "listFiles": action = "Liste des fichiers…"
-                    default: action = "Recherche dans les fichiers…"
-                    }
                     print()
-                    console.displayStatus(action)
+                    console.displayStatus(toolAction(name))
                 case .toolCallCompleted(_, _, let result) where result.isError:
                     print()
                     console.displayStatus(result.content == "Action refusée : permission insuffisante"
-                        ? "Action refusée : permission insuffisante" : "Action échouée")
-                case .finished(_, _, _, let history):
-                    nextHistory = history
+                                            ? "Action refusée : permission insuffisante" : "Action échouée")
+                case .finished(_, let content, let reason, let history):
+                    nextHistory = presentCompletion(content: content, reason: reason, history: history,
+                                                    renderer: &renderer, streamed: streamedText, console: console)
                 default:
                     continue
                 }
@@ -151,16 +152,65 @@ final class NoctisApplication {
         }
     }
 
+    private static func toolAction(_ name: String) -> String {
+        switch name {
+        case "web_search": "Recherche Web…"
+        case "web_open": "Lecture de la page Web…"
+        case "readFile": "Lecture du fichier…"
+        case "listFiles": "Liste des fichiers…"
+        default: "Recherche dans les fichiers…"
+        }
+    }
+
+    // Completion content may arrive without text deltas when the model uses finish.
+    // Keep the existing explicit execution contract without an unrelated API change.
+    // swiftlint:disable:next function_parameter_count
+    private static func presentCompletion(content: String?, reason: FinishReason?, history: [ChatMessage],
+                                          renderer: inout TerminalMarkdown, streamed: String,
+                                          console: ConsoleInterface) -> [ChatMessage] {
+        var nextHistory = history
+        if let content {
+            console.displayResponse(renderer.append(Self.finalSuffix(content, streamed: streamed)))
+        }
+        if reason != .completed {
+            console.displayResponse(renderer.finish())
+            renderer = TerminalMarkdown(styled: console.usesColor)
+            print()
+            console.displayStatus(completionStatus(reason))
+            if case .assistant(let message) = nextHistory.last, message.toolCalls.isEmpty {
+                // The assistant already closes this turn.
+            } else {
+                nextHistory.append(.assistant(AssistantMessage(content: "Tâche interrompue avant la fin.")))
+            }
+        }
+        return nextHistory
+    }
+
+    private static func completionStatus(_ reason: FinishReason?) -> String {
+        switch reason {
+        case .maxIterationsReached: MLXModelServiceError.toolLimit.localizedDescription
+        case .tokenBudgetExceeded: MLXModelServiceError.contextLimit.localizedDescription
+        default:
+            String(localized: "console.status.incomplete_response", defaultValue: "La tâche reste incomplète.",
+                   bundle: .module)
+        }
+    }
+
+    static func finalSuffix(_ content: String, streamed: String) -> String {
+        if content.hasPrefix(streamed) { return String(content.dropFirst(streamed.count)) }
+        return streamed.isEmpty ? content : "\n" + content
+    }
+
     private func handleCommand(_ prompt: String) async -> Bool {
         switch prompt {
         case "/help": print(NoctisCLI.interactiveHelp)
         case "/model": print(NoctisConfiguration.modelID)
-        case "/diagnostics on": cliAgent?.traceRecorder.diagnosticsEnabled = true
-        case "/diagnostics off": cliAgent?.traceRecorder.diagnosticsEnabled = false
+        case "/diagnostics on", "/diagnostics off":
+            cliAgent?.traceRecorder.diagnosticsEnabled = prompt.hasSuffix("on")
         case "/permissions":
             console.displayStatus(workspace == nil
-                ? "Aucun accès aux fichiers locaux. Recherche Web autorisée ; disponibilité du service non garantie."
-                : "Lecture seule dans le dossier autorisé. Accès réseau désactivé pour ce contexte.")
+            ? "Aucun accès aux fichiers locaux. Recherche Web autorisée ; disponibilité du service non garantie."
+            : "Lecture seule dans le dossier autorisé. Accès réseau désactivé pour ce contexte.")
             console.displayStatus(String(localized: "console.permissions.summary", defaultValue: """
                 Lecture limitée au dossier autorisé, uniquement pour répondre à tes demandes.
                 Fichiers sensibles, liens symboliques et fichiers de plus de 64 Kio : refusés.
@@ -169,7 +219,7 @@ final class NoctisApplication {
                 """, bundle: .module))
         case "/workspace":
             print(workspace.map { TerminalMarkdown.sanitized($0.path) } ?? String(localized: "console.workspace.none",
-                                           defaultValue: "Aucun dossier autorisé.", bundle: .module))
+            defaultValue: "Aucun dossier autorisé.", bundle: .module))
         case "/clear":
             do {
                 if loaded { try await modelService.resetConversation(history: []) }
@@ -181,12 +231,17 @@ final class NoctisApplication {
                                              defaultValue: "Une nouvelle conversation commence.", bundle: .module))
             } catch { console.displayError(error) }
         default:
-            if prompt.hasPrefix("/workspace ") {
-                await changeWorkspace(String(prompt.dropFirst("/workspace ".count)))
-            } else if prompt.hasPrefix("/") {
-                print(NoctisCLI.interactiveHelp)
-            } else { return false }
+            return await handleWorkspaceCommand(prompt)
         }
+        return true
+    }
+
+    private func handleWorkspaceCommand(_ prompt: String) async -> Bool {
+        if prompt.hasPrefix("/workspace ") {
+            await changeWorkspace(String(prompt.dropFirst("/workspace ".count)))
+        } else if prompt.hasPrefix("/") {
+            print(NoctisCLI.interactiveHelp)
+        } else { return false }
         return true
     }
 
@@ -203,9 +258,10 @@ final class NoctisApplication {
             agentHistory = []
             workspace = next
             console.displayStatus(String(localized: "console.workspace.context_reset",
-                defaultValue: "Contexte réinitialisé pour ce changement d’accès.", bundle: .module))
+                                         defaultValue: "Contexte réinitialisé pour ce changement d’accès.",
+                    bundle: .module))
             print(next.map { TerminalMarkdown.sanitized($0.path) } ?? String(localized: "console.workspace.revoked",
-                                      defaultValue: "Accès au dossier révoqué.", bundle: .module))
+            defaultValue: "Accès au dossier révoqué.", bundle: .module))
         } catch {
             console.displayStatus(String(localized: "console.workspace.invalid",
                                          defaultValue: "Dossier refusé. Utilise un chemin absolu sans lien symbolique.",

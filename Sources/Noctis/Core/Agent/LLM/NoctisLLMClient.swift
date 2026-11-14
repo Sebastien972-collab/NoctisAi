@@ -1,3 +1,4 @@
+// Created by Sébastien DAGUIN
 import Foundation
 import MLXLMCommon
 
@@ -7,10 +8,20 @@ import MLXLMCommon
 public final class NoctisLLMClient: ToolCallSurfacingClient, ContentOnlyTerminatingClient, Sendable {
     private let worker: ModelSessionWorker
     private let systemPrompt: String
+    private let access: ModelGenerationAccess
+    private let revision: Int
+    private let instructions: (@Sendable () -> String)?
 
-    init(worker: ModelSessionWorker, systemPrompt: String) {
+    func beginRun() throws -> UUID { try access.acquire(revision: revision) }
+    func endRun(_ lease: UUID) { access.release(lease) }
+
+    init(worker: ModelSessionWorker, systemPrompt: String,
+         access: ModelGenerationAccess = ModelGenerationAccess(), instructions: (@Sendable () -> String)? = nil) {
         self.worker = worker
         self.systemPrompt = systemPrompt
+        self.access = access
+        self.revision = access.revision
+        self.instructions = instructions
     }
 
     public var contextWindowSize: Int? { nil }
@@ -34,7 +45,8 @@ public final class NoctisLLMClient: ToolCallSurfacingClient, ContentOnlyTerminat
             case .toolCallDelta(let index, let arguments):
                 guard calls.indices.contains(index) else { continue }
                 let call = calls[index]
-                calls[index] = ToolCall(id: call.id, name: call.name, arguments: call.arguments + arguments, kind: call.kind)
+                calls[index] = ToolCall(id: call.id, name: call.name, arguments: call.arguments + arguments,
+                    kind: call.kind)
             case .reasoning, .reasoningDetails, .audioData, .audioTranscript, .audioStarted, .finished, .streamClosed:
                 continue
             }
@@ -43,72 +55,96 @@ public final class NoctisLLMClient: ToolCallSurfacingClient, ContentOnlyTerminat
     }
 
     public func stream(
-        messages: [ChatMessage],
-        tools: [ToolDefinition],
-        requestContext: RequestContext?
+        messages: [ChatMessage], tools: [ToolDefinition], requestContext: RequestContext?
     ) -> AsyncThrowingStream<StreamDelta, Error> {
-        return AsyncThrowingStream { continuation in
+        AsyncThrowingStream { continuation in
             let task = Task {
-                let trace = requestContext?.agentTrace
-                trace?.record(.generationStarted)
-                var nextCallIndex = 0
-                var identifiers = Set(messages.flatMap { message -> [String] in
-                    if case .assistant(let assistant) = message { return assistant.toolCalls.map(\.id) }
-                    return []
-                })
-                var hasContent = false
-                do {
-                    try Task.checkCancellation()
-                    let mlxMessages = try Self.messages(messages)
-                    let upstream = worker.streamDetails(
-                        messages: mlxMessages, tools: tools.map(Self.tool), instructions: systemPrompt
-                    )
-                    for try await event in upstream {
-                        try Task.checkCancellation()
-                        switch event {
-                        case .chunk(let chunk):
-                            hasContent = hasContent || !chunk.isEmpty
-                            continuation.yield(.content(chunk))
-                        case .toolCall(let call):
-                            let id = call.id ?? Self.makeCallID()
-                            guard Self.isValidCallID(id), identifiers.insert(id).inserted,
-                                  tools.contains(where: { $0.name == call.function.name }) else {
-                                trace?.record(.toolRejected, reason: .invalidCall)
-                                throw AgentError.invalidToolCall
-                            }
-                            let index = nextCallIndex
-                            nextCallIndex += 1
-                            continuation.yield(.toolCallStart(
-                                index: index,
-                                id: id,
-                                name: call.function.name,
-                                kind: .function
-                            ))
-                            let arguments = call.function.arguments.mapValues(\.anyValue)
-                            let data = try JSONSerialization.data(withJSONObject: arguments, options: [.sortedKeys])
-                            let json = String(decoding: data, as: UTF8.self)
-                            continuation.yield(.toolCallDelta(index: index, arguments: json))
-                        case .rejectedToolCall(let rejection):
-                            trace?.record(.toolRejected, reason: .rejected(rejection.reason))
-                            throw AgentError.invalidToolCall
-                        case .info(let info):
-                            if info.stopReason == .cancelled { throw CancellationError() }
-                            if info.stopReason == .length { throw AgentError.responseLimit }
-                        }
-                    }
-                    guard hasContent || nextCallIndex > 0 else { throw AgentError.invalidToolCall }
-                    trace?.record(.generationCompleted)
-                    continuation.yield(.finished(usage: nil))
-                    continuation.yield(.streamClosed(terminalMarkerSeen: true))
-                    continuation.finish()
-                } catch {
-                    trace?.record(error is CancellationError ? .generationCancelled : .generationFailed,
-                                  reason: AgentTraceEvent.Reason.classify(error))
-                    continuation.finish(throwing: error)
-                }
+                await produce(messages: messages, tools: tools, requestContext: requestContext, output: continuation)
             }
             continuation.onTermination = { _ in task.cancel() }
         }
+    }
+
+    private struct GenerationState {
+        var identifiers: Set<String>
+        var nextCallIndex = 0
+        var hasContent = false
+        var usage: TokenUsage?
+    }
+
+    private func produce(messages: [ChatMessage], tools: [ToolDefinition], requestContext: RequestContext?,
+                         output: AsyncThrowingStream<StreamDelta, Error>.Continuation) async {
+        let trace = requestContext?.agentTrace
+        var lease: UUID?
+        var acquired = false
+        defer { if let lease { access.release(lease) } }
+        do {
+            if let shared = requestContext?.modelLease {
+                try access.validate(shared, revision: revision)
+            } else { lease = try beginRun() }
+            acquired = true
+            trace?.record(.generationStarted)
+            try Task.checkCancellation()
+            var state = GenerationState(identifiers: Set(messages.flatMap { message -> [String] in
+                if case .assistant(let assistant) = message { return assistant.toolCalls.map(\.id) }
+                return []
+            }))
+            let upstream = worker.streamDetails(messages: try Self.messages(messages), tools: tools.map(Self.tool),
+                                                instructions: instructions?() ?? systemPrompt)
+            for try await event in upstream {
+                try Task.checkCancellation()
+                try forward(event, tools: tools, state: &state, output: output, trace: trace)
+            }
+            guard state.hasContent || state.nextCallIndex > 0 else { throw AgentError.invalidToolCall }
+            trace?.record(.generationCompleted)
+            output.yield(.finished(usage: state.usage))
+            output.yield(.streamClosed(terminalMarkerSeen: true))
+            if let lease { access.release(lease) }
+            output.finish()
+        } catch {
+            if acquired { await worker.synchronize() }
+            trace?.record(error is CancellationError ? .generationCancelled : .generationFailed,
+                          reason: AgentTraceEvent.Reason.classify(error))
+            if let lease { access.release(lease) }
+            output.finish(throwing: error)
+        }
+    }
+
+    private func forward(_ event: Generation, tools: [ToolDefinition], state: inout GenerationState,
+                         output: AsyncThrowingStream<StreamDelta, Error>.Continuation, trace: AgentTraceScope?) throws {
+        switch event {
+        case .chunk(let chunk):
+            state.hasContent = state.hasContent || !chunk.isEmpty
+            output.yield(.content(chunk))
+        case .toolCall(let call):
+            try forwardCall(call, tools: tools, state: &state, output: output, trace: trace)
+        case .rejectedToolCall(let rejection):
+            trace?.record(.toolRejected, reason: .rejected(rejection.reason))
+            throw AgentError.invalidToolCall
+        case .info(let info):
+            state.usage = TokenUsage(input: info.promptTokenCount + info.cachedPromptTokenCount,
+                                     output: info.generationTokenCount, cacheRead: info.cachedPromptTokenCount)
+            if info.stopReason == .cancelled { throw CancellationError() }
+            if info.stopReason == .length { throw MLXModelServiceError.responseLimit }
+        }
+    }
+
+    private func forwardCall(_ call: MLXLMCommon.ToolCall, tools: [ToolDefinition], state: inout GenerationState,
+                             output: AsyncThrowingStream<StreamDelta, Error>.Continuation,
+                             trace: AgentTraceScope?) throws {
+        let id = call.id ?? Self.makeCallID()
+        guard Self.isValidCallID(id), state.identifiers.insert(id).inserted,
+              tools.contains(where: { $0.name == call.function.name }) else {
+            trace?.record(.toolRejected, reason: .invalidCall)
+            throw AgentError.invalidToolCall
+        }
+        let index = state.nextCallIndex
+        state.nextCallIndex += 1
+        output.yield(.toolCallStart(index: index, id: id, name: call.function.name, kind: .function))
+        let data = try JSONSerialization.data(withJSONObject: call.function.arguments.mapValues(\.anyValue),
+                                              options: [.sortedKeys])
+        guard let json = String(data: data, encoding: .utf8) else { throw AgentError.invalidArguments }
+        output.yield(.toolCallDelta(index: index, arguments: json))
     }
 
     static func makeCallID() -> String {
@@ -116,7 +152,8 @@ public final class NoctisLLMClient: ToolCallSurfacingClient, ContentOnlyTerminat
     }
 
     static func isValidCallID(_ id: String) -> Bool {
-        id.utf8.count == 9 && id.utf8.allSatisfy { (48...57).contains($0) || (65...90).contains($0) || (97...122).contains($0) }
+        id.utf8.count == 9 &&
+            id.utf8.allSatisfy { (48...57).contains($0) || (65...90).contains($0) || (97...122).contains($0) }
     }
 
     static func messages(_ messages: [ChatMessage]) throws -> [MLXLMCommon.Chat.Message] {

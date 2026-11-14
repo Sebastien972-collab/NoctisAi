@@ -70,6 +70,7 @@ public enum OpenAIChatCustomToolGrammarSyntax: String, Sendable, Equatable, Coda
 
 /// Per-request metadata and provider-specific parameters.
 public struct RequestContext: Sendable {
+    var modelLease: UUID?
     var agentTrace: AgentTraceScope?
     public let extraFields: [String: JSONValue]
     public let onResponse: (@Sendable (HTTPURLResponse) -> Void)?
@@ -84,7 +85,7 @@ public struct RequestContext: Sendable {
         onStreamEvent: (@Sendable (StreamEvent) -> Void)? = nil,
         onStreamComplete: (@Sendable (StreamCompletion) -> Void)? = nil,
         openAIChat: OpenAIChatRequestOptions? = nil,
-    ) {
+        ) {
         self.extraFields = extraFields
         self.onResponse = onResponse
         self.onStreamEvent = onStreamEvent

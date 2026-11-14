@@ -54,7 +54,7 @@ package let reservedPruneContextToolDefinition = ToolDefinition(
             "tool_call_ids": .array(
                 items: .string(description: "Tool call ID to remove"),
                 description: "Array of tool call IDs whose results should be pruned"
-            ),
+            )
         ],
         required: ["tool_call_ids"]
     )

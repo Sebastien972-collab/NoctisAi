@@ -1,3 +1,4 @@
+// Created by Sébastien DAGUIN
 import Foundation
 
 /// A multi-turn conversation interface with optional tool calling and structured output.
@@ -198,6 +199,9 @@ public struct Chat<C: ToolContext>: Sendable {
 }
 
 private extension Chat {
+    // Keep the existing explicit execution contract without an unrelated API change.
+    // Keep the ordered prompt or streaming transaction together.
+    // swiftlint:disable:next function_body_length function_parameter_count
     func performStream(
         userMessage: ChatMessage,
         history: [ChatMessage],

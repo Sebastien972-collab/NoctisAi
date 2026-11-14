@@ -1,3 +1,4 @@
+// Created by Sébastien DAGUIN
 import Foundation
 
 struct StreamPolicy {
@@ -192,6 +193,8 @@ private struct StreamAccumulation {
         )
     }
 
+    // Keep the existing explicit execution contract without an unrelated API change.
+    // swiftlint:disable:next function_parameter_count
     private mutating func startToolCall(
         index: Int,
         id: String,
@@ -261,6 +264,8 @@ struct StreamProcessor {
     let policy: StreamPolicy
     let eventFactory: StreamEventFactory
 
+    // Keep the ordered prompt or streaming transaction together.
+    // swiftlint:disable:next function_body_length
     func process(
         messages: [ChatMessage],
         totalUsage: inout TokenUsageTotals,

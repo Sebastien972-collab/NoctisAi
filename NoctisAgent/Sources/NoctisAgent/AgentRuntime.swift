@@ -28,6 +28,8 @@ public actor AgentRuntime {
         do {
             try append(.init(role: .user, content: prompt))
             var callIDs = Set<String>()
+            var remainingCalls = 8
+            var remainingResultBytes = 262_144
             for iteration in 1...limits.iterations {
                 try Task.checkCancellation()
                 session.iterations = iteration
@@ -37,6 +39,8 @@ public actor AgentRuntime {
                 try Task.checkCancellation()
                 guard response.text.utf8.count <= limits.responseBytes else { throw AgentError.responseLimit }
                 guard response.calls.count <= limits.callsPerTurn else { throw AgentError.invalidToolCall }
+                guard response.calls.count <= remainingCalls else { throw AgentError.iterationLimit }
+                remainingCalls -= response.calls.count
                 try validate(response.calls, callIDs: &callIDs)
                 guard !response.text.isEmpty || !response.calls.isEmpty else { throw AgentError.emptyResponse }
                 try append(.init(role: .assistant, content: response.text, calls: response.calls))
@@ -47,6 +51,8 @@ public actor AgentRuntime {
                 for call in response.calls {
                     try Task.checkCancellation()
                     let result = try registry.execute(call)
+                    guard result.utf8.count <= remainingResultBytes else { throw AgentError.contextLimit }
+                    remainingResultBytes -= result.utf8.count
                     try append(.init(role: .tool, content: result, callID: call.id, toolName: call.name))
                 }
             }

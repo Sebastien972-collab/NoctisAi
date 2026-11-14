@@ -23,6 +23,7 @@ jobs:
       attestations: write
       artifact-metadata: write
     env:
+      GH_TOKEN: ${{ github.token }}
       DEVELOPER_DIR: /Applications/Xcode.app/Contents/Developer
       MACOSX_DEPLOYMENT_TARGET: '15.0'
     steps:
@@ -30,6 +31,8 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+      - name: Authenticate dependency downloads
+        run: gh auth setup-git --hostname github.com
       - name: Set up Swift 6.4.1 with Swiftly signature verification
         uses: swift-actions/setup-swift@364295d9c23900ce04d4e5cc708387921b4e50f9
         with:

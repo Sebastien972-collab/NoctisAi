@@ -41,6 +41,17 @@ for resource in "$products"/*.bundle "$products"/*.dylib "$products"/*.metallib;
     [ -e "$resource" ] || continue
     /usr/bin/ditto "$resource" "$output/$(basename "$resource")"
 done
+# Ship the notices of the exact resolved Swift dependencies, including vendored C libraries.
+notices="$output/ThirdPartyNotices.txt"
+printf 'Created by Sébastien DAGUIN\n\nThird-party source notices for commit %s\n' "$revision" > "$notices"
+find "$source_root/.build/checkouts" -type f \( \
+    -iname 'LICENSE' -o -iname 'LICENSE.*' -o -iname 'COPYING' -o -iname 'NOTICE' \) \
+    -exec sh -c '
+        for notice do
+            printf "\n===== %s =====\n" "${notice#*/checkouts/}"
+            cat "$notice"
+        done
+    ' sh {} + >> "$notices"
 cp "$metadata" "$output/version.json"
 printf '%s\n' "$version" > "$output/version.txt"
 (cd "$output" && find . -type f ! -name checksums.sha256 -exec shasum -a 256 {} \; > checksums.sha256)

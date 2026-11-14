@@ -1,6 +1,9 @@
+// Created by Sébastien DAGUIN
 import Foundation
 
 extension Agent {
+    // Keep the existing explicit execution contract without an unrelated API change.
+    // swiftlint:disable:next function_parameter_count
     func executeRunIteration(
         messages: inout [ChatMessage],
         totalUsage: inout TokenUsageTotals,
@@ -63,6 +66,8 @@ extension Agent {
         }
     }
 
+    // Keep the existing explicit execution contract without an unrelated API change.
+    // swiftlint:disable:next function_parameter_count
     func resolveRunIteration(
         response: AssistantMessage,
         context: C,
@@ -113,6 +118,8 @@ extension Agent {
         }
     }
 
+    // Keep the existing explicit execution contract without an unrelated API change.
+    // swiftlint:disable:next function_parameter_count
     private func completeRunIteration(
         call: ToolCall,
         context: C,
@@ -149,6 +156,8 @@ extension Agent {
         }
     }
 
+    // Keep the existing explicit execution contract without an unrelated API change.
+    // swiftlint:disable:next function_parameter_count
     private func finalizeRunIteration(
         toolCalls: [ToolCall],
         context: C,
@@ -180,6 +189,8 @@ extension Agent {
         )
     }
 
+    // Keep the existing explicit execution contract without an unrelated API change.
+    // swiftlint:disable:next function_parameter_count
     private func continueRunIteration(
         results: [IndexedToolResult],
         iteration: Int,

@@ -35,7 +35,7 @@ try await model.withResponse(prompt: "Explique comment ce projet charge son mod�
 ```
 
 Ministral choisit les appels structurés selon la demande. Le même flux conserve le contexte entre les questions.
-Le CLI utilise ce chemin ordinaire, avec `--workspace` au démarrage ou `/workspace /chemin/absolu`
+Le CLI utilise désormais `NoctisCLIAgent` et sa boucle `Agent`, avec `--workspace` au démarrage ou `/workspace /chemin/absolu`
 pendant la conversation. `/workspace off` révoque l'accès. Aucune commande de mode code ni application externe.
 L'autorisation est une décision de l'hôte, jamais un outil du modèle.
 
@@ -70,3 +70,11 @@ Les noms et contenus sont étiquetés comme données non fiables. Cette indicati
 ## Tests
 
 Depuis ce dossier : `swift test`. Depuis Noctis : `swift test` pour l'adaptateur et les tests existants. Les tests du package utilisent un modèle simulé et ne téléchargent aucun poids. Ils ne mesurent pas la qualité de Ministral ni l'inférence GPU réelle. Le CLI utilise les outils via la conversation native avec `swift run NoctisCLI --workspace /chemin/absolu`. La sélection graphique reste à raccorder par l'application hôte.
+
+
+La stabilisation bêta impose huit appels et 256 Kio de résultats cumulés par tâche, même si plusieurs
+itérations sont nécessaires. Les runtimes construits par `MLXModelService.makeAgentRuntime` sont liés
+à la révision des permissions du service : une révocation ou une remise à zéro les invalide. Le registre
+standalone construit directement par l’hôte conserve son autorisation propre. Tous les modèles chargés
+par le service utilisent aussi le contrôle de contexte avant chaque génération (6 144 tokens d’entrée
+et 2 048 de sortie, ou moins si la fenêtre du modèle l’exige).
