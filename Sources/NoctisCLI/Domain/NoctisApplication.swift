@@ -257,6 +257,10 @@ final class NoctisApplication {
         return true
     }
 
+
+}
+
+private extension NoctisApplication {
     private func handleWorkspaceCommand(_ prompt: String) async -> Bool {
         if prompt.hasPrefix("/workspace ") {
             await changeWorkspace(String(prompt.dropFirst("/workspace ".count)))
