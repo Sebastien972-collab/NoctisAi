@@ -29,24 +29,24 @@ struct NoctisCLI {
                 FileManager.default.currentDirectoryPath
             )
         }
-        guard arguments.count == 2 else { return nil }
-        let argument = arguments[1]
-        guard !argument.isEmpty else { return nil }
+        guard arguments.count >= 2 else { return nil }
+        let argument = arguments.dropFirst().joined(separator: " ")
+        guard !argument.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
 
         switch arguments[0] {
-        case "search":
+        case "search", "--search":
             return .task(
                 "Utilise web_search pour rechercher : \(argument). Cite les URL effectivement retournées.",
                 nil
             )
-        case "summarize" where argument.hasPrefix("https://"):
+        case "summarize" where arguments.count == 2 && argument.hasPrefix("https://"):
             return .task(
                 "Utilise web_open pour lire et résumer cette page, et signale les troncatures : \(argument)",
                 nil
             )
         case "ask":
             return .task(argument, nil)
-        case "explain" where !argument.hasPrefix("/"):
+        case "explain" where arguments.count == 2 && !argument.hasPrefix("/"):
             return .task(
                 "Lis puis explique ce fichier relatif au workspace : \(argument). Ne suppose aucun contenu.",
                 FileManager.default.currentDirectoryPath
@@ -59,7 +59,7 @@ struct NoctisCLI {
     private static func maintenanceCommand(_ arguments: [String]) throws -> Command {
         switch arguments {
         case []: return .chat(nil)
-        case ["--help"], ["-h"]: return .help
+        case ["--help"], ["-h"], ["help"]: return .help
         case ["--version"]: return .version
         case ["doctor"]: return .doctor
         case ["update"]: return .update
@@ -109,9 +109,12 @@ struct NoctisCLI {
         let workspace = try workspacePath.map {
             try AuthorizedWorkspace(authorizing: URL(fileURLWithPath: $0))
         }
-        let model = MLXModelService(presentation: .plainText)
+        let embedded = workspace == nil ? embeddedSearch(console: ConsoleInterface()) : nil
+        let model = embedded.map { MLXModelService(webSearchService: $0, presentation: .plainText) }
+            ?? MLXModelService(presentation: .plainText)
         try await model.authorizeWorkspace(workspace)
         let success = await NoctisApplication(modelService: model, workspace: workspace).runOnce(prompt: prompt)
+        await embedded?.shutdown()
         if !success { exit(EXIT_FAILURE) }
     }
 
@@ -125,6 +128,15 @@ struct NoctisCLI {
             // via --workspace or the interactive /workspace command.
             workspace = nil
         }
+        let embedded = workspace == nil ? embeddedSearch(console: console) : nil
+        let model = embedded.map { MLXModelService(webSearchService: $0, presentation: .plainText) }
+            ?? MLXModelService(presentation: .plainText)
+        try await model.authorizeWorkspace(workspace)
+        await NoctisApplication(modelService: model, workspace: workspace).run()
+        await embedded?.shutdown()
+    }
+
+    private static func embeddedSearch(console: ConsoleInterface) -> EmbeddedSearXNGService? {
         let embedded: EmbeddedSearXNGService?
         do {
             if let path = ProcessInfo.processInfo.environment["NOCTIS_SEARXNG_PYTHON"] {
@@ -138,11 +150,7 @@ struct NoctisCLI {
             embedded = nil
             console.displayError(error)
         }
-        let model = embedded.map { MLXModelService(webSearchService: $0, presentation: .plainText) }
-            ?? MLXModelService(presentation: .plainText)
-        try await model.authorizeWorkspace(workspace)
-        await NoctisApplication(modelService: model, workspace: workspace).run()
-        await embedded?.shutdown()
+        return embedded
     }
 
     static var executableDirectory: URL {

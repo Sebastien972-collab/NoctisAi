@@ -1,1103 +1,1103 @@
 {
-  "sourceLanguage" : "fr",
-  "strings" : {
-    "An update is available." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "An update is available."
+  "sourceLanguage": "fr",
+  "strings": {
+    "An update is available.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "An update is available."
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Une mise à jour est disponible."
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Une mise à jour est disponible."
           }
         }
       }
     },
-    "Automatic restoration failed. The previous version is preserved under versions; restore the current link manually." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Automatic restoration failed. The previous version is preserved under versions; restore the current link manually."
+    "Automatic restoration failed. The previous version is preserved under versions; restore the current link manually.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Automatic restoration failed. The previous version is preserved under versions; restore the current link manually."
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "La restauration automatique a échoué. L’ancienne version reste dans versions ; restaure le lien current manuellement."
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La restauration automatique a échoué. L’ancienne version reste dans versions ; restaure le lien current manuellement."
           }
         }
       }
     },
-    "Cannot activate this version. Check installation permissions; no privilege elevation is attempted." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cannot activate this version. Check installation permissions; no privilege elevation is attempted."
+    "Cannot activate this version. Check installation permissions; no privilege elevation is attempted.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cannot activate this version. Check installation permissions; no privilege elevation is attempted."
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Impossible d’activer cette version. Vérifie les permissions d’installation ; aucune élévation de privilèges n’est tentée."
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible d’activer cette version. Vérifie les permissions d’installation ; aucune élévation de privilèges n’est tentée."
           }
         }
       }
     },
-    "Cannot create a private temporary file." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cannot create a private temporary file."
+    "Cannot create a private temporary file.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cannot create a private temporary file."
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Impossible de créer un fichier temporaire privé."
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible de créer un fichier temporaire privé."
           }
         }
       }
     },
-    "Command failed. Check Swift, Xcode, Git or GitHub CLI authentication." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Command failed. Check Swift, Xcode, Git or GitHub CLI authentication."
+    "Command failed. Check Swift, Xcode, Git or GitHub CLI authentication.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Command failed. Check Swift, Xcode, Git or GitHub CLI authentication."
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Échec de la commande. Vérifie Swift, Xcode, Git ou l’authentification de GitHub CLI."
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Échec de la commande. Vérifie Swift, Xcode, Git ou l’authentification de GitHub CLI."
           }
         }
       }
     },
-    "console.cli.interactive_help" : {
-      "comment" : "Message affiché par le CLI.",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "/help          Help\n/clear         Clear conversation context and input history\n/model         Show the active model\n/workspace     Show the authorized folder\n/workspace /absolute/path   Change folder after confirmation\n/workspace off             Revoke local access and restore Web search\n/permissions   Show permissions and limits\n/exit          Quit (exit and Ctrl+D also work)\n\nEnd a line with \\ to continue on the next line.\n↑/↓ arrows: session history · Ctrl+U: clear input\nCtrl+C: discard input or interrupt the response.\nWriting and system commands remain disabled."
+    "console.cli.interactive_help": {
+      "comment": "Message affiché par le CLI.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "/help          Help\n/clear         Clear conversation context and input history\n/model         Show the active model\n/workspace     Show the authorized folder\n/workspace /absolute/path   Change folder after confirmation\n/workspace off             Revoke local access and restore Web search\n/permissions   Show permissions and limits\n/exit          Quit (exit and Ctrl+D also work)\n\nEnd a line with \\ to continue on the next line.\n↑/↓ arrows: session history · Ctrl+U: clear input\nCtrl+C: discard input or interrupt the response.\nWriting and system commands remain disabled."
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "/help          Aide\n/clear         Effacer le contexte et l’historique de saisie\n/model         Afficher le modèle actif\n/workspace     Afficher le dossier autorisé\n/workspace /chemin/absolu   Changer de dossier après confirmation\n/workspace off            Retirer l’accès local et retrouver la recherche Web\n/permissions   Afficher les autorisations et limites\n/exit          Quitter (exit et Ctrl+D fonctionnent aussi)\n\nTermine une ligne par \\ pour continuer sur la suivante.\nFlèches ↑/↓ : historique de session · Ctrl+U : effacer la ligne\nCtrl+C : abandonner la saisie ou interrompre la réponse.\nLes écritures et commandes système restent désactivées."
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "/help          Aide\n/clear         Effacer le contexte et l’historique de saisie\n/model         Afficher le modèle actif\n/workspace     Afficher le dossier autorisé\n/workspace /chemin/absolu   Changer de dossier après confirmation\n/workspace off            Retirer l’accès local et retrouver la recherche Web\n/permissions   Afficher les autorisations et limites\n/exit          Quitter (exit et Ctrl+D fonctionnent aussi)\n\nTermine une ligne par \\ pour continuer sur la suivante.\nFlèches ↑/↓ : historique de session · Ctrl+U : effacer la ligne\nCtrl+C : abandonner la saisie ou interrompre la réponse.\nLes écritures et commandes système restent désactivées."
           }
         }
       }
     },
-    "console.cli.usage" : {
-      "comment" : "Message affiché par le CLI.",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Usage: noctis [--workspace /absolute/path]\n  noctis --help       Show this help\n  noctis --version    Show the installed version\n  noctis doctor       Check the installation without loading the model\n  noctis update       Install the latest verified stable version\n  noctis update --check      Check without installing\n  noctis update --dev        Build main after confirmation\n  noctis update --rollback   Restore the previous version\n\nThe current folder is available read-only, without automatic analysis.\nThe model loads only when you ask your first question."
+    "console.cli.usage": {
+      "comment": "Message affiché par le CLI.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usage: noctis [--workspace /absolute/path]\n  noctis --help       Show this help\n  noctis --version    Show the installed version\n  noctis doctor       Check the installation without loading the model\n  noctis update       Install the latest verified stable version\n  noctis update --check      Check without installing\n  noctis update --dev        Build main after confirmation\n  noctis update --rollback   Restore the previous version\n\nNo local folder is authorized by default.\n  noctis help         Show this help\n  noctis search iPhone Duo  Search the Web\n  noctis summarize https://...  Summarize a public HTTPS page\n  noctis ask \"question\"  One-shot answer\n  noctis review        Review the current directory (read-only)\n  noctis explain file.swift  Explain a local file\n  noctis tools doctor  Diagnose tools\n\nThe model loads only when you ask your first question."
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Utilisation : noctis [--workspace /chemin/absolu]\n  noctis --help       Afficher cette aide\n  noctis --version    Afficher la version installée\n  noctis doctor       Vérifier l’installation sans charger le modèle\n  noctis update       Installer la dernière version stable vérifiée\n  noctis update --check      Vérifier sans installer\n  noctis update --dev        Compiler main après confirmation\n  noctis update --rollback   Restaurer la version précédente\n\nLe dossier courant est disponible en lecture seule, sans analyse automatique.\nLe modèle est chargé à la première question uniquement."
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Utilisation : noctis [--workspace /chemin/absolu]\n  noctis --help       Afficher cette aide\n  noctis --version    Afficher la version installée\n  noctis doctor       Vérifier l’installation sans charger le modèle\n  noctis update       Installer la dernière version stable vérifiée\n  noctis update --check      Vérifier sans installer\n  noctis update --dev        Compiler main après confirmation\n  noctis update --rollback   Restaurer la version précédente\n\nAucun dossier local n'est autorisé par défaut.\n  noctis help         Afficher cette aide\n  noctis search iPhone Duo  Rechercher sur le Web\n  noctis summarize https://...  Résumer une page HTTPS publique\n  noctis ask \"question\"  Réponse ponctuelle\n  noctis review        Auditer le dossier courant (lecture seule)\n  noctis explain fichier.swift  Expliquer un fichier local\n  noctis tools doctor  Diagnostiquer les outils\n\nLe modèle est chargé à la première question uniquement."
           }
         }
       }
     },
-    "console.doctor.summary" : {
-      "comment" : "Message affiché par le CLI.",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Diagnostics without loading or downloading the model.\nOptional Web search: local SearXNG runtime or server at 127.0.0.1:8888.\nBuilding requires Xcode, Swift 6.4 and the Metal component."
+    "console.doctor.summary": {
+      "comment": "Message affiché par le CLI.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diagnostics without loading or downloading the model.\nOptional Web search: local SearXNG runtime or server at 127.0.0.1:8888.\nBuilding requires Xcode, Swift 6.4 and the Metal component."
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Diagnostic sans chargement ni téléchargement du modèle.\nRecherche Web optionnelle : runtime SearXNG local ou serveur sur 127.0.0.1:8888.\nPour les commandes de compilation : Xcode, Swift 6.4 et le composant Metal sont requis."
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diagnostic sans chargement ni téléchargement du modèle.\nRecherche Web optionnelle : runtime SearXNG local ou serveur sur 127.0.0.1:8888.\nPour les commandes de compilation : Xcode, Swift 6.4 et le composant Metal sont requis."
           }
         }
       }
     },
-    "console.error.details" : {
-      "comment" : "Le paramètre contient la description localisée de l’erreur.",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "machine_translated",
-            "value" : "Error: %@"
+    "console.error.details": {
+      "comment": "Le paramètre contient la description localisée de l’erreur.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Error: %@"
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Erreur : %@"
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erreur : %@"
           }
         }
       }
     },
-    "console.error.startup_failed" : {
-      "comment" : "Message affiché par le CLI.",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "machine_translated",
-            "value" : "Unable to start Noctis."
+    "console.error.startup_failed": {
+      "comment": "Message affiché par le CLI.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Unable to start Noctis."
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Impossible de démarrer Noctis."
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible de démarrer Noctis."
           }
         }
       }
     },
-    "console.hint.exit" : {
-      "comment" : "Conserver la commande exit telle quelle.",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "machine_translated",
-            "value" : "Take your time · Type exit to quit."
+    "console.hint.exit": {
+      "comment": "Conserver la commande exit telle quelle.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Take your time · Type exit to quit."
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Prends ton temps · Tape exit pour quitter."
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prends ton temps · Tape exit pour quitter."
           }
         }
       }
     },
-    "console.history.cleared" : {
-      "comment" : "Message affiché par le CLI.",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "A new conversation begins."
+    "console.history.cleared": {
+      "comment": "Message affiché par le CLI.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A new conversation begins."
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Une nouvelle conversation commence."
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Une nouvelle conversation commence."
           }
         }
       }
     },
-    "console.identity.subtitle" : {
-      "comment" : "Présentation de Noctis dans le terminal.",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Personal assistant · Local AI"
+    "console.identity.subtitle": {
+      "comment": "Présentation de Noctis dans le terminal.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Personal assistant · Local AI"
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Assistant personnel · IA locale"
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Assistant personnel · IA locale"
           }
         }
       }
     },
-    "console.input.too_long" : {
-      "comment" : "Message affiché par le CLI.",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Message too long (64 KiB maximum)."
+    "console.input.too_long": {
+      "comment": "Message affiché par le CLI.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Message too long (64 KiB maximum)."
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Message trop long (64 Kio maximum)."
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Message trop long (64 Kio maximum)."
           }
         }
       }
     },
-    "console.message.welcome" : {
-      "comment" : "Message affiché par le CLI.",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "machine_translated",
-            "value" : "Hello, make yourself comfortable."
+    "console.message.welcome": {
+      "comment": "Message affiché par le CLI.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Hello, make yourself comfortable."
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bonjour, installe-toi."
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bonjour, installe-toi."
           }
         }
       }
     },
-    "console.permissions.summary" : {
-      "comment" : "Message affiché par le CLI.",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Read access is limited to the authorized folder, only when your request needs it.\nSensitive files, symbolic links and files over 64 KiB are denied.\nWriting and system commands are disabled in this version.\nNo local access when /workspace off is active."
+    "console.permissions.summary": {
+      "comment": "Message affiché par le CLI.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Read access is limited to the authorized folder, only when your request needs it.\nSensitive files, symbolic links and files over 64 KiB are denied.\nWriting and system commands are disabled in this version.\nNo local access when /workspace off is active."
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Lecture limitée au dossier autorisé, uniquement pour répondre à tes demandes.\nFichiers sensibles, liens symboliques et fichiers de plus de 64 Kio : refusés.\nÉcriture et commandes système : désactivées dans cette version.\nAucun accès local lorsque /workspace off est actif."
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lecture limitée au dossier autorisé, uniquement pour répondre à tes demandes.\nFichiers sensibles, liens symboliques et fichiers de plus de 64 Kio : refusés.\nÉcriture et commandes système : désactivées dans cette version.\nAucun accès local lorsque /workspace off est actif."
           }
         }
       }
     },
-    "console.prompt.user" : {
-      "comment" : "Message affiché par le CLI.",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "machine_translated",
-            "value" : "You > "
+    "console.prompt.user": {
+      "comment": "Message affiché par le CLI.",
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "You > "
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Vous > "
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vous > "
           }
         }
       }
     },
-    "console.status.cancelled" : {
-      "comment" : "Message affiché par le CLI.",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Response interrupted. We can continue."
+    "console.status.cancelled": {
+      "comment": "Message affiché par le CLI.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Response interrupted. We can continue."
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Réponse interrompue. On peut continuer."
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Réponse interrompue. On peut continuer."
           }
         }
       }
     },
-    "console.status.loading_model" : {
-      "comment" : "Message affiché par le CLI.",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "machine_translated",
-            "value" : "Getting ready for our conversation…"
+    "console.status.loading_model": {
+      "comment": "Message affiché par le CLI.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Getting ready for our conversation…"
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Je me prépare pour notre conversation…"
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Je me prépare pour notre conversation…"
           }
         }
       }
     },
-    "console.status.ready" : {
-      "comment" : "Message affiché par le CLI.",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "machine_translated",
-            "value" : "I’m here. How can I help?"
+    "console.status.ready": {
+      "comment": "Message affiché par le CLI.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "I’m here. How can I help?"
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Je suis là. Comment puis-je t’aider ?"
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Je suis là. Comment puis-je t’aider ?"
           }
         }
       }
     },
-    "console.status.terminated" : {
-      "comment" : "Message affiché par le CLI.",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "machine_translated",
-            "value" : "See you soon. Take care."
+    "console.status.terminated": {
+      "comment": "Message affiché par le CLI.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "See you soon. Take care."
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "À bientôt. Prends soin de toi."
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "À bientôt. Prends soin de toi."
           }
         }
       }
     },
-    "console.web_search.embedded" : {
-      "comment" : "Message affiché par le CLI.",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "machine_translated",
-            "value" : "Web search: local SearXNG, starts on demand."
+    "console.web_search.embedded": {
+      "comment": "Message affiché par le CLI.",
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Web search: local SearXNG, starts on demand."
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Recherche Web : SearXNG local, démarrage à la demande."
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recherche Web : SearXNG local, démarrage à la demande."
           }
         }
       }
     },
-    "console.web_search.external" : {
-      "comment" : "Message affiché par le CLI.",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "machine_translated",
-            "value" : "Web search: external server expected at 127.0.0.1:8888."
+    "console.web_search.external": {
+      "comment": "Message affiché par le CLI.",
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "Web search: external server expected at 127.0.0.1:8888."
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Recherche Web : serveur externe attendu sur 127.0.0.1:8888."
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recherche Web : serveur externe attendu sur 127.0.0.1:8888."
           }
         }
       }
     },
-    "console.web_search.setup_hint" : {
-      "comment" : "Conserver la commande Python et son chemin tels quels.",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "machine_translated",
-            "value" : "To run without Docker: python3 infrastructure/searxng/setup_runtime.py"
+    "console.web_search.setup_hint": {
+      "comment": "Conserver la commande Python et son chemin tels quels.",
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "machine_translated",
+            "value": "To run without Docker: python3 infrastructure/searxng/setup_runtime.py"
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pour le mode sans Docker : python3 infrastructure/searxng/setup_runtime.py"
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pour le mode sans Docker : python3 infrastructure/searxng/setup_runtime.py"
           }
         }
       }
     },
-    "console.workspace.analyzing" : {
-      "comment" : "Message affiché par le CLI.",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Analyzing the project…"
+    "console.workspace.analyzing": {
+      "comment": "Message affiché par le CLI.",
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Analyzing the project…"
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Analyse du projet en cours…"
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Analyse du projet en cours…"
           }
         }
       }
     },
-    "console.workspace.authorized" : {
-      "comment" : "Message affiché par le CLI.",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Authorized read-only directory:"
+    "console.workspace.authorized": {
+      "comment": "Message affiché par le CLI.",
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Authorized read-only directory:"
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Dossier autorisé en lecture seule :"
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dossier autorisé en lecture seule :"
           }
         }
       }
     },
-    "console.workspace.confirm" : {
-      "comment" : "Message affiché par le CLI.",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Allow reading this folder? [y] Allow · [n] Deny"
+    "console.workspace.confirm": {
+      "comment": "Message affiché par le CLI.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allow reading this folder? [y] Allow · [n] Deny"
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Autoriser la lecture de ce dossier ? [y/o] Autoriser · [n] Refuser"
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Autoriser la lecture de ce dossier ? [y/o] Autoriser · [n] Refuser"
           }
         }
       }
     },
-    "console.workspace.context_reset" : {
-      "comment" : "Message affiché par le CLI.",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Conversation context reset for this access change."
+    "console.workspace.context_reset": {
+      "comment": "Message affiché par le CLI.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conversation context reset for this access change."
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Contexte réinitialisé pour ce changement d’accès."
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Contexte réinitialisé pour ce changement d’accès."
           }
         }
       }
     },
-    "console.workspace.explicit_flag" : {
-      "comment" : "Message affiché par le CLI.",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Outside an interactive terminal, authorize a folder at launch with --workspace."
+    "console.workspace.explicit_flag": {
+      "comment": "Message affiché par le CLI.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Outside an interactive terminal, authorize a folder at launch with --workspace."
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hors terminal interactif, autorise le dossier au lancement avec --workspace."
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hors terminal interactif, autorise le dossier au lancement avec --workspace."
           }
         }
       }
     },
-    "console.workspace.hint" : {
-      "comment" : "Message affiché par le CLI.",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Read a folder: /workspace /absolute/path · Revoke access: /workspace off"
+    "console.workspace.hint": {
+      "comment": "Message affiché par le CLI.",
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Read a folder: /workspace /absolute/path · Revoke access: /workspace off"
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Lire un dossier : /workspace /chemin/absolu · Retirer l’accès : /workspace off"
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lire un dossier : /workspace /chemin/absolu · Retirer l’accès : /workspace off"
           }
         }
       }
     },
-    "console.workspace.invalid" : {
-      "comment" : "Message affiché par le CLI.",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Directory refused or invalid arguments. Provide an existing directory with an absolute path without symbolic links."
+    "console.workspace.invalid": {
+      "comment": "Message affiché par le CLI.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Directory refused or invalid arguments. Provide an existing directory with an absolute path without symbolic links."
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Dossier refusé ou arguments invalides. Indiquez un dossier existant avec un chemin absolu sans lien symbolique."
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dossier refusé ou arguments invalides. Indiquez un dossier existant avec un chemin absolu sans lien symbolique."
           }
         }
       }
     },
-    "console.workspace.iteration_limit" : {
-      "comment" : "Message affiché par le CLI.",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Analysis limit reached. No final conclusion was produced; try a more specific request."
+    "console.workspace.iteration_limit": {
+      "comment": "Message affiché par le CLI.",
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Analysis limit reached. No final conclusion was produced; try a more specific request."
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Limite d’analyse atteinte. Aucune conclusion finale n’a été produite ; reformulez une demande plus précise."
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Limite d’analyse atteinte. Aucune conclusion finale n’a été produite ; reformulez une demande plus précise."
           }
         }
       }
     },
-    "console.workspace.none" : {
-      "comment" : "Message affiché par le CLI.",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No folder authorized."
+    "console.workspace.none": {
+      "comment": "Message affiché par le CLI.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No folder authorized."
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Aucun dossier autorisé."
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucun dossier autorisé."
           }
         }
       }
     },
-    "console.workspace.revoked" : {
-      "comment" : "Message affiché par le CLI.",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Directory access revoked."
+    "console.workspace.revoked": {
+      "comment": "Message affiché par le CLI.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Directory access revoked."
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Accès au dossier révoqué."
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Accès au dossier révoqué."
           }
         }
       }
     },
-    "console.workspace.usage" : {
-      "comment" : "Message affiché par le CLI.",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Usage: NoctisCLI [--workspace /absolute/project/path]\nWith --workspace, you authorize reading this directory. Then ask your questions normally. During conversation: /workspace /absolute/path to authorize a directory; /workspace off to revoke access. No code mode to enable. Type exit to quit."
+    "console.workspace.usage": {
+      "comment": "Message affiché par le CLI.",
+      "extractionState": "stale",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usage: NoctisCLI [--workspace /absolute/project/path]\nWith --workspace, you authorize reading this directory. Then ask your questions normally. During conversation: /workspace /absolute/path to authorize a directory; /workspace off to revoke access. No code mode to enable. Type exit to quit."
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Utilisation : NoctisCLI [--workspace /chemin/absolu/du/projet]\nAvec --workspace, vous autorisez la lecture de ce dossier. Posez ensuite vos questions normalement. Pendant la conversation : /workspace /chemin/absolu pour autoriser un dossier ; /workspace off pour révoquer. Aucun mode code à activer. Tapez exit pour quitter."
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Utilisation : NoctisCLI [--workspace /chemin/absolu/du/projet]\nAvec --workspace, vous autorisez la lecture de ce dossier. Posez ensuite vos questions normalement. Pendant la conversation : /workspace /chemin/absolu pour autoriser un dossier ; /workspace off pour révoquer. Aucun mode code à activer. Tapez exit pour quitter."
           }
         }
       }
     },
-    "Development only: main is not a stable release. Building may execute Swift package plugins." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Development only: main is not a stable release. Building may execute Swift package plugins."
+    "Development only: main is not a stable release. Building may execute Swift package plugins.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Development only: main is not a stable release. Building may execute Swift package plugins."
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Développement uniquement : main n’est pas une version stable. La compilation peut exécuter des plugins de packages Swift."
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Développement uniquement : main n’est pas une version stable. La compilation peut exécuter des plugins de packages Swift."
           }
         }
       }
     },
-    "Development updates require an interactive terminal and explicit confirmation." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Development updates require an interactive terminal and explicit confirmation."
+    "Development updates require an interactive terminal and explicit confirmation.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Development updates require an interactive terminal and explicit confirmation."
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Les mises à jour de développement nécessitent un terminal interactif et une confirmation explicite."
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les mises à jour de développement nécessitent un terminal interactif et une confirmation explicite."
           }
         }
       }
     },
-    "Download failed. Check your connection and try again; the installation is unchanged." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Download failed. Check your connection and try again; the installation is unchanged."
+    "Download failed. Check your connection and try again; the installation is unchanged.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Download failed. Check your connection and try again; the installation is unchanged."
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Échec du téléchargement. Vérifie ta connexion et réessaie ; l’installation est inchangée."
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Échec du téléchargement. Vérifie ta connexion et réessaie ; l’installation est inchangée."
           }
         }
       }
     },
-    "GitHub CLI (gh) is required in /opt/homebrew/bin or /usr/local/bin to verify provenance. Install it and authenticate with gh auth login." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "GitHub CLI (gh) is required in /opt/homebrew/bin or /usr/local/bin to verify provenance. Install it and authenticate with gh auth login."
+    "GitHub CLI (gh) is required in /opt/homebrew/bin or /usr/local/bin to verify provenance. Install it and authenticate with gh auth login.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitHub CLI (gh) is required in /opt/homebrew/bin or /usr/local/bin to verify provenance. Install it and authenticate with gh auth login."
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "GitHub CLI (gh) est requis dans /opt/homebrew/bin ou /usr/local/bin pour vérifier la provenance. Installe-le et connecte-toi avec gh auth login."
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitHub CLI (gh) est requis dans /opt/homebrew/bin ou /usr/local/bin pour vérifier la provenance. Installe-le et connecte-toi avec gh auth login."
           }
         }
       }
     },
-    "GitHub rate limit reached. Try again later." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "GitHub rate limit reached. Try again later."
+    "GitHub rate limit reached. Try again later.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitHub rate limit reached. Try again later."
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Limite de requêtes GitHub atteinte. Réessaie plus tard."
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Limite de requêtes GitHub atteinte. Réessaie plus tard."
           }
         }
       }
     },
-    "GitHub request failed. The installation is unchanged." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "GitHub request failed. The installation is unchanged."
+    "GitHub request failed. The installation is unchanged.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitHub request failed. The installation is unchanged."
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Échec de la requête GitHub. L’installation est inchangée."
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Échec de la requête GitHub. L’installation est inchangée."
           }
         }
       }
     },
-    "Installation locked. Another operation may be running; inspect .install-lock after an interruption." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Installation locked. Another operation may be running; inspect .install-lock after an interruption."
+    "Installation locked. Another operation may be running; inspect .install-lock after an interruption.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Installation locked. Another operation may be running; inspect .install-lock after an interruption."
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Installation verrouillée. Une autre opération est peut-être en cours ; inspecte .install-lock après une interruption."
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Installation verrouillée. Une autre opération est peut-être en cours ; inspecte .install-lock après une interruption."
           }
         }
       }
     },
-    "Installation verified. The previous version is available with noctis update --rollback." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Installation verified. The previous version is available with noctis update --rollback."
+    "Installation verified. The previous version is available with noctis update --rollback.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Installation verified. The previous version is available with noctis update --rollback."
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Installation vérifiée. La version précédente est disponible avec noctis update --rollback."
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Installation vérifiée. La version précédente est disponible avec noctis update --rollback."
           }
         }
       }
     },
-    "Integrity verification failed. Nothing was installed." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Integrity verification failed. Nothing was installed."
+    "Integrity verification failed. Nothing was installed.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Integrity verification failed. Nothing was installed."
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Échec de la vérification d’intégrité. Aucune installation effectuée."
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Échec de la vérification d’intégrité. Aucune installation effectuée."
           }
         }
       }
     },
-    "Invalid download source." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Invalid download source."
+    "Invalid download source.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invalid download source."
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Source de téléchargement invalide."
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Source de téléchargement invalide."
           }
         }
       }
     },
-    "Invalid GitHub response or download." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Invalid GitHub response or download."
+    "Invalid GitHub response or download.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invalid GitHub response or download."
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Réponse GitHub ou téléchargement invalide."
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Réponse GitHub ou téléchargement invalide."
           }
         }
       }
     },
-    "Latest stable version:" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Latest stable version:"
+    "Latest stable version:": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Latest stable version:"
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Dernière version stable :"
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dernière version stable :"
           }
         }
       }
     },
-    "macOS 15 or later on Apple Silicon is required." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "macOS 15 or later on Apple Silicon is required."
+    "macOS 15 or later on Apple Silicon is required.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS 15 or later on Apple Silicon is required."
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "macOS 15 ou ultérieur sur Apple Silicon est requis."
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS 15 ou ultérieur sur Apple Silicon est requis."
           }
         }
       }
     },
-    "No previous working version is available." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No previous working version is available."
+    "No previous working version is available.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No previous working version is available."
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Aucune version précédente fonctionnelle n’est disponible."
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucune version précédente fonctionnelle n’est disponible."
           }
         }
       }
     },
-    "No stable version is published." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No stable version is published."
+    "No stable version is published.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No stable version is published."
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Aucune version stable n’est publiée."
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucune version stable n’est publiée."
           }
         }
       }
     },
-    "Noctis is already up to date:" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Noctis is already up to date:"
+    "Noctis is already up to date:": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Noctis is already up to date:"
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Noctis est déjà à jour :"
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Noctis est déjà à jour :"
           }
         }
       }
     },
-    "Provenance verification failed. Check GitHub CLI version and authentication." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Provenance verification failed. Check GitHub CLI version and authentication."
+    "Provenance verification failed. Check GitHub CLI version and authentication.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Provenance verification failed. Check GitHub CLI version and authentication."
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Échec de vérification de provenance. Vérifie la version et l’authentification de GitHub CLI."
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Échec de vérification de provenance. Vérifie la version et l’authentification de GitHub CLI."
           }
         }
       }
     },
-    "Swift 6.4 or later and the Xcode Metal compiler are required." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Swift 6.4 or later and the Xcode Metal compiler are required."
+    "Swift 6.4 or later and the Xcode Metal compiler are required.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Swift 6.4 or later and the Xcode Metal compiler are required."
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Swift 6.4 ou ultérieur et le compilateur Metal de Xcode sont requis."
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Swift 6.4 ou ultérieur et le compilateur Metal de Xcode sont requis."
           }
         }
       }
     },
-    "The application executable is missing." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The application executable is missing."
+    "The application executable is missing.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The application executable is missing."
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "L’exécutable de l’application est absent."
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "L’exécutable de l’application est absent."
           }
         }
       }
     },
-    "The artifact version does not match the requested release." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The artifact version does not match the requested release."
+    "The artifact version does not match the requested release.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The artifact version does not match the requested release."
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "La version de l’artefact ne correspond pas à la version demandée."
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La version de l’artefact ne correspond pas à la version demandée."
           }
         }
       }
     },
-    "The installed version is unknown. Reinstall from a trusted checkout to enable updates." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The installed version is unknown. Reinstall from a trusted checkout to enable updates."
+    "The installed version is unknown. Reinstall from a trusted checkout to enable updates.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The installed version is unknown. Reinstall from a trusted checkout to enable updates."
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "La version installée est inconnue. Réinstalle depuis une copie de confiance pour activer les mises à jour."
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La version installée est inconnue. Réinstalle depuis une copie de confiance pour activer les mises à jour."
           }
         }
       }
     },
-    "The latest stable tag has no published stable release." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The latest stable tag has no published stable release."
+    "The latest stable tag has no published stable release.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The latest stable tag has no published stable release."
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Le dernier tag stable ne correspond à aucune release stable publiée."
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le dernier tag stable ne correspond à aucune release stable publiée."
           }
         }
       }
     },
-    "This executable is not in an authorized Noctis installation. Reinstall with scripts/install.sh." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This executable is not in an authorized Noctis installation. Reinstall with scripts/install.sh."
+    "This executable is not in an authorized Noctis installation. Reinstall with scripts/install.sh.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This executable is not in an authorized Noctis installation. Reinstall with scripts/install.sh."
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cet exécutable ne provient pas d’une installation Noctis autorisée. Réinstalle avec scripts/install.sh."
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cet exécutable ne provient pas d’une installation Noctis autorisée. Réinstalle avec scripts/install.sh."
           }
         }
       }
     },
-    "This release has no compatible verified artifact. Use --check or wait for a signed release." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This release has no compatible verified artifact. Use --check or wait for a signed release."
+    "This release has no compatible verified artifact. Use --check or wait for a signed release.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This release has no compatible verified artifact. Use --check or wait for a signed release."
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cette version ne contient aucun artefact compatible vérifié. Utilise --check ou attends une publication attestée."
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cette version ne contient aucun artefact compatible vérifié. Utilise --check ou attends une publication attestée."
           }
         }
       }
     },
-    "Too many tags; cannot determine the latest stable version safely." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Too many tags; cannot determine the latest stable version safely."
+    "Too many tags; cannot determine the latest stable version safely.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Too many tags; cannot determine the latest stable version safely."
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Trop de tags ; impossible de déterminer la dernière version stable de façon fiable."
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trop de tags ; impossible de déterminer la dernière version stable de façon fiable."
           }
         }
       }
     },
-    "Type yes to build and install this exact revision:" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Type yes to build and install this exact revision:"
+    "Type yes to build and install this exact revision:": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Type yes to build and install this exact revision:"
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Saisis yes pour compiler et installer cette révision précise :"
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saisis yes pour compiler et installer cette révision précise :"
           }
         }
       }
     },
-    "Unexpected integrity manifest in application payload." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Unexpected integrity manifest in application payload."
+    "Unexpected integrity manifest in application payload.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unexpected integrity manifest in application payload."
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Manifeste d’intégrité inattendu dans l’application téléchargée."
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manifeste d’intégrité inattendu dans l’application téléchargée."
           }
         }
       }
     },
-    "Unsafe installation path." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Unsafe installation path."
+    "Unsafe installation path.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unsafe installation path."
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Chemin d’installation non sécurisé."
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chemin d’installation non sécurisé."
           }
         }
       }
     },
-    "Unsafe or malformed archive. Nothing was installed." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Unsafe or malformed archive. Nothing was installed."
+    "Unsafe or malformed archive. Nothing was installed.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unsafe or malformed archive. Nothing was installed."
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Archive dangereuse ou malformée. Aucune installation effectuée."
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Archive dangereuse ou malformée. Aucune installation effectuée."
           }
         }
       }
     },
-    "Update cancelled; the installation is unchanged." : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Update cancelled; the installation is unchanged."
+    "Update cancelled; the installation is unchanged.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Update cancelled; the installation is unchanged."
           }
         },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mise à jour annulée ; l’installation est inchangée."
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mise à jour annulée ; l’installation est inchangée."
           }
         }
       }
     },
-    "console.status.incomplete_response" : {
-      "comment" : "Une exécution s’est arrêtée sans réussite confirmée.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "La tâche reste incomplète."
+    "console.status.incomplete_response": {
+      "comment": "Une exécution s’est arrêtée sans réussite confirmée.",
+      "extractionState": "manual",
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La tâche reste incomplète."
           }
         },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The task remains incomplete."
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The task remains incomplete."
           }
         }
       }
     }
   },
-  "version" : "1.3"
+  "version": "1.3"
 }
