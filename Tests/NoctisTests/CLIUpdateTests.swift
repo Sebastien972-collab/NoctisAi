@@ -7,6 +7,21 @@ import Testing
 
 @Suite("CLI verified updates", .timeLimit(.minutes(1)))
 struct CLIUpdateTests {
+    @Test func failedChildCommandReportsActualDiagnostics() async throws {
+        let runner = UpdateCommandRunner()
+        do {
+            _ = try await runner.run(
+                URL(fileURLWithPath: "/bin/sh"),
+                ["-c", "printf 'swift: simulated compiler error\\n' >&2; exit 42"],
+                directory: FileManager.default.temporaryDirectory
+            )
+            Issue.record("The failing command unexpectedly succeeded")
+        } catch let error as UpdateFailure {
+            #expect(error.message.contains("status 42"))
+            #expect(error.message.contains("simulated compiler error"))
+        }
+    }
+
     @Test func semanticVersionOrderingAndValidation() throws {
         let ordered = [
             "0.1.0", "0.2.0-alpha", "0.2.0-alpha.1", "0.2.0-alpha.2", "0.2.0-alpha.10",
