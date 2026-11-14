@@ -23,27 +23,32 @@ struct NoctisCLI {
     }
 
     private static func directTask(_ arguments: [String]) -> Command? {
-        switch arguments {
-        case ["review"]:
+        if arguments == ["review"] {
             return .task(
                 "Analyse le workspace autorisé en lecture seule. Identifie les bugs et risques, avec chemins et preuves.",
                 FileManager.default.currentDirectoryPath
             )
-        case ["search", let query] where !query.isEmpty:
+        }
+        guard arguments.count == 2 else { return nil }
+        let argument = arguments[1]
+        guard !argument.isEmpty else { return nil }
+
+        switch arguments[0] {
+        case "search":
             return .task(
-                "Utilise web_search pour rechercher : \(query). Cite les URL effectivement retournées.",
+                "Utilise web_search pour rechercher : \(argument). Cite les URL effectivement retournées.",
                 nil
             )
-        case ["summarize", let url] where url.hasPrefix("https://"):
+        case "summarize" where argument.hasPrefix("https://"):
             return .task(
-                "Utilise web_open pour lire et résumer cette page, et signale les troncatures : \(url)",
+                "Utilise web_open pour lire et résumer cette page, et signale les troncatures : \(argument)",
                 nil
             )
-        case ["ask", let question] where !question.isEmpty:
-            return .task(question, nil)
-        case ["explain", let path] where !path.isEmpty && !path.hasPrefix("/"):
+        case "ask":
+            return .task(argument, nil)
+        case "explain" where !argument.hasPrefix("/"):
             return .task(
-                "Lis puis explique ce fichier relatif au workspace : \(path). Ne suppose aucun contenu.",
+                "Lis puis explique ce fichier relatif au workspace : \(argument). Ne suppose aucun contenu.",
                 FileManager.default.currentDirectoryPath
             )
         default:
