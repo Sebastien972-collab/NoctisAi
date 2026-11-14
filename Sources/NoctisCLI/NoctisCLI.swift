@@ -34,7 +34,7 @@ struct NoctisCLI {
         guard !argument.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
 
         switch arguments[0] {
-        case "search":
+        case "search", "--search":
             return .task(
                 "Utilise web_search pour rechercher : \(argument). Cite les URL effectivement retournées.",
                 nil
