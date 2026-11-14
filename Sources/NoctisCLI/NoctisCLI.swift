@@ -60,9 +60,9 @@ struct NoctisCLI {
         if let workspacePath {
             workspace = try authorizedWorkspace(arguments: ["--workspace", workspacePath])
         } else {
-            // Open only the directory itself. No enumeration or file content enters the model at startup.
-            workspace = try? AuthorizedWorkspace(authorizing:
-                URL(fileURLWithPath: FileManager.default.currentDirectoryPath))
+            // Default to Web-capable conversation. Local file access is opt-in
+            // via --workspace or the interactive /workspace command.
+            workspace = nil
         }
         let embedded: EmbeddedSearXNGService?
         do {
