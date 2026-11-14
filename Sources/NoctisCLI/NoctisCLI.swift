@@ -13,7 +13,7 @@ import NoctisAgent
 @main
 struct NoctisCLI {
     enum Command: Equatable {
-        case chat(String?), help, version, doctor, update
+        case chat(String?), task(String, String?), toolsDoctor, help, version, doctor, update
         case updateMode(CLIUpdateMode)
     }
 
@@ -27,6 +27,17 @@ struct NoctisCLI {
         case ["update", "--check"]: return .updateMode(.check)
         case ["update", "--dev"]: return .updateMode(.development)
         case ["update", "--rollback"]: return .updateMode(.rollback)
+        case ["tools", "doctor"]: return .toolsDoctor
+        case ["review"]:
+            return .task("Analyse le workspace autorisé en lecture seule. Identifie les bugs et risques, avec chemins et preuves.", FileManager.default.currentDirectoryPath)
+        case ["search", let query] where !query.isEmpty:
+            return .task("Utilise web_search pour rechercher : \(query). Cite les URL effectivement retournées.", nil)
+        case ["summarize", let url] where url.hasPrefix("https://"):
+            return .task("Utilise web_open pour lire et résumer cette page, et signale les troncatures : \(url)", nil)
+        case ["ask", let question] where !question.isEmpty:
+            return .task(question, nil)
+        case ["explain", let path] where !path.isEmpty && !path.hasPrefix("/"):
+            return .task("Lis puis explique ce fichier relatif au workspace : \(path). Ne suppose aucun contenu.", FileManager.default.currentDirectoryPath)
         default:
             guard arguments.count == 2, arguments[0] == "--workspace",
                   arguments[1].hasPrefix("/"), !arguments[1].contains("\0") else {
@@ -43,6 +54,12 @@ struct NoctisCLI {
             case .version: print(CLIBuildIdentity.installed.display)
             case .doctor:
                 if !doctor() { exit(EXIT_FAILURE) }
+            case .toolsDoctor:
+                print("Web : disponible sans workspace ; vérifier SearXNG avec une recherche réelle.")
+                print("Fichiers : autorisation explicite du workspace nécessaire.")
+                if !doctor() { exit(EXIT_FAILURE) }
+            case .task(let prompt, let path):
+                try await oneShot(prompt: prompt, workspacePath: path)
             case .update: try await update(.stable)
             case .updateMode(let mode): try await update(mode)
             case .chat(let path): try await chat(workspacePath: path)
@@ -52,6 +69,15 @@ struct NoctisCLI {
             print(usage)
             exit(EXIT_FAILURE)
         }
+    }
+
+    private static func oneShot(prompt: String, workspacePath: String?) async throws {
+        let workspace = try workspacePath.map {
+            try AuthorizedWorkspace(authorizing: URL(fileURLWithPath: $0))
+        }
+        let model = MLXModelService(presentation: .plainText)
+        try await model.authorizeWorkspace(workspace)
+        await NoctisApplication(modelService: model, workspace: workspace).runOnce(prompt: prompt)
     }
 
     private static func chat(workspacePath: String?) async throws {
@@ -130,7 +156,13 @@ struct NoctisCLI {
               noctis update --dev        Compiler main après confirmation
               noctis update --rollback   Restaurer la version précédente
 
-            Le dossier courant est disponible en lecture seule, sans analyse automatique.
+            Le dossier courant n'est pas autorisé par défaut.
+            noctis search "termes"       Recherche Web ponctuelle
+            noctis summarize https://...  Résumé d'une page HTTPS
+            noctis ask "question"        Réponse ponctuelle
+            noctis review                Revue du dossier courant (lecture seule)
+            noctis explain fichier.swift Explication d'un fichier
+            noctis tools doctor          Diagnostic des outils
             Le modèle est chargé à la première question uniquement.
             """, bundle: .module) + "\n\n" + interactiveHelp
     }
