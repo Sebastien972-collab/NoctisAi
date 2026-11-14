@@ -63,12 +63,16 @@ struct NoctisCLI {
         case ["update", "--rollback"]: return .updateMode(.rollback)
         case ["tools", "doctor"]: return .toolsDoctor
         default:
-            guard arguments.count == 2, arguments[0] == "--workspace",
-                  arguments[1].hasPrefix("/"), !arguments[1].contains("\0") else {
-                throw NoctisAgent.AgentError.invalidArguments
-            }
-            return .chat(arguments[1])
+            return try workspaceCommand(arguments)
         }
+    }
+
+    private static func workspaceCommand(_ arguments: [String]) throws -> Command {
+        guard arguments.count == 2, arguments[0] == "--workspace",
+              arguments[1].hasPrefix("/"), !arguments[1].contains("\0") else {
+            throw NoctisAgent.AgentError.invalidArguments
+        }
+        return .chat(arguments[1])
     }
 
     static func main() async {
