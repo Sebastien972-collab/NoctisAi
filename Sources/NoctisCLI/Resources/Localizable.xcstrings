@@ -1097,6 +1097,214 @@
           }
         }
       }
+    },
+    "Recherche de mise à jour": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recherche de mise à jour"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Checking for updates"
+          }
+        }
+      }
+    },
+    "Téléchargement": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Téléchargement"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Downloading"
+          }
+        }
+      }
+    },
+    "Téléchargement des sources": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Téléchargement des sources"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Downloading sources"
+          }
+        }
+      }
+    },
+    "Compilation": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Compilation"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Building"
+          }
+        }
+      }
+    },
+    "Intégrité SHA-256": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Intégrité SHA-256"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SHA-256 integrity"
+          }
+        }
+      }
+    },
+    "Provenance GitHub": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Provenance GitHub"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitHub provenance"
+          }
+        }
+      }
+    },
+    "Archive et version": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Archive et version"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Archive and version"
+          }
+        }
+      }
+    },
+    "Installation · aide, version et diagnostic": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Installation · aide, version et diagnostic"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Installing · help, version and diagnostics"
+          }
+        }
+      }
+    },
+    "Restauration et diagnostic": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restauration et diagnostic"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restoring and checking diagnostics"
+          }
+        }
+      }
+    },
+    "Modifications annoncées :": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modifications annoncées :"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Release highlights:"
+          }
+        }
+      }
+    },
+    "Commits récents de main (historique disponible) :": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Commits récents de main (historique disponible) :"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recent main commits (available history):"
+          }
+        }
+      }
+    },
+    "Contrôles locaux réussis : aide CLI · version · doctor · intégrité": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Contrôles locaux réussis : aide CLI · version · doctor · intégrité"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Local checks passed: CLI help · version · doctor · integrity"
+          }
+        }
+      }
+    },
+    "Suite de tests complète : non exécutée par la mise à jour.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Suite de tests complète : non exécutée par la mise à jour."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Full test suite: not run by the updater."
+          }
+        }
+      }
     }
   },
   "version": "1.3"

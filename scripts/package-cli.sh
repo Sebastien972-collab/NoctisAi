@@ -9,7 +9,7 @@ output=$1
 case "$output" in /*) ;; *) echo 'Absolute output path required.' >&2; exit 1 ;; esac
 [ ! -e "$output" ] && [ ! -L "$output" ] || { echo 'Output already exists.' >&2; exit 1; }
 [ "$(uname -m)" = arm64 ] && [ "$(uname -s)" = Darwin ] || exit 1
-xcrun --find metal >/dev/null
+xcrun metal --version >/dev/null
 revision=$(git -C "$source_root" rev-parse HEAD)
 printf '%s\n' "$revision" | /usr/bin/grep -Eq '^[0-9a-f]{40}$' || exit 1
 stable_pattern='^v?(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$'

@@ -27,23 +27,20 @@ extension Agent {
         return depth > limit ? [] : messages
     }
 
-    func parseFinishEvent(
-        from finishCall: ToolCall,
-        tokenUsage: TokenUsageTotals,
-        history: [ChatMessage],
-        eventFactory: StreamEventFactory
-    ) throws -> StreamEvent {
-        let decoded = try decodeFinishArguments(from: finishCall.argumentsData)
-        var terminalHistory = try history.sanitizedTerminalHistory()
-        if case .assistant = terminalHistory.last { terminalHistory.removeLast() }
-        terminalHistory.append(.assistant(AssistantMessage(content: decoded.content)))
-        return makeFinishedEvent(
-            tokenUsage: tokenUsage,
-            content: decoded.content,
-            reason: FinishReason(decoded.reason ?? "completed"),
-            history: terminalHistory,
-            eventFactory: eventFactory
-        )
+    func finishBuiltInCall(
+        _ call: ToolCall, after streamed: String, usage: TokenUsageTotals,
+        history: [ChatMessage], emitter: StreamEmitter
+    ) throws {
+        let answer = try decodeFinishArguments(from: call.argumentsData)
+        let terminal = try history.sanitizedTerminalHistory(finalContent: answer.content)
+        if !answer.content.isEmpty && answer.content != streamed {
+            let suffix = answer.content.hasPrefix(streamed)
+                ? String(answer.content.dropFirst(streamed.count)) : "\n" + answer.content
+            emitter.yield(.delta(suffix))
+        }
+        emitter.yield(.finished(tokenUsage: usage, content: answer.content,
+                                reason: FinishReason(answer.reason ?? "completed"), history: terminal))
+        emitter.continuation.finish()
     }
 
     func makeFinishedEvent(

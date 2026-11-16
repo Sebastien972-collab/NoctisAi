@@ -27,14 +27,22 @@ protocol UpdateTransport: Sendable {
 
 final class UpdateRedirectPolicy: NSObject, URLSessionDownloadDelegate {
     let maximumSize: Int64
-    init(maximumSize: Int64) { self.maximumSize = maximumSize }
+    let progress: CLIUpdateProgress?
+    init(maximumSize: Int64, progress: CLIUpdateProgress? = nil) {
+        self.maximumSize = maximumSize
+        self.progress = progress
+    }
 
     func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask,
                     didFinishDownloadingTo location: URL) {}
 
     func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask,
                     didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
-        if totalBytesWritten > maximumSize || totalBytesExpectedToWrite > maximumSize { downloadTask.cancel() }
+        if totalBytesWritten > maximumSize || totalBytesExpectedToWrite > maximumSize {
+            downloadTask.cancel()
+        } else {
+            progress?.download(received: totalBytesWritten, total: totalBytesExpectedToWrite)
+        }
     }
 
     static func allows(_ url: URL) -> Bool {
@@ -56,13 +64,16 @@ final class UpdateRedirectPolicy: NSObject, URLSessionDownloadDelegate {
 }
 
 struct GitHubUpdateTransport: UpdateTransport {
+    var progress: CLIUpdateProgress?
+
     func download(_ url: URL, to destination: URL, maximumSize: Int64) async throws {
         guard UpdateRedirectPolicy.allows(url) else { throw UpdateFailure("Invalid download source.") }
         let config = URLSessionConfiguration.ephemeral
         config.timeoutIntervalForRequest = 30
         config.timeoutIntervalForResource = 600
-        let session = URLSession(configuration: config, delegate: UpdateRedirectPolicy(maximumSize: maximumSize),
-                                 delegateQueue: nil)
+        let session = URLSession(
+            configuration: config,
+            delegate: UpdateRedirectPolicy(maximumSize: maximumSize, progress: progress), delegateQueue: nil)
         defer { session.invalidateAndCancel() }
         var request = URLRequest(url: url)
         request.setValue("NoctisCLI-updater", forHTTPHeaderField: "User-Agent")
@@ -87,88 +98,6 @@ struct GitHubUpdateTransport: UpdateTransport {
             throw UpdateFailure(
                 "Download failed. Check your connection and try again; the installation is unchanged.")
         }
-    }
-}
-
-protocol UpdateCommandRunning: Sendable {
-    func run(_ executable: URL, _ arguments: [String], directory: URL?) async throws -> String
-}
-
-private final class UpdateChild: @unchecked Sendable {
-    let process = Process()
-    let lock = NSLock()
-    var cancelled = false
-
-    func start() throws {
-        lock.lock()
-        defer { lock.unlock() }
-        if cancelled { throw CancellationError() }
-        try process.run()
-    }
-
-    func cancel() {
-        lock.lock()
-        defer { lock.unlock() }
-        cancelled = true
-        if process.isRunning { process.terminate() }
-    }
-}
-
-struct UpdateCommandRunner: UpdateCommandRunning {
-    func run(_ executable: URL, _ arguments: [String], directory: URL? = nil) async throws -> String {
-        let child = UpdateChild()
-        let temporary = FileManager.default.temporaryDirectory.appendingPathComponent(
-            "noctis-process-\(UUID())")
-        let created = FileManager.default.createFile(atPath: temporary.path, contents: nil,
-                                                      attributes: [.posixPermissions: 0o600])
-        guard created else {
-            throw UpdateFailure("Cannot create a private temporary file.")
-        }
-        defer { try? FileManager.default.removeItem(at: temporary) }
-        let output = try FileHandle(forWritingTo: temporary)
-        defer { try? output.close() }
-        child.process.executableURL = executable
-        child.process.arguments = arguments
-        child.process.currentDirectoryURL = directory
-        child.process.standardOutput = output
-        child.process.standardError = output
-        child.process.standardInput = FileHandle.nullDevice
-        // Ignore Git rewrites/hooks and dynamic-loader overrides inherited from the caller.
-        var environment = ProcessInfo.processInfo.environment.filter {
-            !$0.key.hasPrefix("GIT_") && !$0.key.hasPrefix("DYLD_") && !$0.key.hasPrefix("LD_")
-        }
-        environment["GIT_CONFIG_NOSYSTEM"] = "1"
-        environment["GIT_CONFIG_GLOBAL"] = "/dev/null"
-        environment["GIT_TERMINAL_PROMPT"] = "0"
-        environment["GH_HOST"] = "github.com"
-        child.process.environment = environment
-        let status = try await withTaskCancellationHandler {
-            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Int32, Error>) in
-                child.process.terminationHandler = { process in
-                    let code = process.terminationStatus
-                    continuation.resume(returning: process.terminationReason == .exit ? code : -code)
-                }
-                do { try child.start() } catch { continuation.resume(throwing: error) }
-            }
-        } onCancel: {
-            child.cancel()
-        }
-        try Task.checkCancellation()
-        let handle = try FileHandle(forReadingFrom: temporary)
-        defer { try? handle.close() }
-        let bytes = try handle.read(upToCount: 8 * 1024 * 1024 + 1) ?? Data()
-        guard bytes.count <= 8 * 1024 * 1024, let text = String(data: bytes, encoding: .utf8) else {
-            throw UpdateFailure("Invalid command output (over 8 MiB or invalid UTF-8).")
-        }
-        guard status == 0 else {
-            // Retain only bounded command output; no private log file survives the operation.
-            let diagnostics = String(text.suffix(4_096))
-            throw UpdateFailure(
-                "Command exited with status \(status).\n" +
-                (diagnostics.isEmpty ? "No diagnostic output was produced." : diagnostics)
-            )
-        }
-        return text
     }
 }
 
@@ -212,13 +141,16 @@ struct CLIUpdateService: Sendable {
     static let repository = "Sebastien972-collab/NoctisAi"
     let transport: any UpdateTransport
     let runner: any UpdateCommandRunning
+    let progress: CLIUpdateProgress?
 
     init(
         transport: any UpdateTransport = GitHubUpdateTransport(),
-        runner: any UpdateCommandRunning = UpdateCommandRunner()
+        runner: any UpdateCommandRunning = UpdateCommandRunner(),
+        progress: CLIUpdateProgress? = nil
     ) {
         self.transport = transport
         self.runner = runner
+        self.progress = progress
     }
 
     static func stableTags(_ tags: [String]) -> [String] {
@@ -303,34 +235,42 @@ struct CLIUpdateService: Sendable {
         #endif
         let archive = temporary.appendingPathComponent(name)
         let checksum = temporary.appendingPathComponent("\(name).sha256")
-        try await transport.download(
-            release.artifact(named: name).browserDownloadURL,
-            to: archive, maximumSize: 512 * 1024 * 1024)
+        try await step("Téléchargement") {
+            try await transport.download(
+                release.artifact(named: name).browserDownloadURL,
+                to: archive, maximumSize: 512 * 1024 * 1024)
+        }
         try await transport.download(
             release.artifact(named: "\(name).sha256").browserDownloadURL,
             to: checksum, maximumSize: 1024)
-        let expected = try String(contentsOf: checksum, encoding: .utf8).split(whereSeparator: \.isWhitespace)
-        guard expected.count == 2, expected[1] == name, expected[0].count == 64,
-            expected[0].allSatisfy({ $0.isHexDigit }),
-            try ManagedCLIInstallation.digest(archive) == expected[0].lowercased()
-        else {
-            throw UpdateFailure("Integrity verification failed. Nothing was installed.")
+        try await step("Intégrité SHA-256") {
+            let expected = try String(contentsOf: checksum, encoding: .utf8).split(whereSeparator: \.isWhitespace)
+            guard expected.count == 2, expected[1] == name, expected[0].count == 64,
+                expected[0].allSatisfy({ $0.isHexDigit }),
+                try ManagedCLIInstallation.digest(archive) == expected[0].lowercased()
+            else {
+                throw UpdateFailure("Integrity verification failed. Nothing was installed.")
+            }
         }
         // Sigstore verification binds bytes to the official workflow AND exact tag, not just a checksum.
         do {
-            _ = try await runner.run(
-                githubCLI,
-                [
-                    "attestation", "verify", archive.path,
-                    "--repo", Self.repository, "--hostname", "github.com", "--signer-workflow",
-                    "\(Self.repository)/.github/workflows/release-cli.yml", "--source-ref",
-                    "refs/tags/\(release.tagName)",
-                    "--deny-self-hosted-runners"
-                ], directory: temporary)
+            try await step("Provenance GitHub") {
+                _ = try await runner.run(
+                    githubCLI,
+                    [
+                        "attestation", "verify", archive.path,
+                        "--repo", Self.repository, "--hostname", "github.com", "--signer-workflow",
+                        "\(Self.repository)/.github/workflows/release-cli.yml", "--source-ref",
+                        "refs/tags/\(release.tagName)",
+                        "--deny-self-hosted-runners"
+                    ], directory: temporary)
+            }
         } catch is CancellationError { throw CancellationError() } catch {
             throw UpdateFailure("Provenance verification failed. Check GitHub CLI version and authentication.")
         }
-        return try await extractVerifiedArchive(archive, release: release, temporary: temporary)
+        return try await step("Archive et version") {
+            try await extractVerifiedArchive(archive, release: release, temporary: temporary)
+        }
     }
 
     private func extractVerifiedArchive(_ archive: URL, release: CLIRelease, temporary: URL) async throws -> URL {
@@ -363,6 +303,11 @@ struct CLIUpdateService: Sendable {
             throw UpdateFailure("The artifact version does not match the requested release.")
         }
         return extracted
+    }
+
+    func step<Value>(_ title: String, operation: () async throws -> Value) async throws -> Value {
+        if let progress { return try await progress.step(title, operation: operation) }
+        return try await operation()
     }
 
     static func validateArchive(list: String, verbose: String) throws {

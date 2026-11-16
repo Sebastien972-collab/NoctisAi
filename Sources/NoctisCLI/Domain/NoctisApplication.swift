@@ -87,14 +87,14 @@ final class NoctisApplication {
             }
             return true
         } catch is CancellationError {
-            if let history = cliAgent?.recoveryHistory { agentHistory = history }
+            if let history = await cliAgent?.settledHistory() { agentHistory = history }
             await modelService.cancelGeneration()
             print()
             console.displayStatus(String(localized: "console.status.cancelled",
                                          defaultValue: "Réponse interrompue. On peut continuer.", bundle: .module))
             return false
         } catch {
-            if let history = cliAgent?.recoveryHistory { agentHistory = history }
+            if let history = await cliAgent?.settledHistory() { agentHistory = history }
             if !loaded {
                 console.displayStatus(String(localized: "console.error.startup_failed",
                                              defaultValue: "Impossible de démarrer Noctis.", bundle: .module))
@@ -139,7 +139,7 @@ final class NoctisApplication {
                 case .delta(let text):
                     streamedText += text
                     console.displayResponse(renderer.append(text))
-                case .toolCallStarted(let name, _):
+                case .toolCallStarted(let name, _) where name != "finish":
                     streamedText = ""
                     console.displayResponse(renderer.finish())
                     renderer = TerminalMarkdown(styled: console.usesColor)
@@ -158,6 +158,7 @@ final class NoctisApplication {
             }
             console.displayResponse(renderer.finish())
             print("\n")
+            try Task.checkCancellation()
             return nextHistory
         } catch {
             console.displayResponse(renderer.finish())

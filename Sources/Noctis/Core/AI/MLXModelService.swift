@@ -137,6 +137,11 @@ public actor MLXModelService: AIModelService, WorkspaceAuthorizing {
     private let agentModelReference: LoadedAgentModel?
     private let presentation: NoctisPresentationInstructions
     let generationAccess = ModelGenerationAccess()
+    private final class AgentReference {
+        weak var agent: NoctisCLIAgent?
+        init(_ agent: NoctisCLIAgent) { self.agent = agent }
+    }
+    private var issuedAgents: [AgentReference] = []
     private var isAgentGenerating = false
     private let factory: ModelSessionWorker.Factory
     private var worker: ModelSessionWorker?
@@ -217,9 +222,13 @@ public actor MLXModelService: AIModelService, WorkspaceAuthorizing {
     public func makeNoctisCLIAgent() throws -> NoctisCLIAgent {
         guard loadState == .loaded, worker != nil else { throw MLXModelServiceError.modelNotLoaded }
         let registry = NoctisToolRegistry(workspace: workspaceAccess.registry)
-        return NoctisCLIAgent(
+        guard !isResetting else { throw MLXModelServiceError.generationInProgress }
+        let agent = NoctisCLIAgent(
             client: try makeNoctisLLMClient(), registry: registry, web: webDispatcher
         )
+        issuedAgents.removeAll { $0.agent == nil }
+        issuedAgents.append(AgentReference(agent))
+        return agent
     }
 
     /// Returns an AgentLoop LLM client over the already loaded worker/session.
@@ -267,9 +276,14 @@ public actor MLXModelService: AIModelService, WorkspaceAuthorizing {
         guard generation == nil, !isResetting, !isAgentGenerating, loadState != .loading else {
             throw MLXModelServiceError.generationInProgress
         }
-        let lease = try generationAccess.acquire()
         isResetting = true
-        defer { isResetting = false; generationAccess.release(lease) }
+        defer { isResetting = false }
+        let agents = issuedAgents.compactMap(\.agent)
+        issuedAgents.removeAll()
+        for agent in agents { agent.endSession() }
+        for agent in agents { _ = await agent.settledHistory() }
+        let lease = try generationAccess.acquire()
+        defer { generationAccess.release(lease) }
         // Reset before changing capability scopes: local file contents must never enter Web-only history.
         try await worker?.reset(history: [])
         try Task.checkCancellation()
