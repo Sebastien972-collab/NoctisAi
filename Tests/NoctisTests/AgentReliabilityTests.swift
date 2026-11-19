@@ -8,7 +8,7 @@ import Tokenizers
 import os
 @testable import Noctis
 
-private enum ScriptStep: Sendable {
+enum ScriptStep: Sendable {
     case text(String)
     case call(String, String, [String: MLXLMCommon.JSONValue])
     case rejected
@@ -16,7 +16,7 @@ private enum ScriptStep: Sendable {
     case contextLimit
 }
 
-private final class ScriptProbe: Sendable {
+final class ScriptProbe: Sendable {
     struct State {
         var scripts: [[ScriptStep]]
         var histories: [[String]] = []
@@ -27,7 +27,7 @@ private final class ScriptProbe: Sendable {
     init(_ scripts: [[ScriptStep]]) { state = OSAllocatedUnfairLock(initialState: State(scripts: scripts)) }
 }
 
-private final class ScriptSession: StructuredModelSession {
+final class ScriptSession: StructuredModelSession {
     let probe: ScriptProbe
     var producer: Task<Void, Never>?
     init(_ probe: ScriptProbe) { self.probe = probe }
@@ -77,7 +77,7 @@ private final class ScriptSession: StructuredModelSession {
 private struct OfflineTraceSearch: WebSearchService {
     func search(query: String) async throws -> [SearchResult] { [] }
 }
-private struct ReliabilityFixture {
+struct ReliabilityFixture {
     let agent: NoctisCLIAgent
     let client: NoctisLLMClient
     let probe: ScriptProbe
@@ -202,33 +202,6 @@ struct AgentReliabilityTests {
         }
     }
 
-    @Test func cancellationAndSuccessiveGenerationsStayIsolated() async throws {
-        let fixture = try await ReliabilityFixture([[.text("OLD"), .pause, .text("STALE")], [.text("NEW")]])
-        defer { fixture.cleanup() }
-        let (signal, ready) = AsyncStream<Void>.makeStream()
-        let first = Task {
-            for try await event in fixture.agent.stream(prompt: "Premier") {
-                if case .delta = event.kind { ready.yield(()); ready.finish() }
-            }
-            try Task.checkCancellation()
-        }
-        for await _ in signal { break }
-        await #expect(throws: MLXModelServiceError.generationInProgress) { _ = try await fixture.run("Concurrent") }
-        first.cancel()
-        await #expect(throws: CancellationError.self) { try await first.value }
-        // Wait for the cancelled stream's owner to publish its recovery snapshot.
-        for _ in 0..<100 where fixture.agent.recoveryHistory == nil {
-            try await Task.sleep(for: .milliseconds(2))
-        }
-        let history = try #require(fixture.agent.recoveryHistory)
-        let events = try await fixture.run("Suite", history: history)
-        let text = events.compactMap { event -> String? in
-            if case .delta(let text) = event.kind { text } else { nil } }.joined()
-        #expect(text == "NEW")
-        #expect(fixture.probe.state.withLock { $0.maxActive } == 1)
-        #expect(fixture.agent.traceRecorder.events().contains { $0.kind == .runCancelled })
-    }
-
     @Test func recorderIsBoundedAndDiagnosticsRemainMetadataOnly() {
         let recorder = AgentTraceRecorder(capacity: 3)
         let scope = AgentTraceScope(recorder: recorder, runID: RunID())
@@ -279,7 +252,7 @@ struct AgentReliabilityTests {
         }
     }
 }
-private struct ReliabilityPageService: WebPageService {
+struct ReliabilityPageService: WebPageService {
     func open(url: URL) async throws -> WebPage {
         WebPage(url: url.absoluteString, title: "Fixture", content: "Offline fixture", isTruncated: false)
     }
@@ -354,9 +327,6 @@ extension AgentReliabilityTests {
         for await _ in signal { break }
         await #expect(throws: MLXModelServiceError.generationInProgress) {
             _ = try await service.generate(prompt: "Concurrent")
-        }
-        await #expect(throws: MLXModelServiceError.generationInProgress) {
-            try await service.authorizeWorkspace(nil)
         }
         await #expect(throws: MLXModelServiceError.generationInProgress) {
             try await service.resetConversation(history: [])

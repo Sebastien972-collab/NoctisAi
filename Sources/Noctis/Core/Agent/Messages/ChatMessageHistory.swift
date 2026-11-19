@@ -23,7 +23,7 @@ package extension [ChatMessage] {
         try validateHistory(using: .agentHistory)
     }
 
-    func sanitizedTerminalHistory() throws -> [ChatMessage] {
+    func sanitizedTerminalHistory(finalContent: String? = nil) throws -> [ChatMessage] {
         guard let lastIndex = indices.last,
               case let .assistant(message) = self[lastIndex]
         else {
@@ -36,7 +36,7 @@ package extension [ChatMessage] {
             throw AgentError.malformedHistory(.finishMustBeExclusive)
         }
 
-        let sanitizedMessage = message.removingTerminalFinishTool()
+        let sanitizedMessage = message.removingTerminalFinishTool(finalContent: finalContent)
         guard !sanitizedMessage.isEmptyAfterRemovingTerminalTools else {
             return Array(dropLast())
         }
@@ -100,24 +100,9 @@ package extension [ChatMessage] {
 
         for (index, message) in enumerated() {
             if pendingCalls.isEmpty {
-                switch message {
-                case let .assistant(assistant):
-                    let finishCallCount = assistant.toolCalls.count(where: { $0.name == "finish" })
-                    if mode.requiresExclusiveFinish,
-                       finishCallCount > 0,
-                       assistant.toolCalls.count != 1 {
-                        return ToolCallHistoryValidation(problem: .finishMustBeExclusive(boundary: index))
-                    }
-                    pendingCalls = assistant.toolCalls
-                    if pendingCalls.isEmpty {
-                        lastResolvedBoundary = index + 1
-                    }
-                case let .tool(id, _, _):
-                    return ToolCallHistoryValidation(
-                        problem: .unexpectedToolResult(id: id, boundary: lastResolvedBoundary)
-                    )
-                case .system, .user, .userMultimodal:
-                    lastResolvedBoundary = index + 1
+                if let failure = Self.beginMessage(message, at: index, mode: mode, pending: &pendingCalls,
+                                                   boundary: &lastResolvedBoundary) {
+                    return failure
                 }
                 continue
             }
@@ -142,6 +127,30 @@ package extension [ChatMessage] {
 
         return ToolCallHistoryValidation(problem: nil)
     }
+    private static func beginMessage(_ message: ChatMessage, at index: Int, mode: ToolCallHistoryValidationMode,
+                                     pending: inout [ToolCall], boundary: inout Int) -> ToolCallHistoryValidation? {
+        switch message {
+        case let .assistant(assistant):
+            let finishCallCount = assistant.toolCalls.count(where: { $0.name == "finish" })
+            if mode.requiresExclusiveFinish,
+               finishCallCount > 0,
+               assistant.toolCalls.count != 1 {
+                return ToolCallHistoryValidation(problem: .finishMustBeExclusive(boundary: index))
+            }
+            pending = assistant.toolCalls
+            if pending.isEmpty {
+                boundary = index + 1
+            }
+        case let .tool(id, _, _):
+            return ToolCallHistoryValidation(
+                problem: .unexpectedToolResult(id: id, boundary: boundary)
+            )
+        case .system, .user, .userMultimodal:
+            boundary = index + 1
+        }
+        return nil
+    }
+
 }
 
 private enum ToolCallHistoryValidationMode {
@@ -170,9 +179,9 @@ private enum ToolCallHistoryProblem {
 }
 
 private extension AssistantMessage {
-    func removingTerminalFinishTool() -> AssistantMessage {
+    func removingTerminalFinishTool(finalContent: String?) -> AssistantMessage {
         AssistantMessage(
-            content: content,
+            content: finalContent.flatMap { $0.isEmpty ? nil : $0 } ?? content,
             toolCalls: toolCalls.filter { $0.name != "finish" },
             tokenUsage: tokenUsage,
             reasoning: reasoning,

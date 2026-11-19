@@ -30,8 +30,6 @@ extension Agent {
         )
     }
 
-    // Keep the ordered prompt or streaming transaction together.
-    // swiftlint:disable:next function_body_length
     func resolveStreamingIteration(
         iteration: StreamIteration,
         iterationNumber: Int,
@@ -43,13 +41,9 @@ extension Agent {
         let continuation = iterationContext.continuation
         switch try completionPolicy.classify(iteration.toolCalls) {
         case let .builtInFinish(finishCall):
-            try finishStreaming(
-                continuation: continuation,
-                event: parseFinishEvent(
-                    from: finishCall, tokenUsage: totalUsage,
-                    history: state.messages, eventFactory: factory
-                )
-            )
+            let emitter = StreamEmitter(factory: factory, continuation: continuation)
+            try finishBuiltInCall(finishCall, after: iteration.effectiveContent, usage: totalUsage,
+                                  history: state.messages, emitter: emitter)
             return true
 
         case let .executableCompletion(call):

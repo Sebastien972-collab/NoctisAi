@@ -16,9 +16,10 @@ struct CLIUpdateTests {
                 directory: FileManager.default.temporaryDirectory
             )
             Issue.record("The failing command unexpectedly succeeded")
-        } catch let error as UpdateFailure {
-            #expect(error.message.contains("status 42"))
-            #expect(error.message.contains("simulated compiler error"))
+        } catch let error as UpdateCommandFailure {
+            #expect(error.status == 42)
+            #expect(error.command.hasPrefix("sh -c"))
+            #expect(error.details.contains("simulated compiler error"))
         }
     }
 
@@ -280,7 +281,9 @@ extension CLIUpdateTests {
         #expect(identity.commit == String(repeating: "a", count: 40))
         let calls = await runner.calls
         #expect(calls.contains { $0.contains("checkout --detach " + identity.commit) })
-        #expect(calls.contains { $0.contains("refs/heads/main") })
+        let metal = try #require(calls.firstIndex { $0.hasSuffix("xcrun metal --version") })
+        let fetch = try #require(calls.firstIndex { $0.contains("refs/heads/main") })
+        #expect(metal < fetch)
         #expect(!calls.contains { $0.contains("scripts/") || $0.contains(" pull") || $0.contains(" reset") })
         #expect(try fixture.active() == "versions/build-old")
     }

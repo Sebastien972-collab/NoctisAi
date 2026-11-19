@@ -60,7 +60,8 @@ public final class NoctisCLIAgent: Sendable {
     private let web: WebToolDispatcher
     public let traceRecorder: AgentTraceRecorder
     private struct State {
-        var running = false
+        var task: Task<Void, Never>?
+        var ended = false
         var recoveryHistory: [ChatMessage]?
         var lastRunID: RunID?
     }
@@ -68,10 +69,23 @@ public final class NoctisCLIAgent: Sendable {
 
     public var recoveryHistory: [ChatMessage]? { state.withLock { $0.recoveryHistory } }
 
+    /// Waits for tool execution and history recovery after cancellation.
+    public func settledHistory() async -> [ChatMessage]? {
+        let task = state.withLock { $0.task }
+        await task?.value
+        return recoveryHistory
+    }
+
     public func endSession() {
-        if let runID = state.withLock({ $0.lastRunID }) {
-            traceRecorder.record(runID: runID, kind: .sessionEnded)
+        let task = state.withLock { state -> Task<Void, Never>? in
+            guard !state.ended else { return nil }
+            state.ended = true
+            if let runID = state.lastRunID {
+                traceRecorder.record(runID: runID, kind: .sessionEnded)
+            }
+            return state.task
         }
+        task?.cancel()
     }
 
     init(client: NoctisLLMClient, registry: NoctisToolRegistry, web: WebToolDispatcher,
@@ -94,138 +108,92 @@ public final class NoctisCLIAgent: Sendable {
         prompt: String,
         history: [ChatMessage] = []
     ) -> AsyncThrowingStream<StreamEvent, Error> {
-        let acquired = state.withLock { state in
-            guard !state.running else { return false }
-            state.running = true
-            state.recoveryHistory = nil
-            return true
+        AsyncThrowingStream { output in
+            state.withLock { state in
+                guard !state.ended else {
+                    output.finish(throwing: MLXModelServiceError.sessionInvalidated)
+                    return
+                }
+                guard state.task == nil else {
+                    output.finish(throwing: MLXModelServiceError.generationInProgress)
+                    return
+                }
+                let lease: UUID
+                do { lease = try client.beginRun() } catch {
+                    output.finish(throwing: error)
+                    return
+                }
+                let runID = RunID()
+                state.lastRunID = runID
+                state.recoveryHistory = nil
+                let task = Task {
+                    await run(prompt: prompt, history: history, runID: runID, lease: lease, output: output)
+                }
+                state.task = task
+                output.onTermination = { _ in task.cancel() }
+            }
         }
-        guard acquired else {
-            return AsyncThrowingStream { $0.finish(throwing: MLXModelServiceError.generationInProgress) }
-        }
-        let runID = RunID()
-        state.withLock { $0.lastRunID = runID }
+    }
+
+    private typealias Output = AsyncThrowingStream<StreamEvent, Error>.Continuation
+
+    private func run(prompt: String, history: [ChatMessage], runID: RunID, lease: UUID, output: Output) async {
         let trace = AgentTraceScope(recorder: traceRecorder, runID: runID)
+        let options = invocation(trace: trace, runID: runID, lease: lease)
         let context = NoctisToolContext(dispatcher: NoctisToolDispatcher(registry: registry, web: web,
-            userPrompt: prompt), trace: trace)
-        var requestContext = RequestContext(onStreamEvent: { event in
+                                                                      userPrompt: prompt), trace: trace)
+        let (events, continuation) = AsyncThrowingStream<StreamEvent, Error>.makeStream()
+        trace.record(.runStarted)
+        let producer = Task {
+            do {
+                try Task.checkCancellation()
+                try await agent.performStream(userMessage: .user(prompt), history: history,
+                                              context: context, options: options, continuation: continuation)
+            } catch { continuation.finish(throwing: error) }
+        }
+        // Drain already committed events on cancellation (a completed tool result belongs to this turn).
+        let consumer = Task {
+            var transcript = RunTranscript(initial: history + [.user(prompt)])
+            do {
+                for try await event in events {
+                    transcript.observe(event)
+                    output.yield(event)
+                }
+                return (transcript, nil as (any Error)?)
+            } catch { return (transcript, error) }
+        }
+        let (observed, failure) = await withTaskCancellationHandler {
+            await consumer.value
+        } onCancel: {
+            producer.cancel()
+        }
+        await producer.value
+        let error = failure ?? (Task.isCancelled && observed.final == nil ? CancellationError() : nil)
+        let rejected = error as? MLXModelServiceError == .contextLimit || error as? AgentError == .contextLimit
+        let recovered = rejected ? history : observed.final ?? observed.interrupted(error: error)
+        if let error {
+            trace.record(error is CancellationError ? .runCancelled : .runFailed,
+                         reason: AgentTraceEvent.Reason.classify(error))
+        } else { trace.record(observed.completed ? .runCompleted : .runFailed) }
+        client.endRun(lease)
+        state.withLock {
+            $0.recoveryHistory = recovered
+            $0.task = nil
+        }
+        output.finish(throwing: error)
+    }
+
+    private func invocation(trace: AgentTraceScope, runID: RunID, lease: UUID) -> InvocationOptions {
+        var context = RequestContext(onStreamEvent: { event in
             if case let .toolCallStarted(name, id) = event.kind,
                self.registry.permits(name), NoctisLLMClient.isValidCallID(id) {
                 trace.tool(ToolCall(id: id, name: name, arguments: ""), status: .requested)
             }
         })
-        let lease: UUID
-        do { lease = try client.beginRun() } catch {
-            state.withLock { $0.running = false }
-            return AsyncThrowingStream { $0.finish(throwing: error) }
-        }
-        requestContext.modelLease = lease
-        requestContext.agentTrace = trace
-        let options = InvocationOptions(tokenBudget: nil, requestContext: requestContext,
-                                        systemPromptOverride: nil, approvalHandler: nil,
-                    sessionID: SessionID(), runID: runID)
-        return AsyncThrowingStream { output in
-            let task = Task {
-                await perform(prompt: prompt, history: history, context: context, options: options, output: output)
-            }
-            output.onTermination = { _ in task.cancel() }
-        }
-    }
-
-    private func perform(prompt: String, history: [ChatMessage], context: NoctisToolContext,
-                         options: InvocationOptions,
-                         output: AsyncThrowingStream<StreamEvent, Error>.Continuation) async {
-        let trace = context.trace
-        trace.record(.runStarted)
-        var resolved = history + [.user(prompt)]
-        var pending: [ChatMessage]?
-        var completed = false
-        let (events, continuation) = AsyncThrowingStream<StreamEvent, Error>.makeStream()
-        let run = Task {
-            do {
-                try await agent.performStream(userMessage: .user(prompt), history: history,
-                                              context: context, options: options, continuation: continuation)
-            } catch { continuation.finish(throwing: error) }
-        }
-        continuation.onTermination = { _ in run.cancel() }
-        do {
-            for try await event in events {
-                try Task.checkCancellation()
-                switch event.kind {
-                case .iterationCompleted(_, _, let messages): pending = messages
-                case .toolCallCompleted(let id, let name, let result):
-                    pending?.append(.tool(id: id, name: name, content: result.content))
-                    if let candidate = pending, (try? candidate.validateForAgentHistory()) != nil {
-                        resolved = candidate
-                    }
-                case .finished(_, _, let reason, let messages):
-                    completed = reason == .completed
-                    state.withLock { $0.recoveryHistory = messages }
-                default: break
-                }
-                output.yield(event)
-            }
-            try Task.checkCancellation()
-            await run.value
-            trace.record(completed ? .runCompleted : .runFailed)
-            if let lease = options.requestContext?.modelLease { client.endRun(lease) }
-            state.withLock { $0.running = false }
-            output.finish()
-        } catch {
-            run.cancel()
-            await run.value
-            // A rejected model context must not poison subsequent turns with
-            // oversized tool results. Restore the last accepted history.
-            if error as? MLXModelServiceError == .contextLimit ||
-                error as? AgentError == .contextLimit {
-                resolved = history
-            } else {
-                resolved = recoveredHistory(pending: pending, resolved: resolved, history: history, error: error)
-            }
-            let recovery = resolved
-            state.withLock { $0.recoveryHistory = recovery }
-            trace.record(error is CancellationError ? .runCancelled : .runFailed,
-                         reason: AgentTraceEvent.Reason.classify(error))
-            if let lease = options.requestContext?.modelLease { client.endRun(lease) }
-            state.withLock { $0.running = false }
-            output.finish(throwing: error)
-        }
-    }
-
-    private func recoveredHistory(pending: [ChatMessage]?, resolved: [ChatMessage],
-                                  history: [ChatMessage], error: any Error) -> [ChatMessage] {
-        var resolved = resolved
-        if var candidate = pending,
-           let callIndex = candidate.lastIndex(where: {
-            if case .assistant(let message) = $0 { return !message.toolCalls.isEmpty }
-            return false
-           }), case .assistant(let message) = candidate[callIndex] {
-            let completed = Set(candidate.dropFirst(callIndex + 1).compactMap { item -> String? in
-                if case .tool(let id, _, _) = item { return id }
-                return nil
-            })
-            for call in message.toolCalls where !completed.contains(call.id) {
-                candidate.append(.tool(id: call.id, name: call.name,
-                                       content: error as? MLXModelServiceError == .noSearchResults
-                                        && call.name == "web_search" ? "Recherche terminée sans source."
-                                        : "Action interrompue ; aucun résultat confirmé."))
-            }
-            if (try? candidate.validateForAgentHistory()) != nil { resolved = candidate }
-        }
-        // Keep completed tool exchanges. An explicit interruption turn restores
-        // strict user/assistant alternation without discarding the conversation.
-        let rejectedContext = error as? MLXModelServiceError == .contextLimit && pending == nil
-        if rejectedContext { resolved = history }
-        if rejectedContext {
-            // The refused input never becomes part of the accepted conversation.
-        } else if case .assistant(let message) = resolved.last, message.toolCalls.isEmpty {
-            // A complete ordinary response already closes this turn.
-        } else {
-            let content = error as? MLXModelServiceError == .noSearchResults
-                ? MLXModelServiceError.noSearchResults.localizedDescription : "Réponse interrompue avant la fin."
-            resolved.append(.assistant(AssistantMessage(content: content)))
-        }
-        return resolved
+        context.modelLease = lease
+        context.agentTrace = trace
+        return InvocationOptions(tokenBudget: nil, requestContext: context,
+                                 systemPromptOverride: nil, approvalHandler: nil, sessionID: SessionID(), runID: runID)
     }
 
     private static func schemaFromToolSpec(_ spec: ToolSpec) -> JSONSchema {

@@ -19,6 +19,7 @@ let package = Package(
             name: "NoctisAgent",
             targets: ["NoctisAgent"]
         ),
+        .library(name: "NoctisPresentation", targets: ["NoctisPresentation"]),
         .executable(
             name: "NoctisCLI",
             targets: ["NoctisCLI"]
@@ -64,6 +65,8 @@ let package = Package(
             name: "NoctisAgent",
             path: "NoctisAgent/Sources/NoctisAgent"
         ),
+
+        .target(name: "NoctisPresentation"),
 
         // MARK: - Noctis Engine
 
@@ -132,6 +135,8 @@ let package = Package(
         ),
 
         // MARK: - Tests
+
+        .testTarget(name: "NoctisPresentationTests", dependencies: ["NoctisPresentation"]),
 
         .testTarget(
             name: "NoctisAgentTests",

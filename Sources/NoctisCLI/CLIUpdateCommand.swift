@@ -16,36 +16,61 @@ extension NoctisCLI {
         try files.createDirectory(
             at: temporary, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
         defer { try? files.removeItem(at: temporary) }
-        let service = CLIUpdateService()
-        let identity = CLIBuildIdentity.installed
+        let progress = CLIUpdateProgress()
+        let service = CLIUpdateService(
+            transport: GitHubUpdateTransport(progress: progress),
+            runner: ProgressUpdateRunner(base: UpdateCommandRunner(), progress: progress),
+            progress: progress)
         if mode == .check || mode == .stable {
-            print(identity.display)
-            let release = try await service.latestRelease(in: temporary)
-            print(updateText("Latest stable version:") + " \(release.tagName)")
-            print("https://github.com/\(CLIUpdateService.repository)/releases/tag/\(release.tagName)")
-            if let notes = release.body { print(TerminalMarkdown.sanitized(String(notes.prefix(8_000)))) }
-            let available = try CLIUpdateService.needsUpdate(
-                installed: identity.version, latest: release.tagName)
-            if !available {
-                print(updateText("Noctis is already up to date:") + " \(identity.version)")
+            guard try await installStable(mode, service: service, progress: progress, temporary: temporary) else {
                 return
             }
-            print(updateText("An update is available."))
-            if mode == .check { return }
-            let installation = try managedInstallation()
-            let payload = try await service.fetchVerified(release, in: temporary, githubCLI: try githubCLI())
-            try await installation.install(
-                payload, expectedVersion: String(release.tagName.drop(while: { $0 == "v" })))
         } else if mode == .rollback {
-            try await managedInstallation().install(nil)
+            try await progress.step("Restauration et diagnostic") {
+                try await managedInstallation().install(nil)
+            }
         } else {
             let installation = try managedInstallation()
             let payload = try await developmentPayload(service: service, temporary: temporary)
-            try await installation.install(payload)
+            try await progress.step("Installation · aide, version et diagnostic") {
+                try await installation.install(payload)
+            }
         }
+        print(updateText("Contrôles locaux réussis : aide CLI · version · doctor · intégrité"))
+        print(updateText("Suite de tests complète : non exécutée par la mise à jour."))
         print(
             updateText(
                 "Installation verified. The previous version is available with noctis update --rollback."))
+    }
+
+    private static func installStable(_ mode: CLIUpdateMode, service: CLIUpdateService,
+                                      progress: CLIUpdateProgress, temporary: URL) async throws -> Bool {
+        let identity = CLIBuildIdentity.installed
+        print(identity.display)
+        let release = try await progress.step("Recherche de mise à jour") {
+            try await service.latestRelease(in: temporary)
+        }
+        print(updateText("Latest stable version:") + " \(release.tagName)")
+        print("https://github.com/\(CLIUpdateService.repository)/releases/tag/\(release.tagName)")
+        if let notes = release.body {
+            print(updateText("Modifications annoncées :"))
+            for line in CLIUpdateProgress.summary(notes) { print("  • \(line)") }
+        }
+        let available = try CLIUpdateService.needsUpdate(
+            installed: identity.version, latest: release.tagName)
+        if !available {
+            print(updateText("Noctis is already up to date:") + " \(identity.version)")
+            return false
+        }
+        print(updateText("An update is available."))
+        if mode == .check { return false }
+        let installation = try managedInstallation()
+        let payload = try await service.fetchVerified(release, in: temporary, githubCLI: try githubCLI())
+        try await progress.step("Installation · aide, version et diagnostic") {
+            try await installation.install(
+                payload, expectedVersion: String(release.tagName.drop(while: { $0 == "v" })))
+        }
+        return true
     }
 
     private static func managedInstallation() throws -> ManagedCLIInstallation {
@@ -81,21 +106,14 @@ extension NoctisCLI {
         }
         let git = URL(fileURLWithPath: "/usr/bin/git")
         let runner = service.runner
-        let swiftVersion = try await runner.run(
-            URL(fileURLWithPath: "/usr/bin/xcrun"), ["swift", "--version"], directory: temporary)
-        guard let token = swiftVersion.components(separatedBy: "Swift version ").last?.split(separator: " ").first,
-              let version = SemanticVersion(String(token)), version >= SemanticVersion("6.4.0")! else {
-            throw UpdateFailure("Swift 6.4 or later and the Xcode Metal compiler are required.")
-        }
-        _ = try await runner.run(
-            URL(fileURLWithPath: "/usr/bin/xcrun"), ["--find", "metal"], directory: temporary)
+        try await checkDevelopmentToolchain(runner: runner, temporary: temporary)
         let source = temporary.appendingPathComponent("source")
         _ = try await runner.run(
             git, ["-c", "core.hooksPath=/dev/null", "init", source.path], directory: temporary)
         _ = try await runner.run(
             git,
             [
-                "-C", source.path, "-c", "core.hooksPath=/dev/null", "fetch", "--depth=1",
+                "-C", source.path, "-c", "core.hooksPath=/dev/null", "fetch", "--depth=20",
                 "https://github.com/\(CLIUpdateService.repository).git", "refs/heads/main"
             ], directory: temporary)
         let revision = try await runner.run(
@@ -117,11 +135,26 @@ extension NoctisCLI {
         _ = try await runner.run(
             git, ["-C", source.path, "-c", "core.hooksPath=/dev/null", "checkout", "--detach", revision],
             directory: temporary)
+        let recent = try await runner.run(
+            git, ["-C", source.path, "log", "-4", "--format=%h %s", revision], directory: temporary)
+        print(updateText("Commits récents de main (historique disponible) :"))
+        for line in CLIUpdateProgress.summary(recent) { print("  • \(line)") }
         let base = try await service.latestStableTag(in: temporary)
         let identity = CLIBuildIdentity(
             version: String(base.drop(while: { $0 == "v" }).split(separator: "+")[0]) + "-dev",
             channel: "main", commit: revision)
         return try await buildDevelopment(source: source, identity: identity, runner: runner, temporary: temporary)
+    }
+
+    private static func checkDevelopmentToolchain(runner: any UpdateCommandRunning, temporary: URL) async throws {
+        let swiftVersion = try await runner.run(
+            URL(fileURLWithPath: "/usr/bin/xcrun"), ["swift", "--version"], directory: temporary)
+        guard let token = swiftVersion.components(separatedBy: "Swift version ").last?.split(separator: " ").first,
+              let version = SemanticVersion(String(token)), version >= SemanticVersion("6.4.0")! else {
+            throw UpdateFailure("Swift 6.4 or later and the Xcode Metal compiler are required.")
+        }
+        _ = try await runner.run(
+            URL(fileURLWithPath: "/usr/bin/xcrun"), ["metal", "--version"], directory: temporary)
     }
 
     private static func buildDevelopment(source: URL, identity: CLIBuildIdentity,

@@ -247,7 +247,7 @@ extension Agent {
             content: decoded.content,
             totalTokenUsage: tokenUsage,
             iterations: iterations,
-            history: history.sanitizedTerminalHistory()
+            history: history.sanitizedTerminalHistory(finalContent: decoded.content)
         )
     }
 
