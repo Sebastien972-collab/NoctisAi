@@ -113,10 +113,10 @@ struct FoundationModelsWebAgentTests {
     }
 
     @Test func authorizedWorkspaceRegistryDoesNotGiveTheBridgeNetworkTools() async throws {
-        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let directory = URL(fileURLWithPath: "/private/tmp").appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: directory) }
-        let workspace = try AuthorizedWorkspace(authorizing: directory.resolvingSymlinksInPath())
+        let workspace = try AuthorizedWorkspace(authorizing: directory)
         let registry = NoctisToolRegistry(workspace: ToolRegistry(workspace: workspace))
         let fixture = FoundationModelsWebFixture(registry: registry)
         _ = try await fixture.run(news)

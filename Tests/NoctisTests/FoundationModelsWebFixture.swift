@@ -82,7 +82,7 @@ actor FoundationModelsWebFixtureSearch: WebSearchService {
             }
             throw WebPageError.timedOut
         case .succeeds:
-            guard let url = URL(string: "https://example.com/source-\(queries.count)") else {
+            guard let url = URL(string: "https://www.swift.org/source-\(queries.count)") else {
                 throw WebPageError.invalidURL
             }
             return [SearchResult(title: "SOURCE_\(queries.count)", url: url, content: "Verified fixture excerpt")]
