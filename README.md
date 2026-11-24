@@ -680,6 +680,13 @@ The script `setup_runtime.py --standalone --destination /path/to/new-runtime` se
 Fullmoon provides `IOSWebSearchService`, conforming to `WebSearchService`, and injects it into `MLXModelService(webSearchService:)` exclusively on iOS. Python is embedded directly into the app process via its iOS framework; `EmbeddedSearXNGService` remains restricted to macOS.
 `infrastructure/searxng/setup_ios_runtime.py` prepares arm64 native dependencies for iPhone and Simulator without altering Mac runtime files. See the Fullmoon README for setup commands and cancellation behavior.
 
+For automatic local inference selection on iOS, construct `IOSModelService` and inject that same web-search service.
+It selects the on-device Apple Foundation Models model when available on iOS 26 or later, otherwise the existing
+MLX Ministral 3B model. Explicit `.foundationModels` and `.mlx` preferences are also available.
+The provider is selected at load time; an interrupted generation is never replayed through another provider.
+AgentLoop remains responsible for tools, permissions, and history. macOS and the CLI retain their MLX configuration.
+See [iOS local inference](docs/ios-local-inference.md) for integration, availability, and validation details.
+
 References: [SearXNG installation](https://docs.searxng.org/admin/installation-searxng.html), [server settings](https://docs.searxng.org/admin/settings/settings_server.html), [Apple sandbox inheritance](https://developer.apple.com/library/archive/documentation/Miscellaneous/Reference/EntitlementKeyReference/Chapters/EnablingAppSandbox.html).
 
 ### Validation and Performance Boundaries

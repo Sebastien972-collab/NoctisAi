@@ -52,10 +52,10 @@ private struct NoctisDynamicTool: AnyTool {
     }
 }
 
-/// CLI-facing AgentLoop wrapper. It owns no model and only references the loaded MLX worker.
+/// AgentLoop wrapper that shares the loaded provider's generation lease.
 public final class NoctisCLIAgent: Sendable {
     private let agent: Agent<NoctisToolContext>
-    private let client: NoctisLLMClient
+    private let client: any NoctisAgentLLMClient
     private let registry: NoctisToolRegistry
     private let web: WebToolDispatcher
     public let traceRecorder: AgentTraceRecorder
@@ -88,8 +88,11 @@ public final class NoctisCLIAgent: Sendable {
         task?.cancel()
     }
 
-    init(client: NoctisLLMClient, registry: NoctisToolRegistry, web: WebToolDispatcher,
-         traceRecorder: AgentTraceRecorder = AgentTraceRecorder()) {
+    init(client: any NoctisAgentLLMClient, registry: NoctisToolRegistry, web: WebToolDispatcher,
+         traceRecorder: AgentTraceRecorder = AgentTraceRecorder(),
+         configuration: AgentConfiguration = AgentConfiguration(
+             maxIterations: 8, toolTimeout: .seconds(30), maxToolResultCharacters: 262_144
+         )) {
         self.client = client
         self.registry = registry
         self.web = web
@@ -97,11 +100,7 @@ public final class NoctisCLIAgent: Sendable {
         let tools = registry.entries.map { entry in
             NoctisDynamicTool(entry: entry, parametersSchema: Self.schemaFromToolSpec(entry.schema))
         }
-        agent = Agent(client: client, tools: tools, configuration: AgentConfiguration(
-            maxIterations: 8,
-            toolTimeout: .seconds(30),
-            maxToolResultCharacters: 262_144
-        ))
+        agent = Agent(client: client, tools: tools, configuration: configuration)
     }
 
     public func stream(
@@ -175,7 +174,7 @@ public final class NoctisCLIAgent: Sendable {
             trace.record(error is CancellationError ? .runCancelled : .runFailed,
                          reason: AgentTraceEvent.Reason.classify(error))
         } else { trace.record(observed.completed ? .runCompleted : .runFailed) }
-        client.endRun(lease)
+        await client.endRun(lease)
         state.withLock {
             $0.recoveryHistory = recovered
             $0.task = nil
