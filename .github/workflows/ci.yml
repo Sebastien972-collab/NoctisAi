@@ -49,6 +49,8 @@ jobs:
           swift --version
           xcodebuild -downloadComponent MetalToolchain
       - name: Build and test without model inference
+        env:
+          TEST_RUNNER_DEVELOPER_DIR: ${{ env.DEVELOPER_DIR }}
         run: >-
           xcodebuild -scheme Noctis-Package -destination 'platform=macOS'
           -derivedDataPath .build/CI -skipPackageUpdates -skipMacroValidation -skipPackagePluginValidation

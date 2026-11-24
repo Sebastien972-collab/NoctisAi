@@ -12,7 +12,43 @@ import Testing
 @testable import Noctis
 
 struct EmbeddedSearXNGServiceTests {
-    private let python = URL(fileURLWithPath: "/usr/bin/python3")
+    // Shared setup must throw an ordinary error so every dependent test records its own failure.
+    private enum PythonFixtureError: Error {
+        case resolutionFailed(Int32?)
+        case invalidInterpreterPath
+    }
+
+    // Resolve Apple's shim once, before isolated workers lose the runner's DEVELOPER_DIR and cache environment.
+    private static let python = Task<URL, Error> { try await resolvePython() }
+
+    private static func resolvePython() async throws -> URL {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/xcrun")
+        process.arguments = ["--find", "python3"]
+        process.standardInput = FileHandle.nullDevice
+        let output = Pipe()
+        process.standardOutput = output
+        let (exits, exited) = AsyncStream<Int32>.makeStream()
+        process.terminationHandler = { process in
+            exited.yield(process.terminationStatus)
+            exited.finish()
+        }
+        try process.run()
+        defer { try? output.fileHandleForReading.close() }
+        try? output.fileHandleForWriting.close()
+        var status: Int32?
+        for await exitStatus in exits { status = exitStatus; break }
+        guard status == 0 else { throw PythonFixtureError.resolutionFailed(status) }
+        let data = try output.fileHandleForReading.readToEnd() ?? Data()
+        guard let path = String(bytes: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines),
+              path.hasPrefix("/") else { throw PythonFixtureError.invalidInterpreterPath }
+        let executable = URL(fileURLWithPath: path).resolvingSymlinksInPath()
+        guard executable.path != "/usr/bin/python3",
+              FileManager.default.isExecutableFile(atPath: executable.path) else {
+            throw PythonFixtureError.invalidInterpreterPath
+        }
+        return executable
+    }
 
     // Exercise the production bootstrap with a stdlib WSGI fixture, without engines/network/MLX.
     private var fixture: String {
@@ -45,9 +81,10 @@ struct EmbeddedSearXNGServiceTests {
     }
 
     private func service(idle: Duration = .seconds(10), script: String? = nil,
-                         startup: Duration = .seconds(5)) throws -> EmbeddedSearXNGService {
-        try EmbeddedSearXNGService(pythonExecutable: python, idleTimeout: idle,
-                                  startupTimeout: startup, launchScript: script ?? fixture)
+                         startup: Duration = .seconds(5)) async throws -> EmbeddedSearXNGService {
+        let python = try await Self.python.value
+        return try EmbeddedSearXNGService(pythonExecutable: python, idleTimeout: idle,
+                                         startupTimeout: startup, launchScript: script ?? fixture)
     }
 
     private func waitForExit(_ pid: Int32) async throws {
@@ -66,7 +103,7 @@ struct EmbeddedSearXNGServiceTests {
     }
 
     @Test func reuseAuthenticationShutdownAndRestart() async throws {
-        let search = try service()
+        let search = try await service()
         do {
             let first = try #require(try await search.search(query: "Swift").first)
             let pid = try #require(Int32(first.title))
@@ -101,7 +138,7 @@ struct EmbeddedSearXNGServiceTests {
     }
 
     @Test func idleStop() async throws {
-        let search = try service(idle: .milliseconds(100))
+        let search = try await service(idle: .milliseconds(100))
         let result: SearchResult
         do { result = try #require(try await search.search(query: "Swift").first) }
         catch { await search.shutdown(); throw error }
@@ -111,16 +148,16 @@ struct EmbeddedSearXNGServiceTests {
     }
 
     @Test func startupExitAndTimeout() async throws {
-        let exited = try service(script: "import sys; sys.exit(9)")
+        let exited = try await service(script: "import sys; sys.exit(9)")
         await #expect(throws: EmbeddedSearXNGError.startupFailed(9)) { try await exited.search(query: "Swift") }
         await exited.shutdown()
-        let timeout = try service(script: "import time; time.sleep(30)", startup: .milliseconds(100))
+        let timeout = try await service(script: "import time; time.sleep(30)", startup: .milliseconds(100))
         await #expect(throws: EmbeddedSearXNGError.startupTimedOut) { try await timeout.search(query: "Swift") }
         await timeout.shutdown()
     }
 
     @Test func startupCancellation() async throws {
-        let search = try service(script: "import time; time.sleep(30)")
+        let search = try await service(script: "import time; time.sleep(30)")
         let task = Task { try await search.search(query: "Swift") }
         try await Task.sleep(for: .milliseconds(100))
         task.cancel()
@@ -129,7 +166,7 @@ struct EmbeddedSearXNGServiceTests {
     }
 
     @Test func shutdownCancelsActiveRequest() async throws {
-        let search = try service()
+        let search = try await service()
         let first = try #require(try await search.search(query: "Swift").first)
         let pid = try #require(Int32(first.title))
         let slow = Task { try await search.search(query: "slow") }
@@ -140,6 +177,7 @@ struct EmbeddedSearXNGServiceTests {
     }
 
     @Test(.timeLimit(.minutes(1))) func lifetimePipeStopsOrphan() async throws {
+        let python = try await Self.python.value
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false)
         defer { try? FileManager.default.removeItem(at: root) }
@@ -166,7 +204,7 @@ struct EmbeddedSearXNGServiceTests {
     }
 
     @Test func cancellationConcurrencyAndCrashRecovery() async throws {
-        let search = try service(idle: .milliseconds(100))
+        let search = try await service(idle: .milliseconds(100))
         do {
             let first = try #require(try await search.search(query: "Swift").first)
             let pid = try #require(Int32(first.title))
@@ -186,6 +224,7 @@ struct EmbeddedSearXNGServiceTests {
     }
 
     @Test func configurationBounds() throws {
+        let python = URL(fileURLWithPath: "/unused/python")
         #expect(throws: EmbeddedSearXNGError.invalidConfiguration) {
             try EmbeddedSearXNGService(pythonExecutable: python, idleTimeout: .zero)
         }
