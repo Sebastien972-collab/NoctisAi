@@ -12,6 +12,12 @@ import Testing
 @testable import Noctis
 
 struct EmbeddedSearXNGServiceTests {
+    // Shared setup must throw an ordinary error so every dependent test records its own failure.
+    private enum PythonFixtureError: Error {
+        case resolutionFailed(Int32?)
+        case invalidInterpreterPath
+    }
+
     // Resolve Apple's shim once, before isolated workers lose the runner's DEVELOPER_DIR and cache environment.
     private static let python = Task<URL, Error> { try await resolvePython() }
 
@@ -32,13 +38,15 @@ struct EmbeddedSearXNGServiceTests {
         try? output.fileHandleForWriting.close()
         var status: Int32?
         for await exitStatus in exits { status = exitStatus; break }
-        try #require(status == 0, "xcrun must resolve the active developer tools' Python interpreter")
+        guard status == 0 else { throw PythonFixtureError.resolutionFailed(status) }
         let data = try output.fileHandleForReading.readToEnd() ?? Data()
-        let path = try #require(String(bytes: data, encoding: .utf8)).trimmingCharacters(in: .whitespacesAndNewlines)
-        try #require(path.hasPrefix("/"), "xcrun must return an absolute Python path")
+        guard let path = String(bytes: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines),
+              path.hasPrefix("/") else { throw PythonFixtureError.invalidInterpreterPath }
         let executable = URL(fileURLWithPath: path).resolvingSymlinksInPath()
-        try #require(executable.path != "/usr/bin/python3", "Fixture Python must bypass the developer-tool shim")
-        try #require(FileManager.default.isExecutableFile(atPath: executable.path))
+        guard executable.path != "/usr/bin/python3",
+              FileManager.default.isExecutableFile(atPath: executable.path) else {
+            throw PythonFixtureError.invalidInterpreterPath
+        }
         return executable
     }
 
