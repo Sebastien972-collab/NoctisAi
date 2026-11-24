@@ -88,6 +88,21 @@ through the existing dispatcher. The provider never registers an executable Appl
 Partial structured output cannot execute an action. Tool names, argument schemas, correlation
 identifiers, and complete output are checked before a call reaches AgentLoop.
 
+For short, standalone French or English requests for news, current facts, or an explicit
+Web lookup, the Apple bridge proposes `web_search` before asking the model to synthesize an
+answer. The query comes only from the user request and stays within the Web tool's character
+and byte limits. Requests about today's news include the current local date. A subjectless
+follow-up such as “Tu peux utiliser web search ?” can reuse the immediately preceding user
+request when that turn had no search result. It never extracts a query from an assistant
+response, a tool result, or system/profile data.
+
+The proposal still passes through AgentLoop and its normal dispatcher. It respects the
+selected/allowed tools, `toolChoice: .none`, workspace isolation, and cancellation. Once a
+search result or error exists in the current turn, the bridge returns to normal generation;
+it does not automatically retry the search. General conversation, quotations, text
+transformations, explicit opt-outs, and long or compound messages do not trigger this
+pre-generation proposal. Other requests retain normal structured tool selection.
+
 ## Context and streaming
 
 The Apple on-device model has a smaller context window than Ministral. The iOS Apple path
@@ -96,10 +111,16 @@ characters through AgentLoop's existing truncation logic. Truncation preserves t
 groups and marks shortened tool results. These limits do not guarantee that every input fits;
 an oversized request produces an explicit context error.
 
-The adapter creates a fresh Apple session for each provider request and supplies the
-structured conversation once. Foundation Models' cumulative snapshots are converted to
-incremental text. Tool proposals are released only after the complete result is validated.
-An error or cancellation is never presented as a successfully completed response.
+The adapter creates a fresh Apple session for each provider request and rehydrates native
+user/assistant transcript entries. The latest user request is passed separately. Noctis tool
+proposals and completed results are quoted as historical data outside the model's system
+instructions; trailing results are combined with the continuation of the current request.
+They do not register or replay executable Apple tools. This prevents an earlier assistant
+refusal from being presented as the current user request.
+
+Foundation Models' cumulative snapshots are converted to incremental text. Generated tool
+proposals are released only after the complete result is validated. An error or cancellation
+is never presented as a successfully completed response.
 
 The Apple path accepts text. Unsupported multimodal requests and provider-specific options
 produce explicit errors instead of being silently ignored. For longer research or conversation
@@ -110,6 +131,10 @@ workflows, a host can explicitly select `.mlx` when constructing the service.
 Deterministic tests cover provider selection, structured output validation, incremental
 text, and provider-independent AgentLoop behavior. They do not download weights or call a
 live Apple model. Existing CI builds the iOS library and runs the macOS package tests.
+The Web regression tests exercise the production routing policy and bridge through the real
+AgentLoop/dispatcher, including the reported French prompts, recovery from a saved refusal,
+one search per turn, error feedback, cancellation, and workspace isolation. The search
+service and final synthesis are controlled test doubles.
 
 On an Apple development machine, run the repository lint and package tests from
 `CONTRIBUTING.md`, then build the iOS library:
@@ -124,6 +149,13 @@ Device qualification should exercise automatic Apple selection, each unavailabil
 explicit MLX selection, streaming cancellation, and an authorized tool round trip. It should
 also verify long-input errors and workspace revocation while an agent is active.
 Mock tests and a successful library build do not establish live-model response quality.
+
+On the host app, reproduce “Tu peux faire une recherche sur le web ?”, then
+“Fais moi une review des news du jour en ia”. Confirm an actual search invocation and a
+response based on the returned URLs. Repeat “Tu peux utiliser web search ?” in a conversation
+containing the old refusal, then ask a general question and cancel another search. Verify
+that failures remain visible and that a follow-up does not repeat an already completed
+lookup automatically. Fullmoon's contribution guide describes its local `WebSearch` logs.
 
 ## Apple references
 
