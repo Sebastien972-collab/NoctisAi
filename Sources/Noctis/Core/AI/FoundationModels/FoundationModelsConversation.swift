@@ -2,6 +2,12 @@
 import Foundation
 
 extension FoundationModelsBridge {
+    private struct ValidatedConversation {
+        let instructions: [String]
+        let history: [ChatMessage]
+        let callIDs: Set<String>
+    }
+
     static func prepare(messages: [ChatMessage], tools: [ToolDefinition],
                         context: RequestContext?, instructions: String) throws -> PreparedRequest {
         try messages.validateForAgentHistory()
@@ -61,7 +67,7 @@ extension FoundationModelsBridge {
     }
 
     private static func validatedConversation(_ messages: [ChatMessage], instructions: String) throws
-        -> (instructions: [String], history: [ChatMessage], callIDs: Set<String>) {
+        -> ValidatedConversation {
         var systems = [instructions]
         var history: [ChatMessage] = []
         var calls: [String: String] = [:]
@@ -73,7 +79,7 @@ extension FoundationModelsBridge {
                 history.append(message)
             }
         }
-        return (systems, history, Set(calls.keys))
+        return ValidatedConversation(instructions: systems, history: history, callIDs: Set(calls.keys))
     }
 
     private static func continuationPrompt(for latestPrompt: String) -> String {
