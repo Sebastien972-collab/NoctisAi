@@ -223,14 +223,18 @@ enum FoundationModelsBridge {
     }
 
     static func decode(_ source: String) throws -> JSONValue {
-        do { return try JSONDecoder().decode(JSONValue.self, from: Data(source.utf8)) }
-        catch { throw AgentError.invalidArguments }
+        do {
+            return try JSONDecoder().decode(JSONValue.self, from: Data(source.utf8))
+        } catch { throw AgentError.invalidArguments }
     }
 
     static func json(_ value: JSONValue) throws -> String {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
-        return String(decoding: try encoder.encode(value), as: UTF8.self)
+        guard let string = String(bytes: try encoder.encode(value), encoding: .utf8) else {
+            throw AgentError.invalidArguments
+        }
+        return string
     }
 
     static func makeCallID() -> String {
@@ -256,7 +260,9 @@ struct FoundationModelsTextDelta {
         guard snapshot.utf8.starts(with: text.utf8) else {
             throw TransportError.decodingFailed(description: "The local model revised an emitted response prefix")
         }
-        let delta = String(decoding: snapshot.utf8.dropFirst(text.utf8.count), as: UTF8.self)
+        guard let delta = String(bytes: snapshot.utf8.dropFirst(text.utf8.count), encoding: .utf8) else {
+            throw TransportError.decodingFailed(description: "The local model produced an invalid UTF-8 suffix")
+        }
         text = snapshot
         return delta
     }

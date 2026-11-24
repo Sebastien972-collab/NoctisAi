@@ -77,8 +77,11 @@ public final class FoundationModelsLLMClient: ToolCallSurfacingClient, ContentOn
         var lease: UUID?
         defer { if let lease { access.release(lease) } }
         do {
-            if let shared = requestContext?.modelLease { try access.validate(shared, revision: revision) }
-            else { lease = try beginRun() }
+            if let shared = requestContext?.modelLease {
+                try access.validate(shared, revision: revision)
+            } else {
+                lease = try beginRun()
+            }
             try Task.checkCancellation()
             let request = try FoundationModelsBridge.prepare(
                 messages: messages, tools: tools, context: requestContext, instructions: instructions?() ?? systemPrompt
@@ -166,8 +169,9 @@ public final class FoundationModelsLLMClient: ToolCallSurfacingClient, ContentOn
         }
     }
 
-    private func generateFormatted(session: LanguageModelSession, prompt: String, format: ResponseFormat,
-                                    output: Output) async throws {
+    private func generateFormatted(
+        session: LanguageModelSession, prompt: String, format: ResponseFormat, output: Output
+    ) async throws {
         let schema = try FoundationModelsSchema.make(format.schema)
         let response = try await session.respond(to: prompt, schema: schema)
         try Task.checkCancellation()

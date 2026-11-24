@@ -171,7 +171,7 @@ struct LocalProviderAgentTests {
                 if case .toolCallCompleted(_, _, let result) = event.kind { result } else { nil }
             }
             #expect(results.count == 1)
-            #expect(results.allSatisfy(\.isError))
+            #expect(results.allSatisfy { $0.isError })
             #expect(results.allSatisfy { !$0.content.contains("LOCAL_PROVIDER_CONTENT") })
             let traces = fixture.agent.traceRecorder.events().compactMap(\.tool)
             #expect(!traces.contains { $0.status == .succeeded })

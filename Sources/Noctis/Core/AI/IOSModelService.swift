@@ -37,7 +37,14 @@ public actor IOSModelService: AIModelService, WorkspaceAuthorizing {
 
     public init(
         preference: IOSModelPreference = .automatic,
-        webSearchService: any WebSearchService = SearXNGService(),
+        presentation: NoctisPresentationInstructions = .markdown
+    ) {
+        self.init(preference: preference, webSearchService: SearXNGService(), presentation: presentation)
+    }
+
+    public init(
+        preference: IOSModelPreference = .automatic,
+        webSearchService: any WebSearchService,
         presentation: NoctisPresentationInstructions = .markdown
     ) {
         self.preference = preference
