@@ -86,6 +86,7 @@ struct ReliabilityFixture {
     let directory: URL
 
     init(_ scripts: [[ScriptStep]], workspaceEnabled: Bool = true,
+         searchService: any WebSearchService = OfflineTraceSearch(),
          pageService: any WebPageService = ReliabilityPageService()) async throws {
         directory = URL(fileURLWithPath: "/private/tmp").appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -97,7 +98,7 @@ struct ReliabilityFixture {
         let workspace = try AuthorizedWorkspace(authorizing: directory)
         agent = NoctisCLIAgent(client: client,
             registry: NoctisToolRegistry(workspace: workspaceEnabled ? ToolRegistry(workspace: workspace) : nil),
-                               web: WebToolDispatcher(searchService: OfflineTraceSearch(), pasgeService: pageService))
+                               web: WebToolDispatcher(searchService: searchService, pasgeService: pageService))
     }
     func cleanup() { try? FileManager.default.removeItem(at: directory) }
     func run(_ prompt: String = "SECRET_USER_PROMPT", history: [ChatMessage] = []) async throws -> [StreamEvent] {
