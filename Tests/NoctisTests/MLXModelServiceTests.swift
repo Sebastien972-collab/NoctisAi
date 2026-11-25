@@ -55,7 +55,7 @@ struct CachedModelDownloaderTests {
         let processor = root.appendingPathComponent("preprocessor_config.json")
         try Data().write(to: processor)
         #expect(!CachedModelDownloader.isCompleteModel(at: root))
-        try Data("{\"processor_class\":\"Qwen3_5Processor\"}".utf8).write(to: processor)
+        try Data("{\"processor_class\":\"Qwen3VLProcessor\"}".utf8).write(to: processor)
         #expect(CachedModelDownloader.isCompleteModel(at: root))
     }
 
