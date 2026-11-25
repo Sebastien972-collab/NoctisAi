@@ -89,21 +89,8 @@ public final class FoundationModelsLLMClient: ToolCallSurfacingClient, ContentOn
             if responseFormat != nil, !request.selection.tools.isEmpty {
                 throw FoundationModelsBridge.unsupported("response formats combined with tools")
             }
-            guard case .available = SystemLanguageModel.default.availability else {
-                throw TransportError.providerError(provider: .foundationModels, code: "model_unavailable",
-                    message: "Le modèle local Apple est indisponible. Sélectionnez le modèle MLX local.")
-            }
-            // Pin the on-device model explicitly; no cloud model or executable Apple Tool is supplied.
-            let session = LanguageModelSession(model: SystemLanguageModel.default) { request.instructions }
             trace?.record(.generationStarted)
-            if let responseFormat {
-                try await generateFormatted(session: session, prompt: request.prompt, format: responseFormat,
-                                            output: output)
-            } else if request.selection.tools.isEmpty {
-                try await streamText(session: session, prompt: request.prompt, output: output)
-            } else {
-                try await streamStep(session: session, request: request, output: output)
-            }
+            try await generatePrepared(request, responseFormat: responseFormat, output: output)
             try Task.checkCancellation()
             trace?.record(.generationCompleted)
             output.yield(.finished(usage: nil))
@@ -116,6 +103,28 @@ public final class FoundationModelsLLMClient: ToolCallSurfacingClient, ContentOn
                           reason: AgentTraceEvent.Reason.classify(failure))
             if let lease { access.release(lease) }
             output.finish(throwing: failure)
+        }
+    }
+
+    private func generatePrepared(_ request: FoundationModelsBridge.PreparedRequest, responseFormat: ResponseFormat?,
+                                  output: Output) async throws {
+        try Task.checkCancellation()
+        if let call = request.proposedToolCall {
+            output.yield(.toolCallStart(index: 0, id: call.id, name: call.name, kind: .function))
+            output.yield(.toolCallDelta(index: 0, arguments: call.arguments))
+            return
+        }
+        guard case .available = SystemLanguageModel.default.availability else {
+            throw TransportError.providerError(provider: .foundationModels, code: "model_unavailable",
+                message: "Le modèle local Apple est indisponible. Sélectionnez le modèle MLX local.")
+        }
+        let (session, prompt) = try FoundationModelsSession.make(for: request)
+        if let responseFormat {
+            try await generateFormatted(session: session, prompt: prompt, format: responseFormat, output: output)
+        } else if request.selection.tools.isEmpty {
+            try await streamText(session: session, prompt: prompt, output: output)
+        } else {
+            try await streamStep(session: session, request: request, prompt: prompt, output: output)
         }
     }
 
@@ -135,11 +144,11 @@ public final class FoundationModelsLLMClient: ToolCallSurfacingClient, ContentOn
     }
 
     private func streamStep(session: LanguageModelSession, request: FoundationModelsBridge.PreparedRequest,
-                            output: Output) async throws {
+                            prompt: String, output: Output) async throws {
         let schema = try FoundationModelsSchema.make(FoundationModelsBridge.stepSchema(for: request.selection))
         var accumulator = FoundationModelsTextDelta()
         var finalContent: GeneratedContent?
-        for try await snapshot in session.streamResponse(to: request.prompt, schema: schema) {
+        for try await snapshot in session.streamResponse(to: prompt, schema: schema) {
             try Task.checkCancellation()
             finalContent = snapshot.content
             if let text = try FoundationModelsBridge.answerSnapshot(
