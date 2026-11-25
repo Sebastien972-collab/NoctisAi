@@ -3,6 +3,7 @@
 import Foundation
 import os
 import MLXLMCommon
+import MLXVLM
 import NoctisAgent
 
 /// Authorization is granted by the host, never by a model-generated tool call.
@@ -118,10 +119,12 @@ extension MLXModelService: AgentModel {
         presentation: NoctisPresentationInstructions = .markdown
     ) async throws -> AgentResponse {
         let registry = NoctisToolRegistry(agentTools: tools)
+        let isBonsai = await model.perform { $0.model is PrismHadamardQwen35 }
         let session = ChatSession(
             model,
             instructions: NoctisSystemPromptBuilder.build(registry: registry, presentation: presentation),
-            generateParameters: .init(maxTokens: 2_048),
+            generateParameters: isBonsai ? BonsaiModelConfiguration.generationParameters : .init(maxTokens: 2_048),
+            additionalContext: isBonsai ? BonsaiModelConfiguration.additionalContext : nil,
             tools: registry.schemas
         )
         let cancellation = GenerationCancellation()
@@ -146,7 +149,7 @@ extension MLXModelService: AgentModel {
         if cancellation.isCancelled { throw CancellationError() }
         return try result.get()
     }
-    private static func collectAgentResponse(
+    static func collectAgentResponse(
         _ upstream: AsyncThrowingStream<Generation, Error>,
         cancellation: GenerationCancellation, limits: AgentLimits
     ) async throws -> AgentResponse {
@@ -174,13 +177,18 @@ extension MLXModelService: AgentModel {
                 throw AgentError.responseLimit
             }
             text += chunk
+        case .reasoning, .steering:
+            break
         case .toolCall(let call):
             guard calls.count < limits.callsPerTurn else { throw AgentError.invalidToolCall }
             calls.append(try agentCall(call))
         case .rejectedToolCall: throw AgentError.invalidToolCall
         case .info(let info):
-            if info.stopReason == .length { throw AgentError.responseLimit }
-            if info.stopReason == .cancelled { throw CancellationError() }
+            switch info.stopReason {
+            case .stop, .steered: break
+            case .cancelled, .interrupted: throw CancellationError()
+            case .length: throw AgentError.responseLimit
+            }
         }
     }
 

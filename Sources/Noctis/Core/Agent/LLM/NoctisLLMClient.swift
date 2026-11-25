@@ -116,6 +116,8 @@ public final class NoctisLLMClient: ToolCallSurfacingClient, ContentOnlyTerminat
         case .chunk(let chunk):
             state.hasContent = state.hasContent || !chunk.isEmpty
             output.yield(.content(chunk))
+        case .reasoning, .steering:
+            break
         case .toolCall(let call):
             try forwardCall(call, tools: tools, state: &state, output: output, trace: trace)
         case .rejectedToolCall(let rejection):
@@ -124,8 +126,11 @@ public final class NoctisLLMClient: ToolCallSurfacingClient, ContentOnlyTerminat
         case .info(let info):
             state.usage = TokenUsage(input: info.promptTokenCount + info.cachedPromptTokenCount,
                                      output: info.generationTokenCount, cacheRead: info.cachedPromptTokenCount)
-            if info.stopReason == .cancelled { throw CancellationError() }
-            if info.stopReason == .length { throw MLXModelServiceError.responseLimit }
+            switch info.stopReason {
+            case .stop, .steered: break
+            case .cancelled, .interrupted: throw CancellationError()
+            case .length: throw MLXModelServiceError.responseLimit
+            }
         }
     }
 

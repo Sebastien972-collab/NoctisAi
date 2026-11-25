@@ -42,6 +42,23 @@ private final class OfflineModelURLProtocol: URLProtocol {
 
 @Suite("Installation locale du modèle", .timeLimit(.minutes(1)))
 struct CachedModelDownloaderTests {
+    @Test func bonsaiSnapshotRequiresItsVisionProcessorEvenForTextChat() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let files = ["config.json": "{\"model_type\":\"prism_hadamard_qwen35\"}",
+                     "tokenizer_config.json": "{}", "tokenizer.json": "{}", "model.safetensors": "weights"]
+        for (name, contents) in files {
+            try Data(contents.utf8).write(to: root.appendingPathComponent(name))
+        }
+        #expect(!CachedModelDownloader.isCompleteModel(at: root))
+        let processor = root.appendingPathComponent("preprocessor_config.json")
+        try Data().write(to: processor)
+        #expect(!CachedModelDownloader.isCompleteModel(at: root))
+        try Data("{\"processor_class\":\"Qwen3_5Processor\"}".utf8).write(to: processor)
+        #expect(CachedModelDownloader.isCompleteModel(at: root))
+    }
+
     @Test func installedSnapshotSurvivesOfflineRestart() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: root) }

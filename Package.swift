@@ -34,7 +34,7 @@ let package = Package(
         ),
         .package(
             url: "https://github.com/ml-explore/mlx-swift-lm.git",
-            exact: "3.32.3",
+            exact: "3.33.0",
             traits: []
         ),
         .package(

@@ -51,7 +51,9 @@ private final class MLXChatSession: StructuredModelSession {
                         case .rejectedToolCall: throw AgentError.invalidToolCall
                         case .info(let info):
                             if info.stopReason == .length { throw MLXModelServiceError.responseLimit }
-                            if info.stopReason == .cancelled { throw CancellationError() }
+                            if info.stopReason == .cancelled || info.stopReason == .interrupted {
+                                throw CancellationError()
+                            }
                         default: break
                         }
                     }
@@ -62,20 +64,15 @@ private final class MLXChatSession: StructuredModelSession {
         }
     }
 
-    func synchronize() async {
-        await session.synchronize()
-    }
+    func synchronize() async { await session.synchronize() }
 
     func streamDetails(
         messages: [MLXLMCommon.Chat.Message],
         tools: [ToolSpec],
         instructions: String
     ) -> AsyncThrowingStream<Generation, Error> {
-        // AgentLoop sends its complete transcript on every provider turn.  A
-        // persistent ChatSession would append that transcript to its own
-        // conversation again, producing duplicate roles and an invalid Jinja
-        // input on the second turn. Rehydrate one sequential cache from the
-        // complete transcript, then append only the pending message.
+        // AgentLoop supplies the complete transcript. Rebuild the cache, then append
+        // only the pending message to avoid duplicating roles in the Jinja template.
         guard let pending = messages.last else {
             return session.streamDetails(to: [])
         }
@@ -108,7 +105,7 @@ private final class MLXChatSession: StructuredModelSession {
                 return nil
             }
         }
-        // Reuse the weights with a fresh cache; the stable MLX release has no fork API.
+        // Rebuild the conversation cache while reusing the loaded weights.
         session = ChatSession(
             model,
             instructions: ([NoctisSystemPromptBuilder.build(
@@ -194,11 +191,14 @@ public actor MLXModelService: AIModelService, WorkspaceAuthorizing {
             await reference.set(model)
             let registry = NoctisToolRegistry(workspace: access.registry)
             let toolDispatcher = NoctisToolDispatcher(registry: registry, web: dispatcher)
+            let isBonsai = selectedModelID == BonsaiModelConfiguration.modelID
             return MLXChatSession(model: model, session: ChatSession(
                 model,
                 instructions: NoctisSystemPromptBuilder.build(
                     registry: registry, presentation: presentation
                 ),
+                generateParameters: isBonsai ? BonsaiModelConfiguration.generationParameters : .init(),
+                additionalContext: isBonsai ? BonsaiModelConfiguration.additionalContext : nil,
                 tools: registry.schemas,
                 toolDispatch: { call in try await toolDispatcher.execute(call) }
             ), workspaceAccess: access, webDispatcher: dispatcher, presentation: presentation)

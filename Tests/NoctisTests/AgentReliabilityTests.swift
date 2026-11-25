@@ -10,6 +10,7 @@ import os
 
 enum ScriptStep: Sendable {
     case text(String)
+    case generation(Generation)
     case call(String, String, [String: MLXLMCommon.JSONValue])
     case rejected
     case pause
@@ -56,6 +57,7 @@ final class ScriptSession: StructuredModelSession {
                         try Task.checkCancellation()
                         switch step {
                         case .text(let text): output.yield(.chunk(text))
+                        case .generation(let event): output.yield(event)
                         case let .call(name, id, arguments):
                             output.yield(.toolCall(MLXLMCommon.ToolCall(
                                 function: .init(name: name, arguments: arguments), id: id)))
