@@ -2,11 +2,46 @@
 
 # Noctis 🌘
 
-Noctis is a personal command-line AI assistant, developed in Swift for macOS. It uses **Ministral 3 14B Instruct**, in 4-bit quantized MLX format, to generate its responses locally and stream them incrementally to the terminal.
+Noctis is a personal command-line AI assistant, developed in Swift for macOS. This test branch uses **Ternary Bonsai 2 (4B)**, in the official PrismML 2-bit MLX format, to generate its responses locally and stream them incrementally to the terminal.
 
 The project includes streaming conversation and a `web_search` tool connected to SearXNG. Persistent memory and a Vapor API are not yet implemented.
 
 The package exposes the `Noctis` library, which can be imported into an application, the `NoctisAgent` library, and the `NoctisCLI` executable for the terminal.
+
+## Ternary Bonsai 2 (4B) test branch
+
+The `test/ternary-bonsai-2-4b` branches in NoctisAi and
+[Fullmoon](https://github.com/Sebastien972-collab/fullmoon-ios/tree/test/ternary-bonsai-2-4b)
+are paired for this experiment. Fullmoon's Swift package requirement names this Noctis branch;
+its committed `Package.resolved` records the tested commit. Fullmoon explicitly chooses `.mlx`
+on iOS, including devices where Apple Foundation Models is available.
+
+- Exact model: [`prism-ml/Ternary-Bonsai-2-4B-mlx-2bit`](https://huggingface.co/prism-ml/Ternary-Bonsai-2-4B-mlx-2bit).
+- Native `prism_hadamard_qwen35` support comes from **mlx-swift-lm 3.33.0 / MLX Swift 0.33.0**.
+  The model stays in its published rotated ternary representation; no Python model runtime or conversion is used.
+- The published model file is about **1.87 GB**. Download it once with a network connection;
+  the app reuses its local cache afterward. Runtime memory is greater than file size.
+- The test uses PrismML's **non-thinking** profile: temperature 0.7, top-p 0.8, top-k 20,
+  presence penalty 1.5 over 64 tokens, no repetition penalty and `enable_thinking=false`.
+  Noctis retains its 6,144 input-token and 2,048 output-token limits.
+- Existing Noctis tools, permissions and local Web runtime remain connected. This branch does not add
+  an image attachment flow or enable speculative decoding.
+
+To try the CLI on an Apple Silicon Mac:
+
+```sh
+git fetch origin
+git switch --track origin/test/ternary-bonsai-2-4b
+swift run NoctisCLI
+```
+
+For the app, open Fullmoon from its matching branch and run it on a physical iPhone from Xcode.
+The model status must show **Ternary Bonsai 2 (4B) · MLX**. Start a new conversation, try a short
+French response, a follow-up question, cancellation, and an explicit Web search. Model quality,
+latency, memory and energy use still need measurement on the target device.
+
+Return to `main` in both repositories to leave the experiment. If your Xcode workspace overrides
+Noctis with a local package, its checkout must also use the test branch while testing.
 
 ## SwiftPM consumers and releases
 
@@ -15,16 +50,16 @@ The package exposes the `Noctis` library, which can be imported into an applicat
 Its tests are included in the root package test suite. The nested manifest remains
 available for testing the standalone agent runtime.
 
-`mlx-swift-lm` is pinned to the stable `3.32.3` release, with its optional
+`mlx-swift-lm` is pinned to the stable `3.33.0` release, with its optional
 FoundationModels integration disabled. Versioned SwiftPM packages cannot depend
 on branch-based or local-path packages. Keep all remote dependencies versioned
 when preparing a Noctis release.
 
 The existing `0.1.0` tag still contains the old manifest and is not repaired by
-merging this change. Fullmoon currently requests Noctis starting at `0.1.0` with
-an up-to-next-major requirement. It will need a newly validated SemVer release
-containing this fix, followed by package resolution, to consume the correction.
-Do not move `0.1.0`; publish a new tag only after release validation.
+this branch. The paired Fullmoon test branch follows `test/ternary-bonsai-2-4b`,
+with its resolved Noctis commit recorded in the app's package lock. A production
+consumer using SemVer will need a newly validated release. Do not move `0.1.0`;
+publish a new tag only after release validation.
 
 ## Localization
 
@@ -56,7 +91,7 @@ into a programming agent. Its existing system prompt and MLX model are preserved
 
 ### Prerequisites
 
-- macOS 15 or later on Apple Silicon, with enough memory for Ministral 3 14B (4-bit).
+- macOS 15 or later on Apple Silicon, with enough memory for Ternary Bonsai 2 (4B), its inference buffers and conversation cache.
 - Swift 6.4 or later and the selected Xcode installation, including its Metal Toolchain component.
 - Git and network access for initial Swift package resolution. The existing model downloads
   from Hugging Face only if its local cache is incomplete; no other model is selected.
@@ -346,7 +381,7 @@ The current values are defined in [NoctisConfiguration.swift](Sources/Noctis/Cor
 
 | Property | Value | Role |
 | --- | --- | --- |
-| `modelID` | `mlx-community/Ministral-3-14B-Instruct-2512-4bit` | Model used by the MLX loader |
+| `modelID` | `prism-ml/Ternary-Bonsai-2-4B-mlx-2bit` | Model used by the MLX loader on this test branch |
 | `assistantName` | `Noctis` | Name displayed at startup |
 | `exitCommand` | `exit` | Command to exit the conversation |
 
@@ -445,7 +480,7 @@ The manifest declares the following packages:
 | [swift-transformers](https://github.com/huggingface/swift-transformers) | `Tokenizers` |
 | [SwiftSoup](https://github.com/scinfu/SwiftSoup) | `SwiftSoup`, used to extract text from HTML pages |
 
-`Package.resolved` pins exact revisions, including `mlx-swift-lm` declared on the `main` branch. Keeping this file ensures reproducible revisions across developers.
+`Package.resolved` pins exact revisions, including `mlx-swift-lm` 3.33.0 and MLX Swift 0.33.0. Keeping this file ensures reproducible revisions across developers.
 
 The presence of `MLXVLM` in the dependencies does not provide an image input interface: the current CLI transmits text prompts only.
 
@@ -489,7 +524,7 @@ swift test --filter MLXModelServiceTests
 
 Reset tests verify structured history, lack of reloading, failure modes, and wait-for-cleanup behavior. Cache tests create a temporary installation and an offline transport: two consecutive clients reuse it without issuing network requests, while an incomplete cache triggers the download path.
 
-**No unit test loads or downloads Ministral.** However, compiling tests for the first time may fetch and compile Swift packages declared by the project, including MLX dependencies: runtime model isolation does not eliminate compile-time dependencies.
+**Ordinary unit tests do not load or download model weights.** However, compiling tests for the first time may fetch and compile Swift packages declared by the project, including MLX dependencies: runtime model isolation does not eliminate compile-time dependencies.
 
 ### Covered Scenarios
 
@@ -682,7 +717,7 @@ Fullmoon provides `IOSWebSearchService`, conforming to `WebSearchService`, and i
 
 For automatic local inference selection on iOS, construct `IOSModelService` and inject that same web-search service.
 It selects the on-device Apple Foundation Models model when available on iOS 26 or later, otherwise the existing
-MLX Ministral 3B model. Explicit `.foundationModels` and `.mlx` preferences are also available.
+MLX Ternary Bonsai 2 (4B) model on this test branch. Explicit `.foundationModels` and `.mlx` preferences are also available.
 The provider is selected at load time; an interrupted generation is never replayed through another provider.
 AgentLoop remains responsible for tools, permissions, and history. macOS and the CLI retain their MLX configuration.
 See [iOS local inference](docs/ios-local-inference.md) for integration, availability, and validation details.

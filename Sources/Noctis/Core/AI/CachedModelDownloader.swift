@@ -48,6 +48,12 @@ struct CachedModelDownloader: Downloader {
         guard ["config.json", "tokenizer_config.json", "tokenizer.json"].allSatisfy(exists) else {
             return false
         }
+        if let data = try? Data(contentsOf: directory.appendingPathComponent("config.json")),
+           let config = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           config["model_type"] as? String == "prism_hadamard_qwen35",
+           !exists("preprocessor_config.json") {
+            return false
+        }
         let index = directory.appendingPathComponent("model.safetensors.index.json")
         if let data = try? Data(contentsOf: index),
            let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],

@@ -7,13 +7,7 @@
 
 
 public enum NoctisConfiguration {
-#if os(macOS)
-    public static let modelID =
-    "mlx-community/Ministral-3-14B-Instruct-2512-4bit"
-#else
-    public static let modelID =
-    "mlx-community/Ministral-3-3B-Instruct-2512-4bit"
-#endif
+    public static let modelID = BonsaiModelConfiguration.modelID
     public static let assistantName = "Noctis"
     
     public static let exitCommand = "exit"

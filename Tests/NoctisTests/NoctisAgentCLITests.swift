@@ -41,13 +41,9 @@ struct NoctisAgentCLITests {
         }
     }
 
-    @Test("Ministral est le modèle par défaut")
-    func ministralIsDefaultModel() {
-        #if os(macOS)
-        #expect(NoctisConfiguration.modelID == "mlx-community/Ministral-3-14B-Instruct-2512-4bit")
-        #else
-        #expect(NoctisConfiguration.modelID == "mlx-community/Ministral-3-3B-Instruct-2512-4bit")
-        #endif
+    @Test("Ternary Bonsai 2 4B est le modèle de cette branche de test")
+    func bonsaiIsDefaultModel() {
+        #expect(NoctisConfiguration.modelID == "prism-ml/Ternary-Bonsai-2-4B-mlx-2bit")
     }
 
 }
