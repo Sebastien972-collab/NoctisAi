@@ -28,7 +28,8 @@ its committed `Package.resolved` records the exact Noctis revision.
   The `MLXLLM` product is linked on macOS only, and GPT-OSS loads through the text-model factory.
 - GPT-OSS uses `reasoning_effort=low`, temperature 1, top-p 1, a 4,096-token generation
   budget, a 12,288-token maximum KV cache and 256-token prefill chunks. The generation
-  budget includes reasoning; only answer text is displayed. Rendered input remains
+  budget includes reasoning; this GPT profile exposes answer text and tool activity
+  while keeping its analysis internal. Rendered input remains
   bounded to 6,144 tokens. These are conservative test settings, not measured performance claims.
 - iOS keeps the same model, temperature 0.7, top-p 0.8, top-k 20, presence penalty 1.5
   over 64 tokens, `enable_thinking=false` and 2,048-token generation budget.
@@ -56,7 +57,8 @@ an explicit Web search, cancellation and a fresh conversation. Repeat on iPhone:
 the model must still be **Ternary Bonsai 2 (4B) · MLX**, with no GPT download.
 Quality, latency and peak memory still need inference measurements on the target Mac.
 
-Return to `main` in both repositories to leave the experiment. Model caches are kept
+Fullmoon's model selection follows its pinned Noctis revision. After switching versions,
+resolve the packages and check the model shown in settings. Model caches are kept
 separate; switching branches does not delete downloaded weights or conversations.
 
 ## SwiftPM consumers and releases
