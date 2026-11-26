@@ -372,3 +372,28 @@ struct ModelConcurrencyTests {
         #expect(await loads.count == 1)
     }
 }
+
+extension ModelConcurrencyTests {
+    @Test func activityScopeEarlyReturnJoinsProducerBeforeTheNextResponse() async throws {
+        let fixture = Fixture()
+        try await fixture.service.load()
+        var requests = fixture.requests.makeAsyncIterator()
+        let consumer = Task {
+            try await fixture.service.withResponseEvents(prompt: "first") { stream in
+                for try await event in stream {
+                    #expect(event == .textDelta("first"))
+                    break
+                }
+            }
+        }
+        let output = try #require(await requests.next())
+        output.yield("first")
+        try await consumer.value
+
+        let next = try await fixture.service.generate(prompt: "retry")
+        let nextOutput = try #require(await requests.next())
+        nextOutput.yield("New response")
+        nextOutput.finish()
+        #expect(try await collect(next) == "New response")
+    }
+}

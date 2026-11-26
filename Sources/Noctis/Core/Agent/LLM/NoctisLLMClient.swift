@@ -116,7 +116,9 @@ public final class NoctisLLMClient: ToolCallSurfacingClient, ContentOnlyTerminat
         case .chunk(let chunk):
             state.hasContent = state.hasContent || !chunk.isEmpty
             output.yield(.content(chunk))
-        case .reasoning, .steering:
+        case .reasoning(let text):
+            output.yield(.reasoning(text))
+        case .steering:
             break
         case .toolCall(let call):
             try forwardCall(call, tools: tools, state: &state, output: output, trace: trace)
@@ -157,8 +159,14 @@ public final class NoctisLLMClient: ToolCallSurfacingClient, ContentOnlyTerminat
     }
 
     static func isValidCallID(_ id: String) -> Bool {
-        id.utf8.count == 9 &&
-            id.utf8.allSatisfy { (48...57).contains($0) || (65...90).contains($0) || (97...122).contains($0) }
+        let bytes = id.utf8
+        if bytes.count == 9 {
+            return bytes.allSatisfy { (48...57).contains($0) || (65...90).contains($0) || (97...122).contains($0) }
+        }
+        // MLX assigns Qwen-family calls "call_" followed by 32 lowercase hexadecimal digits.
+        return bytes.count == 37 && id.hasPrefix("call_") && bytes.dropFirst(5).allSatisfy {
+            (48...57).contains($0) || (97...102).contains($0)
+        }
     }
 
     static func messages(_ messages: [ChatMessage]) throws -> [MLXLMCommon.Chat.Message] {

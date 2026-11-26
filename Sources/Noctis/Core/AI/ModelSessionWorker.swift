@@ -7,8 +7,15 @@ import MLXLMCommon
 /// Created and used exclusively by the worker task; intentionally not Sendable.
 protocol ModelSession: AnyObject {
     func streamResponse(to prompt: String) -> AsyncThrowingStream<String, Error>
+    func streamResponseEvents(to prompt: String) -> AsyncThrowingStream<AIResponseEvent, Error>
     func synchronize() async
     func reset(history: [AIChatMessage]) async throws
+}
+
+extension ModelSession {
+    func streamResponseEvents(to prompt: String) -> AsyncThrowingStream<AIResponseEvent, Error> {
+        AIResponseStream.map(streamResponse(to: prompt), transform: { .textDelta($0) }).stream
+    }
 }
 
 protocol StructuredModelSession: ModelSession {
@@ -66,7 +73,7 @@ final class ModelSessionWorker: Sendable {
 
     private struct Request: Sendable {
         let prompt: String
-        let output: AsyncThrowingStream<String, Error>.Continuation
+        let output: AsyncThrowingStream<AIResponseEvent, Error>.Continuation
         let cancellation: GenerationCancellation
         let completion: CheckedContinuation<Void, Error>
     }
@@ -183,13 +190,13 @@ final class ModelSessionWorker: Sendable {
             request.completion.resume(throwing: CancellationError())
             return
         }
-        let upstream = session.streamResponse(to: request.prompt)
+        let upstream = session.streamResponseEvents(to: request.prompt)
         let reader = Task {
-            for try await chunk in upstream {
+            for try await event in upstream {
                 request.cancellation.arm()
                 // Re-enter next() to trigger upstream onTermination.
                 if request.cancellation.isCancelled { continue }
-                if case .terminated = request.output.yield(chunk) {
+                if case .terminated = request.output.yield(event) {
                     request.cancellation.cancel()
                 }
             }
@@ -209,7 +216,7 @@ final class ModelSessionWorker: Sendable {
 
     func generate(
         prompt: String,
-        output: AsyncThrowingStream<String, Error>.Continuation,
+        output: AsyncThrowingStream<AIResponseEvent, Error>.Continuation,
         cancellation: GenerationCancellation
     ) async throws {
         try await withCheckedThrowingContinuation { completion in

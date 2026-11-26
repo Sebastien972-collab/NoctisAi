@@ -129,6 +129,32 @@ struct IOSModelServiceTests {
         #expect(fixture.probe.snapshot.histories.count == 2)
     }
 
+    @Test func activityEventsKeepReasoningSeparateAndPreserveTheConversation() async throws {
+        let fixture = IOSServiceFixture(replies: [.reasonedAnswer("Réflexion", "Réponse"), .answer("Suite")])
+        try await fixture.service.load()
+        let events = OSAllocatedUnfairLock(initialState: [AIResponseEvent]())
+        try await fixture.service.withResponseEvents(prompt: "Question") { stream in
+            for try await event in stream { events.withLock { $0.append(event) } }
+        }
+        #expect(events.withLock { $0 } == [.reasoningDelta("Réflexion"), .textDelta("Réponse")])
+        #expect(try await fixture.read("Encore") == "Suite")
+        let history = await fixture.service.conversationHistory
+        #expect(history.filter { if case .user = $0 { true } else { false } }.count == 2)
+    }
+
+    @Test func returningDuringReasoningSettlesBeforeTheNextResponse() async throws {
+        let fixture = IOSServiceFixture(replies: [.reasoningPause("Réflexion"), .answer("Nouveau")])
+        try await fixture.service.load()
+        try await fixture.service.withResponseEvents(prompt: "Question") { stream in
+            for try await event in stream {
+                #expect(event == .reasoningDelta("Réflexion"))
+                break
+            }
+        }
+        #expect(try await fixture.read("Encore") == "Nouveau")
+        #expect(fixture.probe.snapshot.histories.count == 2)
+    }
+
     @Test func inferenceFailureNeverSwitchesProviders() async throws {
         let fixture = IOSServiceFixture(replies: [.failure])
         try await fixture.service.load()
@@ -173,7 +199,10 @@ private struct IOSServiceFixture: Sendable {
 }
 
 private final class IOSServiceProbe: Sendable {
-    enum Reply: Sendable { case answer(String), pause(String), failure }
+    enum Reply: Sendable {
+        case answer(String), pause(String), failure
+        case reasonedAnswer(String, String), reasoningPause(String)
+    }
     struct State: Sendable {
         var histories: [[ChatMessage]] = []
         var phases: [AIModelLoadPhase] = []
@@ -235,6 +264,12 @@ private final class IOSFixtureClient: NoctisAgentLLMClient {
                     try Task.checkCancellation()
                     switch probe.record(messages) {
                     case .answer(let text): output.yield(.content(text))
+                    case let .reasonedAnswer(reasoning, text):
+                        output.yield(.reasoning(reasoning))
+                        output.yield(.content(text))
+                    case .reasoningPause(let text):
+                        output.yield(.reasoning(text))
+                        try await Task.sleep(for: .seconds(30))
                     case .pause(let text):
                         output.yield(.content(text))
                         try await Task.sleep(for: .seconds(30))
