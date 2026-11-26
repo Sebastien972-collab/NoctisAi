@@ -17,7 +17,7 @@ struct MLXStreamCompatibilityTests {
             [.generation(.reasoning("PRIVATE_REASONING")), .generation(.toolCall(call)),
              .generation(completion(.stop))],
             [.generation(.reasoning("PRIVATE_REASONING")), .text("Source trouvée"), .generation(completion(.stop))]
-        ], workspaceEnabled: false, searchService: search)
+        ], workspaceEnabled: false, profile: .gptOSS, searchService: search)
         defer { fixture.cleanup() }
 
         let events = try await fixture.run("Recherche Swift")
@@ -99,7 +99,9 @@ struct MLXStreamCompatibilityTests {
         #expect(deltas.compactMap { delta -> String? in
             if case .content(let text) = delta { text } else { nil }
         }.joined() == "Réponse finale")
-        #expect(!deltas.contains { if case .reasoning = $0 { true } else { false } })
+        #expect(deltas.compactMap { delta -> String? in
+            if case .reasoning(let text) = delta { text } else { nil }
+        } == ["PRIVATE_REASONING"])
         #expect(deltas.filter { if case .finished = $0 { true } else { false } }.count == 1)
         #expect(deltas.last == .streamClosed(terminalMarkerSeen: true))
     }

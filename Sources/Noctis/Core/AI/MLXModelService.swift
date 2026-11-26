@@ -195,14 +195,13 @@ public actor MLXModelService: AIModelService, WorkspaceAuthorizing {
     }
 
     public func generate(prompt: String) async throws -> AsyncThrowingStream<String, Error> {
-        try startGeneration(prompt: prompt).stream
+        let response = try startGeneration(prompt: prompt)
+        return AIResponseStream.map(response.stream, transform: AIResponseStream.text).stream
     }
 
-    /// Scoped consumption guarantees cleanup on early return, thrown errors and
-    /// cancellation, even if the caller retains a copy of the stream.
-    public func withResponse(
+    public func withResponseEvents(
         prompt: String,
-        consume: @Sendable (AsyncThrowingStream<String, Error>) async throws -> Void
+        consume: @Sendable (AsyncThrowingStream<AIResponseEvent, Error>) async throws -> Void
     ) async throws {
         let response = try startGeneration(prompt: prompt)
         do {
@@ -218,7 +217,7 @@ public actor MLXModelService: AIModelService, WorkspaceAuthorizing {
     }
 
     private func startGeneration(prompt: String) throws -> (
-        stream: AsyncThrowingStream<String, Error>,
+        stream: AsyncThrowingStream<AIResponseEvent, Error>,
         cancellation: GenerationCancellation,
         task: Task<Void, Never>
     ) {
@@ -229,7 +228,7 @@ public actor MLXModelService: AIModelService, WorkspaceAuthorizing {
         }
 
         let lease = try generationAccess.acquire()
-        let (stream, output) = AsyncThrowingStream<String, Error>.makeStream()
+        let (stream, output) = AsyncThrowingStream<AIResponseEvent, Error>.makeStream()
         let cancellation = GenerationCancellation()
         self.cancellation = cancellation
         output.onTermination = { termination in
@@ -286,6 +285,19 @@ public actor MLXModelService: AIModelService, WorkspaceAuthorizing {
         let current = generation
         cancellation?.cancel()
         await current?.value
+    }
+}
+
+extension MLXModelService {
+    /// Scoped consumption guarantees cleanup on early return, thrown errors and
+    /// cancellation, even if the caller retains a copy of the stream.
+    public func withResponse(
+        prompt: String,
+        consume: @Sendable (AsyncThrowingStream<String, Error>) async throws -> Void
+    ) async throws {
+        try await withResponseEvents(prompt: prompt) { stream in
+            try await AIResponseStream.consume(stream, transform: AIResponseStream.text, using: consume)
+        }
     }
 }
 

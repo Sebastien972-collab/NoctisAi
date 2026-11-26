@@ -10,7 +10,7 @@ final class MLXChatSession: StructuredModelSession {
     private let workspaceAccess: WorkspaceToolAccess
     private let webDispatcher: WebToolDispatcher
     private let presentation: NoctisPresentationInstructions
-    private let profile: MLXModelProfile
+    let profile: MLXModelProfile
     private let toolContinuation = GPTOSSToolContinuation()
     private var additionalInstructions: [String] = []
 
@@ -28,35 +28,66 @@ final class MLXChatSession: StructuredModelSession {
     }
 
     func streamResponse(to prompt: String) -> AsyncThrowingStream<String, Error> {
+        AIResponseStream.map(streamResponseEvents(to: prompt), transform: AIResponseStream.text).stream
+    }
+
+    func streamResponseEvents(to prompt: String) -> AsyncThrowingStream<AIResponseEvent, Error> {
         toolContinuation.invalidate()
+        let (stream, output) = AsyncThrowingStream<AIResponseEvent, Error>.makeStream()
         let registry = NoctisToolRegistry(workspace: workspaceAccess.registry)
         session.instructions = ([NoctisSystemPromptBuilder.build(registry: registry, presentation: presentation)]
                                     + additionalInstructions).joined(separator: "\n\n")
         session.tools = registry.schemas
         let dispatcher = NoctisToolDispatcher(registry: registry, web: webDispatcher, userPrompt: prompt)
-        session.toolDispatch = { call in try await dispatcher.execute(call) }
+        session.toolDispatch = { call in
+            try await Self.dispatch(call, using: dispatcher, output: output)
+        }
         session.generateParameters.maxTokens = profile.maximumOutputTokens
         session.generateParameters.toolCallPolicy = .init(recovery: .disabled, validation: .strict)
         let upstream = session.streamDetails(to: prompt)
-        return AsyncThrowingStream { output in
-            let task = Task {
-                do {
-                    for try await event in upstream {
-                        switch event {
-                        case .chunk(let chunk): output.yield(chunk)
-                        case .rejectedToolCall: throw AgentError.invalidToolCall
-                        case .info(let info):
-                            if info.stopReason == .length { throw MLXModelServiceError.responseLimit }
-                            if info.stopReason == .cancelled || info.stopReason == .interrupted {
-                                throw CancellationError()
-                            }
-                        default: break
+        let task = Task { [profile] in
+            do {
+                for try await event in upstream {
+                    switch event {
+                    case .chunk(let chunk): output.yield(.textDelta(chunk))
+                    case .reasoning(let text) where profile != .gptOSS: output.yield(.reasoningDelta(text))
+                    case .rejectedToolCall: throw AgentError.invalidToolCall
+                    case .info(let info):
+                        if info.stopReason == .length { throw MLXModelServiceError.responseLimit }
+                        if info.stopReason == .cancelled || info.stopReason == .interrupted {
+                            throw CancellationError()
                         }
+                    default: break
                     }
-                    output.finish()
-                } catch { output.finish(throwing: error) }
-            }
-            output.onTermination = { _ in task.cancel() }
+                }
+                output.finish()
+            } catch { output.finish(throwing: error) }
+        }
+        output.onTermination = { _ in task.cancel() }
+        return stream
+    }
+
+    static func dispatch(
+        _ call: MLXLMCommon.ToolCall, using dispatcher: NoctisToolDispatcher,
+        output: AsyncThrowingStream<AIResponseEvent, Error>.Continuation
+    ) async throws -> String {
+        try Task.checkCancellation()
+        let id = call.id ?? UUID().uuidString
+        let name = call.function.name
+        let data = try JSONSerialization.data(withJSONObject: call.function.arguments.mapValues(\.anyValue),
+                                              options: [.sortedKeys])
+        guard let arguments = String(data: data, encoding: .utf8) else { throw AgentError.invalidArguments }
+        if case .terminated = output.yield(.toolStarted(id: id, name: name, arguments: arguments)) {
+            throw CancellationError()
+        }
+        do {
+            let result = try await dispatcher.execute(call)
+            output.yield(.toolCompleted(id: id, name: name, result: result, isError: false))
+            return result
+        } catch {
+            if error is CancellationError || Task.isCancelled { throw CancellationError() }
+            output.yield(.toolCompleted(id: id, name: name, result: error.localizedDescription, isError: true))
+            throw error
         }
     }
 

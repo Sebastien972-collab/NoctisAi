@@ -31,7 +31,11 @@ final class ScriptProbe: Sendable {
 final class ScriptSession: StructuredModelSession {
     let probe: ScriptProbe
     var producer: Task<Void, Never>?
-    init(_ probe: ScriptProbe) { self.probe = probe }
+    let profile: MLXModelProfile
+    init(_ probe: ScriptProbe, profile: MLXModelProfile = .standard) {
+        self.probe = probe
+        self.profile = profile
+    }
     func reset(history: [AIChatMessage]) async throws {}
     func synchronize() async { await producer?.value }
     func streamResponse(to prompt: String) -> AsyncThrowingStream<String, Error> {
@@ -85,7 +89,7 @@ struct ReliabilityFixture {
     let probe: ScriptProbe
     let directory: URL
 
-    init(_ scripts: [[ScriptStep]], workspaceEnabled: Bool = true,
+    init(_ scripts: [[ScriptStep]], workspaceEnabled: Bool = true, profile: MLXModelProfile = .standard,
          searchService: any WebSearchService = OfflineTraceSearch(),
          pageService: any WebPageService = ReliabilityPageService()) async throws {
         directory = URL(fileURLWithPath: "/private/tmp").appendingPathComponent(UUID().uuidString)
@@ -93,7 +97,9 @@ struct ReliabilityFixture {
         try Data("SECRET_FILE_BODY".utf8).write(to: directory.appendingPathComponent("example.swift"))
         let probe = ScriptProbe(scripts)
         self.probe = probe
-        let worker = try await ModelSessionWorker.load(factory: { _ in ScriptSession(probe) }, progress: { _ in })
+        let worker = try await ModelSessionWorker.load(factory: { _ in
+            ScriptSession(probe, profile: profile)
+        }, progress: { _ in })
         client = NoctisLLMClient(worker: worker, systemPrompt: "SECRET_SYSTEM_PROMPT")
         let workspace = try AuthorizedWorkspace(authorizing: directory)
         agent = NoctisCLIAgent(client: client,

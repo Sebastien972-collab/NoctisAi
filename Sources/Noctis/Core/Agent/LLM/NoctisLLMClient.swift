@@ -116,7 +116,9 @@ public final class NoctisLLMClient: ToolCallSurfacingClient, ContentOnlyTerminat
         case .chunk(let chunk):
             state.hasContent = state.hasContent || !chunk.isEmpty
             output.yield(.content(chunk))
-        case .reasoning, .steering:
+        case .reasoning(let text):
+            output.yield(.reasoning(text))
+        case .steering:
             break
         case .toolCall(let call):
             try forwardCall(call, tools: tools, state: &state, output: output, trace: trace)
