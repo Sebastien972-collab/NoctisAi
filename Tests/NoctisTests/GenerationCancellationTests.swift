@@ -26,9 +26,20 @@ struct GenerationCancellationTests {
         consumer.cancel()
         await #expect(throws: CancellationError.self) { _ = try await consumer.value }
         _ = await fixture.agent.settledHistory()
+        // The client's unstructured forwarding task can finish after the agent transcript settles.
+        let cancellationDeadline = cancelledAt.advanced(by: .seconds(5))
+        var traces = fixture.agent.traceRecorder.events()
+        while !traces.contains(where: {
+            $0.kind == .generationCancelled || $0.kind == .generationFailed || $0.kind == .generationCompleted
+        }) && ContinuousClock.now < cancellationDeadline {
+            try await Task.sleep(for: .milliseconds(1))
+            traces = fixture.agent.traceRecorder.events()
+        }
         // The fixture's silent producer would otherwise sleep for thirty seconds.
         #expect(cancelledAt.duration(to: .now) < .seconds(5))
         #expect(fixture.probe.state.withLock { $0.active } == 0)
+        #expect(traces.contains { $0.kind == .generationCancelled && $0.reason == .cancelled })
+        #expect(!traces.contains { $0.kind == .generationFailed || $0.kind == .generationCompleted })
 
         let events = try await fixture.run("Next")
         let text = events.compactMap { event -> String? in

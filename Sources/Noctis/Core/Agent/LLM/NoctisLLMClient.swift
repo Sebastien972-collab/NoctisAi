@@ -95,6 +95,7 @@ public final class NoctisLLMClient: ToolCallSurfacingClient, ContentOnlyTerminat
                 try Task.checkCancellation()
                 try forward(event, tools: tools, state: &state, output: output, trace: trace)
             }
+            try Task.checkCancellation()
             guard state.hasContent || state.nextCallIndex > 0 else { throw MLXModelServiceError.emptyResponse }
             trace?.record(.generationCompleted)
             output.yield(.finished(usage: state.usage))
