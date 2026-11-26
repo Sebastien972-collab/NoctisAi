@@ -70,7 +70,7 @@ final class MLXChatSession: StructuredModelSession {
         let name = call.function.name
         let data = try JSONSerialization.data(withJSONObject: call.function.arguments.mapValues(\.anyValue),
                                               options: [.sortedKeys])
-        let arguments = String(decoding: data, as: UTF8.self)
+        guard let arguments = String(data: data, encoding: .utf8) else { throw AgentError.invalidArguments }
         if case .terminated = output.yield(.toolStarted(id: id, name: name, arguments: arguments)) {
             throw CancellationError()
         }

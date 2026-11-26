@@ -198,17 +198,6 @@ public actor MLXModelService: AIModelService, WorkspaceAuthorizing {
         return AIResponseStream.map(response.stream, transform: AIResponseStream.text).stream
     }
 
-    /// Scoped consumption guarantees cleanup on early return, thrown errors and
-    /// cancellation, even if the caller retains a copy of the stream.
-    public func withResponse(
-        prompt: String,
-        consume: @Sendable (AsyncThrowingStream<String, Error>) async throws -> Void
-    ) async throws {
-        try await withResponseEvents(prompt: prompt) { stream in
-            try await AIResponseStream.consume(stream, transform: AIResponseStream.text, using: consume)
-        }
-    }
-
     public func withResponseEvents(
         prompt: String,
         consume: @Sendable (AsyncThrowingStream<AIResponseEvent, Error>) async throws -> Void
@@ -295,5 +284,18 @@ public actor MLXModelService: AIModelService, WorkspaceAuthorizing {
         let current = generation
         cancellation?.cancel()
         await current?.value
+    }
+}
+
+extension MLXModelService {
+    /// Scoped consumption guarantees cleanup on early return, thrown errors and
+    /// cancellation, even if the caller retains a copy of the stream.
+    public func withResponse(
+        prompt: String,
+        consume: @Sendable (AsyncThrowingStream<String, Error>) async throws -> Void
+    ) async throws {
+        try await withResponseEvents(prompt: prompt) { stream in
+            try await AIResponseStream.consume(stream, transform: AIResponseStream.text, using: consume)
+        }
     }
 }

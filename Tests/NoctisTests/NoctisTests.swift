@@ -267,29 +267,6 @@ struct ModelConcurrencyTests {
         _ = try await collect(next)
     }
 
-    @Test func activityScopeEarlyReturnJoinsProducerBeforeTheNextResponse() async throws {
-        let fixture = Fixture()
-        try await fixture.service.load()
-        var requests = fixture.requests.makeAsyncIterator()
-        let consumer = Task {
-            try await fixture.service.withResponseEvents(prompt: "first") { stream in
-                for try await event in stream {
-                    #expect(event == .textDelta("first"))
-                    break
-                }
-            }
-        }
-        let output = try #require(await requests.next())
-        output.yield("first")
-        try await consumer.value
-
-        let next = try await fixture.service.generate(prompt: "retry")
-        let nextOutput = try #require(await requests.next())
-        nextOutput.yield("New response")
-        nextOutput.finish()
-        #expect(try await collect(next) == "New response")
-    }
-
     @Test func droppedRawStreamCancelsProducer() async throws {
         let fixture = Fixture()
         try await fixture.service.load()
@@ -393,5 +370,30 @@ struct ModelConcurrencyTests {
         try await fixture.service.load()
         #expect(await fixture.service.loadState == .loaded)
         #expect(await loads.count == 1)
+    }
+}
+
+extension ModelConcurrencyTests {
+    @Test func activityScopeEarlyReturnJoinsProducerBeforeTheNextResponse() async throws {
+        let fixture = Fixture()
+        try await fixture.service.load()
+        var requests = fixture.requests.makeAsyncIterator()
+        let consumer = Task {
+            try await fixture.service.withResponseEvents(prompt: "first") { stream in
+                for try await event in stream {
+                    #expect(event == .textDelta("first"))
+                    break
+                }
+            }
+        }
+        let output = try #require(await requests.next())
+        output.yield("first")
+        try await consumer.value
+
+        let next = try await fixture.service.generate(prompt: "retry")
+        let nextOutput = try #require(await requests.next())
+        nextOutput.yield("New response")
+        nextOutput.finish()
+        #expect(try await collect(next) == "New response")
     }
 }
