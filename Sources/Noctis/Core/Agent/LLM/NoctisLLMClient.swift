@@ -163,7 +163,7 @@ public final class NoctisLLMClient: ToolCallSurfacingClient, ContentOnlyTerminat
         if bytes.count == 9 {
             return bytes.allSatisfy { (48...57).contains($0) || (65...90).contains($0) || (97...122).contains($0) }
         }
-        // MLX assigns Qwen-family calls "call_" followed by 32 lowercase hexadecimal digits.
+        // MLX assigns Qwen and Harmony calls "call_" followed by 32 lowercase hexadecimal digits.
         return bytes.count == 37 && id.hasPrefix("call_") && bytes.dropFirst(5).allSatisfy {
             (48...57).contains($0) || (97...102).contains($0)
         }

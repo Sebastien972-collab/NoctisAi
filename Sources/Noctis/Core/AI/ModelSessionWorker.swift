@@ -19,6 +19,8 @@ extension ModelSession {
 }
 
 protocol StructuredModelSession: ModelSession {
+    var profile: MLXModelProfile { get }
+
     func streamDetails(
         messages: [MLXLMCommon.Chat.Message],
         tools: [ToolSpec],
@@ -164,10 +166,12 @@ final class ModelSessionWorker: Sendable {
             messages: request.input.messages, tools: request.input.tools,
             instructions: request.input.instructions
         )
+        let profile = session.profile
         let reader = Task {
             for try await event in upstream {
                 request.cancellation.arm()
                 if request.cancellation.isCancelled { continue }
+                if profile == .gptOSS, case .reasoning = event { continue }
                 if case .terminated = request.output.yield(event) {
                     request.cancellation.cancel()
                 }

@@ -2,46 +2,64 @@
 
 # Noctis 🌘
 
-Noctis is a personal command-line AI assistant, developed in Swift for macOS. This test branch uses **Ternary Bonsai 2 (4B)**, in the official PrismML 2-bit MLX format, to generate its responses locally and stream them incrementally to the terminal.
+Noctis is a personal command-line AI assistant, developed in Swift for macOS. This test branch runs **OpenAI gpt-oss-20b** locally on macOS with MLX. iOS keeps its existing **Ternary Bonsai 2 (4B)** model and generation settings.
 
 The project includes streaming conversation and a `web_search` tool connected to SearXNG. Persistent memory and a Vapor API are not yet implemented.
 
 The package exposes the `Noctis` library, which can be imported into an application, the `NoctisAgent` library, and the `NoctisCLI` executable for the terminal.
 
-## Ternary Bonsai 2 (4B) test branch
+## GPT-OSS on Mac test branch
 
-The `test/ternary-bonsai-2-4b` branches in NoctisAi and
-[Fullmoon](https://github.com/Sebastien972-collab/fullmoon-ios/tree/test/ternary-bonsai-2-4b)
-are paired for this experiment. Fullmoon's Swift package requirement names this Noctis branch;
-its committed `Package.resolved` records the tested commit. Fullmoon explicitly chooses `.mlx`
-on iOS, including devices where Apple Foundation Models is available.
+The `test/gpt-oss-macos` branches in NoctisAi and
+[Fullmoon](https://github.com/Sebastien972-collab/fullmoon-ios/tree/test/gpt-oss-macos)
+are paired for this experiment. Fullmoon's package requirement names this Noctis branch;
+its committed `Package.resolved` records the exact Noctis revision.
 
-- Exact model: [`prism-ml/Ternary-Bonsai-2-4B-mlx-2bit`](https://huggingface.co/prism-ml/Ternary-Bonsai-2-4B-mlx-2bit).
-- Native `prism_hadamard_qwen35` support comes from **mlx-swift-lm 3.33.0 / MLX Swift 0.33.0**.
-  The model stays in its published rotated ternary representation; no Python model runtime or conversion is used.
-- The published model file is about **1.87 GB**. Download it once with a network connection;
-  the app reuses its local cache afterward. Runtime memory is greater than file size.
-- The test uses PrismML's **non-thinking** profile: temperature 0.7, top-p 0.8, top-k 20,
-  presence penalty 1.5 over 64 tokens, no repetition penalty and `enable_thinking=false`.
-  Noctis retains its 6,144 input-token and 2,048 output-token limits.
-- Existing Noctis tools, permissions and local Web runtime remain connected. This branch does not add
-  an image attachment flow or enable speculative decoding.
+| Platform | Model | Behavior |
+| --- | --- | --- |
+| macOS | `mlx-community/gpt-oss-20b-MXFP4-Q8` | GPT-OSS text conversations and native Harmony tool calls |
+| iOS | `prism-ml/Ternary-Bonsai-2-4B-mlx-2bit` | Existing Bonsai model and non-thinking profile |
+
+- GPT-OSS weights are approximately **12.1 GB**. The first load downloads them from
+  [Hugging Face](https://huggingface.co/mlx-community/gpt-oss-20b-MXFP4-Q8); later loads reuse the cache.
+  An Apple Silicon Mac with 18 GB can be used for this experiment, but weights, inference
+  buffers, macOS and other applications share that memory. Measure memory pressure locally.
+- The existing **mlx-swift-lm 3.33.0 / MLX Swift 0.33.0** dependency is retained.
+  The `MLXLLM` product is linked on macOS only, and GPT-OSS loads through the text-model factory.
+- GPT-OSS uses `reasoning_effort=low`, temperature 1, top-p 1, a 4,096-token generation
+  budget, a 12,288-token maximum KV cache and 256-token prefill chunks. The generation
+  budget includes reasoning; this GPT profile exposes answer text and tool activity
+  while keeping its analysis internal. Rendered input remains
+  bounded to 6,144 tokens. These are conservative test settings, not measured performance claims.
+- iOS keeps the same model, temperature 0.7, top-p 0.8, top-k 20, presence penalty 1.5
+  over 64 tokens, `enable_thinking=false` and 2,048-token generation budget.
+  Fullmoon still explicitly selects `.mlx` on iOS.
+- GPT-OSS is **text-only**: it does not add native image or audio input to the Mac app.
+  Existing Web tools, permissions and local search runtime remain connected.
+  No remote inference API or API key is used.
 
 To try the CLI on an Apple Silicon Mac:
 
 ```sh
 git fetch origin
-git switch --track origin/test/ternary-bonsai-2-4b
+git switch --track origin/test/gpt-oss-macos
 swift run NoctisCLI
 ```
 
-For the app, open Fullmoon from its matching branch and run it on a physical iPhone from Xcode.
-The model status must show **Ternary Bonsai 2 (4B) · MLX**. Start a new conversation, try a short
-French response, a follow-up question, cancellation, and an explicit Web search. Model quality,
-latency, memory and energy use still need measurement on the target device.
+If the local branch already exists, use `git switch test/gpt-oss-macos` instead.
+The `/model` command must print `mlx-community/gpt-oss-20b-MXFP4-Q8` on macOS.
+For the app, open Fullmoon from the matching branch, resolve packages in Xcode and run
+on **My Mac**. Its status must show **gpt-oss-20b · MLX**. If Xcode uses a local package
+instead of the remote requirement, switch that Noctis checkout to this branch too.
 
-Return to `main` in both repositories to leave the experiment. If your Xcode workspace overrides
-Noctis with a local package, its checkout must also use the test branch while testing.
+Start a new conversation and check a short French answer, a follow-up question,
+an explicit Web search, cancellation and a fresh conversation. Repeat on iPhone:
+the model must still be **Ternary Bonsai 2 (4B) · MLX**, with no GPT download.
+Quality, latency and peak memory still need inference measurements on the target Mac.
+
+Fullmoon's model selection follows its pinned Noctis revision. After switching versions,
+resolve the packages and check the model shown in settings. Model caches are kept
+separate; switching branches does not delete downloaded weights or conversations.
 
 ## SwiftPM consumers and releases
 
@@ -56,7 +74,7 @@ on branch-based or local-path packages. Keep all remote dependencies versioned
 when preparing a Noctis release.
 
 The existing `0.1.0` tag still contains the old manifest and is not repaired by
-this branch. The paired Fullmoon test branch follows `test/ternary-bonsai-2-4b`,
+this branch. The paired Fullmoon test branch follows `test/gpt-oss-macos`,
 with its resolved Noctis commit recorded in the app's package lock. A production
 consumer using SemVer will need a newly validated release. Do not move `0.1.0`;
 publish a new tag only after release validation.
@@ -91,7 +109,7 @@ into a programming agent. Its existing system prompt and MLX model are preserved
 
 ### Prerequisites
 
-- macOS 15 or later on Apple Silicon, with enough memory for Ternary Bonsai 2 (4B), its inference buffers and conversation cache.
+- macOS 15 or later on Apple Silicon, with enough memory for gpt-oss-20b, its inference buffers and conversation cache.
 - Swift 6.4 or later and the selected Xcode installation, including its Metal Toolchain component.
 - Git and network access for initial Swift package resolution. The existing model downloads
   from Hugging Face only if its local cache is incomplete; no other model is selected.
@@ -381,7 +399,7 @@ The current values are defined in [NoctisConfiguration.swift](Sources/Noctis/Cor
 
 | Property | Value | Role |
 | --- | --- | --- |
-| `modelID` | `prism-ml/Ternary-Bonsai-2-4B-mlx-2bit` | Model used by the MLX loader on this test branch |
+| `modelID` | macOS: `mlx-community/gpt-oss-20b-MXFP4-Q8`; iOS: `prism-ml/Ternary-Bonsai-2-4B-mlx-2bit` | Model selected for the current platform |
 | `assistantName` | `Noctis` | Name displayed at startup |
 | `exitCommand` | `exit` | Command to exit the conversation |
 

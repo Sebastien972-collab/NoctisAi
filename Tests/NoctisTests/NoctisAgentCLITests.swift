@@ -41,9 +41,14 @@ struct NoctisAgentCLITests {
         }
     }
 
-    @Test("Ternary Bonsai 2 4B est le modèle de cette branche de test")
-    func bonsaiIsDefaultModel() {
+    @Test("GPT-OSS est testé sur Mac et Bonsai reste le modèle mobile")
+    func defaultModelIsSelectedByPlatform() {
+        #if os(macOS)
+        #expect(NoctisConfiguration.modelID == "mlx-community/gpt-oss-20b-MXFP4-Q8")
+        #else
         #expect(NoctisConfiguration.modelID == "prism-ml/Ternary-Bonsai-2-4B-mlx-2bit")
+        #endif
+        #expect(IOSModelConfiguration.mlxModelID == "prism-ml/Ternary-Bonsai-2-4B-mlx-2bit")
     }
 
 }

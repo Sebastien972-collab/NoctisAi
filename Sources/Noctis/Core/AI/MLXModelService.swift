@@ -8,6 +8,9 @@ import Foundation
 import NoctisAgent
 import MLXLMCommon
 import MLXVLM
+#if os(macOS)
+import MLXLLM
+#endif
 import HuggingFace
 import Tokenizers
 import MLXHuggingFace
@@ -62,35 +65,33 @@ public actor MLXModelService: AIModelService, WorkspaceAuthorizing {
         let dispatcher = WebToolDispatcher(searchService: webSearchService, pasgeService: HTTPWebPageService())
         webDispatcher = dispatcher
         factory = { progress in
-            let context = try await loadModel(
-                from: CachedModelDownloader(client: HubClient(), phase: progress),
-                using: #huggingFaceTokenizerLoader(),
-                id: selectedModelID
-            )
+            let context = try await Self.loadContext(modelID: selectedModelID, progress: progress)
             let model = ModelContainer(context: context)
+            let profile = await MLXModelProfile.resolve(model: model)
             let configurationURL = try await model.modelDirectory.appendingPathComponent("config.json")
             let data = try Data(contentsOf: configurationURL)
             let configuration = try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
             let text = configuration["text_config"] as? [String: Any] ?? configuration
             let window = text["max_position_embeddings"] as? Int ?? 8_192
-            guard window > 2_048 else { throw MLXModelServiceError.contextLimit }
+            guard window > profile.maximumOutputTokens else { throw MLXModelServiceError.contextLimit }
             await model.update { context in
-                context.processor = BoundedModelProcessor(base: context.processor, maximumInputTokens: window - 2_048)
+                context.processor = BoundedModelProcessor(
+                    base: context.processor, maximumInputTokens: window - profile.maximumOutputTokens
+                )
             }
             await reference.set(model)
             let registry = NoctisToolRegistry(workspace: access.registry)
             let toolDispatcher = NoctisToolDispatcher(registry: registry, web: dispatcher)
-            let isBonsai = selectedModelID == BonsaiModelConfiguration.modelID
             return MLXChatSession(model: model, session: ChatSession(
                 model,
                 instructions: NoctisSystemPromptBuilder.build(
                     registry: registry, presentation: presentation
                 ),
-                generateParameters: isBonsai ? BonsaiModelConfiguration.generationParameters : .init(),
-                additionalContext: isBonsai ? BonsaiModelConfiguration.additionalContext : nil,
+                generateParameters: profile.generationParameters,
+                additionalContext: profile.additionalContext,
                 tools: registry.schemas,
                 toolDispatch: { call in try await toolDispatcher.execute(call) }
-            ), workspaceAccess: access, webDispatcher: dispatcher, presentation: presentation)
+            ), workspaceAccess: access, webDispatcher: dispatcher, presentation: presentation, profile: profile)
         }
     }
 
@@ -297,5 +298,24 @@ extension MLXModelService {
         try await withResponseEvents(prompt: prompt) { stream in
             try await AIResponseStream.consume(stream, transform: AIResponseStream.text, using: consume)
         }
+    }
+}
+
+private extension MLXModelService {
+    static func loadContext(
+        modelID: String, progress: @escaping @Sendable (AIModelLoadPhase) -> Void
+    ) async throws -> sending ModelContext {
+        let downloader = CachedModelDownloader(client: HubClient(), phase: progress)
+        #if os(macOS)
+        if modelID == MLXModelProfile.gptOSSModelID {
+            return try await LLMModelFactory.shared.load(
+                from: downloader, using: #huggingFaceTokenizerLoader(),
+                configuration: .init(id: modelID, toolCallFormat: .gptOSS)
+            )
+        }
+        #endif
+        return try await loadModel(
+            from: downloader, using: #huggingFaceTokenizerLoader(), id: modelID
+        )
     }
 }
