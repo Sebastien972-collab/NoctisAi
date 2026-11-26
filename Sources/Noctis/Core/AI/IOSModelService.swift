@@ -198,11 +198,20 @@ public actor IOSModelService: AIModelService, WorkspaceAuthorizing {
 
 extension IOSModelService {
     public func generate(prompt: String) async throws -> AsyncThrowingStream<String, Error> {
-        try await startGeneration(prompt: prompt).stream
+        let response = try await startGeneration(prompt: prompt)
+        return AIResponseStream.map(response.stream, transform: AIResponseStream.text).stream
     }
 
     public func withResponse(
         prompt: String, consume: @Sendable (AsyncThrowingStream<String, Error>) async throws -> Void
+    ) async throws {
+        try await withResponseEvents(prompt: prompt) { stream in
+            try await AIResponseStream.consume(stream, transform: AIResponseStream.text, using: consume)
+        }
+    }
+
+    public func withResponseEvents(
+        prompt: String, consume: @Sendable (AsyncThrowingStream<AIResponseEvent, Error>) async throws -> Void
     ) async throws {
         let response = try await startGeneration(prompt: prompt)
         do {
@@ -220,7 +229,7 @@ extension IOSModelService {
     }
 
     private func startGeneration(prompt: String) async throws -> (
-        stream: AsyncThrowingStream<String, Error>, generation: ActiveGeneration
+        stream: AsyncThrowingStream<AIResponseEvent, Error>, generation: ActiveGeneration
     ) {
         try ensureReady()
         guard generation == nil else { throw MLXModelServiceError.generationInProgress }
@@ -235,7 +244,7 @@ extension IOSModelService {
         }
         let id = UUID()
         let history = conversationHistory
-        let (stream, output) = AsyncThrowingStream<String, Error>.makeStream()
+        let (stream, output) = AsyncThrowingStream<AIResponseEvent, Error>.makeStream()
         let task = Task {
             await produce(prompt: prompt, history: history, agent: agent, id: id, output: output)
         }
@@ -252,7 +261,7 @@ extension IOSModelService {
 
     private func produce(
         prompt: String, history: [ChatMessage], agent: NoctisCLIAgent, id: UUID,
-        output: AsyncThrowingStream<String, Error>.Continuation
+        output: AsyncThrowingStream<AIResponseEvent, Error>.Continuation
     ) async {
         // The reader drains committed events after cancellation, preserving completed tool results.
         let reader = Task { await Self.readEvents(prompt: prompt, history: history, agent: agent, output: output) }
@@ -271,14 +280,15 @@ extension IOSModelService {
 
     private static func readEvents(
         prompt: String, history: [ChatMessage], agent: NoctisCLIAgent,
-        output: AsyncThrowingStream<String, Error>.Continuation
+        output: AsyncThrowingStream<AIResponseEvent, Error>.Continuation
     ) async -> (IOSConversationTranscript, (any Error)?) {
         var transcript = IOSConversationTranscript(history: history, prompt: prompt)
+        var presentation = AIResponseEventMapper()
         var terminalError: (any Error)? = IOSModelServiceError.incompleteResponse
         do {
             for try await event in agent.stream(prompt: prompt, history: history) {
                 transcript.observe(event)
-                if case .delta(let text) = event.kind { output.yield(text) }
+                for value in presentation.events(for: event) { output.yield(value) }
                 if case .finished(_, _, let reason, _) = event.kind { terminalError = completionError(reason) }
             }
             return (transcript, terminalError)

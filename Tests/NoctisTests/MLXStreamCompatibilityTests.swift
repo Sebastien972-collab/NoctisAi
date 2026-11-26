@@ -64,7 +64,9 @@ struct MLXStreamCompatibilityTests {
         #expect(deltas.compactMap { delta -> String? in
             if case .content(let text) = delta { text } else { nil }
         }.joined() == "Réponse finale")
-        #expect(!deltas.contains { if case .reasoning = $0 { true } else { false } })
+        #expect(deltas.compactMap { delta -> String? in
+            if case .reasoning(let text) = delta { text } else { nil }
+        } == ["PRIVATE_REASONING"])
         #expect(deltas.filter { if case .finished = $0 { true } else { false } }.count == 1)
         #expect(deltas.last == .streamClosed(terminalMarkerSeen: true))
     }
