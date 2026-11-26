@@ -28,10 +28,11 @@ protocol StructuredModelSession: ModelSession {
     ) -> AsyncThrowingStream<Generation, Error>
 }
 
+/// MLX 3.33 registers its response runner before returning a stream. Its
+/// synchronize() joins that runner even when cancellation precedes the first token.
 final class GenerationCancellation: Sendable {
     private struct State {
         var requested = false
-        var armed = false
         var reader: Task<Void, Error>?
     }
     // Keep state synchronized on iOS 17, where Synchronization.Mutex is unavailable.
@@ -40,25 +41,15 @@ final class GenerationCancellation: Sendable {
     func install(_ reader: Task<Void, Error>) {
         let shouldCancel = state.withLock {
             $0.reader = reader
-            return $0.requested && $0.armed
+            return $0.requested
         }
         if shouldCancel { reader.cancel() }
-    }
-
-    // The first element proves that MLX has entered its cache transaction.
-    // Before this point synchronize() could overtake its unstructured producer.
-    func arm() {
-        let reader = state.withLock {
-            $0.armed = true
-            return $0.requested ? $0.reader : nil
-        }
-        reader?.cancel()
     }
 
     func cancel() {
         let reader = state.withLock {
             $0.requested = true
-            return $0.armed ? $0.reader : nil
+            return $0.reader
         }
         // Cancellation handlers run synchronously and may re-enter this state.
         reader?.cancel()
@@ -169,7 +160,6 @@ final class ModelSessionWorker: Sendable {
         let profile = session.profile
         let reader = Task {
             for try await event in upstream {
-                request.cancellation.arm()
                 if request.cancellation.isCancelled { continue }
                 if profile == .gptOSS, case .reasoning = event { continue }
                 if case .terminated = request.output.yield(event) {
@@ -197,7 +187,6 @@ final class ModelSessionWorker: Sendable {
         let upstream = session.streamResponseEvents(to: request.prompt)
         let reader = Task {
             for try await event in upstream {
-                request.cancellation.arm()
                 // Re-enter next() to trigger upstream onTermination.
                 if request.cancellation.isCancelled { continue }
                 if case .terminated = request.output.yield(event) {

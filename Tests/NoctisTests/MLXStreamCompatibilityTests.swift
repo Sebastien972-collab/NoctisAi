@@ -106,9 +106,43 @@ struct MLXStreamCompatibilityTests {
         #expect(deltas.last == .streamClosed(terminalMarkerSeen: true))
     }
 
-    @Test func reasoningAloneCannotCompleteAnAgentTurn() async throws {
-        let client = try await makeClient(events: [.reasoning("PRIVATE_REASONING"), completion(.stop)])
-        await #expect(throws: Noctis.AgentError.invalidToolCall) {
+    @Test(arguments: [MLXModelProfile.standard, .gptOSS])
+    func reasoningAloneCannotCompleteAnAgentTurn(profile: MLXModelProfile) async throws {
+        let client = try await makeClient(events: [.reasoning("PRIVATE_REASONING"), completion(.stop)],
+                                          profile: profile)
+        await #expect(throws: MLXModelServiceError.emptyResponse) {
+            _ = try await client.generate(messages: [.user("Bonjour")], tools: [],
+                                          responseFormat: nil, requestContext: nil)
+        }
+    }
+
+    @Test(arguments: ["", " \n\t"])
+    func emptyAnswerHasAnExplicitErrorAndAllowsTheNextTurn(text: String) async throws {
+        let fixture = try await ReliabilityFixture([
+            [.generation(.reasoning("PRIVATE_REASONING")), .text(text), .generation(completion(.stop))],
+            [.text("Bonjour"), .generation(completion(.stop))]
+        ], workspaceEnabled: false, profile: .gptOSS)
+        defer { fixture.cleanup() }
+
+        await #expect(throws: MLXModelServiceError.emptyResponse) { _ = try await fixture.run("Salut") }
+        let traces = fixture.agent.traceRecorder.events()
+        #expect(traces.contains { $0.kind == .generationFailed })
+        #expect(!traces.contains { $0.kind == .toolRejected || $0.reason == .invalidCall })
+        #expect(traces.allSatisfy { $0.tool == nil })
+        let history = try #require(fixture.agent.recoveryHistory)
+        #expect(!String(reflecting: history).contains("PRIVATE_REASONING"))
+
+        let events = try await fixture.run("Réessaie", history: history)
+        #expect(events.compactMap { event -> String? in
+            if case .delta(let text) = event.kind { text } else { nil }
+        }.joined() == "Bonjour")
+        #expect(!events.contains { if case .reasoningDelta = $0.kind { true } else { false } })
+    }
+
+    @Test func analysisExhaustingTheBudgetKeepsTheGenerationLimitError() async throws {
+        let client = try await makeClient(events: [.reasoning("PRIVATE_REASONING"), completion(.length)],
+                                          profile: .gptOSS)
+        await #expect(throws: MLXModelServiceError.responseLimit) {
             _ = try await client.generate(messages: [.user("Bonjour")], tools: [],
                                           responseFormat: nil, requestContext: nil)
         }
@@ -152,10 +186,10 @@ struct MLXStreamCompatibilityTests {
         }
     }
 
-    private func makeClient(events: [Generation]) async throws -> NoctisLLMClient {
+    private func makeClient(events: [Generation], profile: MLXModelProfile = .standard) async throws -> NoctisLLMClient {
         let probe = ScriptProbe([events.map(ScriptStep.generation)])
         let worker = try await ModelSessionWorker.load(
-            factory: { _ in ScriptSession(probe) }, progress: { _ in }
+            factory: { _ in ScriptSession(probe, profile: profile) }, progress: { _ in }
         )
         return NoctisLLMClient(worker: worker, systemPrompt: "Test")
     }

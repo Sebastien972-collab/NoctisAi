@@ -122,7 +122,7 @@ struct NoctisCLITests {
         #expect(output.contains("Après interruption"))
     }
 
-    @Test(arguments: ["install", "arm", "cancel"])
+    @Test(arguments: ["install", "cancel"])
     func cancellationHandlersCanReenterCancellationState(phase: String) async throws {
         let cancellation = GenerationCancellation()
         let (ready, signal) = AsyncStream<Void>.makeStream()
@@ -137,16 +137,10 @@ struct NoctisCLITests {
         for await _ in ready { break }
         switch phase {
         case "install":
-            cancellation.arm()
             cancellation.cancel()
             cancellation.install(reader)
-        case "arm":
-            cancellation.cancel()
-            cancellation.install(reader)
-            cancellation.arm()
         default:
             cancellation.install(reader)
-            cancellation.arm()
             cancellation.cancel()
         }
         await #expect(throws: CancellationError.self) { try await reader.value }

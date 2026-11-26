@@ -95,7 +95,7 @@ public final class NoctisLLMClient: ToolCallSurfacingClient, ContentOnlyTerminat
                 try Task.checkCancellation()
                 try forward(event, tools: tools, state: &state, output: output, trace: trace)
             }
-            guard state.hasContent || state.nextCallIndex > 0 else { throw AgentError.invalidToolCall }
+            guard state.hasContent || state.nextCallIndex > 0 else { throw MLXModelServiceError.emptyResponse }
             trace?.record(.generationCompleted)
             output.yield(.finished(usage: state.usage))
             output.yield(.streamClosed(terminalMarkerSeen: true))
@@ -114,7 +114,7 @@ public final class NoctisLLMClient: ToolCallSurfacingClient, ContentOnlyTerminat
                          output: AsyncThrowingStream<StreamDelta, Error>.Continuation, trace: AgentTraceScope?) throws {
         switch event {
         case .chunk(let chunk):
-            state.hasContent = state.hasContent || !chunk.isEmpty
+            state.hasContent = state.hasContent || !chunk.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             output.yield(.content(chunk))
         case .reasoning(let text):
             output.yield(.reasoning(text))

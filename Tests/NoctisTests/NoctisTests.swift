@@ -289,23 +289,31 @@ struct ModelConcurrencyTests {
     }
 
     @Test func cancellationBeforeFirstElement() async throws {
-        let fixture = Fixture()
+        let cleanup = Signal()
+        let fixture = Fixture(cleanup: cleanup)
         try await fixture.service.load()
         var requests = fixture.requests.makeAsyncIterator()
+        var terminations = fixture.terminations.makeAsyncIterator()
         let consumer = Task {
             try await fixture.service.withResponse(prompt: "first") { stream in
                 for try await _ in stream {}
             }
         }
         let output = try #require(await requests.next())
+        defer { output.finish() }
         consumer.cancel()
-        // The upstream startup barrier is deliberately maintained until this point.
-        output.yield("first")
+        // No token is produced: cancellation itself must reach the upstream stream.
+        _ = await terminations.next()
+        await #expect(throws: MLXModelServiceError.generationInProgress) {
+            _ = try await fixture.service.generate(prompt: "before cleanup")
+        }
+        await cleanup.signal()
         await #expect(throws: CancellationError.self) { try await consumer.value }
         let next = try await fixture.service.generate(prompt: "next")
         let nextOutput = try #require(await requests.next())
+        nextOutput.yield("After cancellation")
         nextOutput.finish()
-        _ = try await collect(next)
+        #expect(try await collect(next) == "After cancellation")
     }
 
     @Test func concurrentLoadIsRejectedAndLoadedIsIdempotent() async throws {
