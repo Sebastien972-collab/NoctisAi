@@ -95,23 +95,6 @@ public actor MLXModelService: AIModelService, WorkspaceAuthorizing {
         }
     }
 
-    private static func loadContext(
-        modelID: String, progress: @escaping @Sendable (AIModelLoadPhase) -> Void
-    ) async throws -> sending ModelContext {
-        let downloader = CachedModelDownloader(client: HubClient(), phase: progress)
-        #if os(macOS)
-        if modelID == MLXModelProfile.gptOSSModelID {
-            return try await LLMModelFactory.shared.load(
-                from: downloader, using: #huggingFaceTokenizerLoader(),
-                configuration: .init(id: modelID, toolCallFormat: .gptOSS)
-            )
-        }
-        #endif
-        return try await loadModel(
-            from: downloader, using: #huggingFaceTokenizerLoader(), id: modelID
-        )
-    }
-
     init(sessionFactory: @escaping ModelSessionWorker.Factory) {
         presentation = .markdown
         workspaceAccess = WorkspaceToolAccess()
@@ -303,5 +286,24 @@ public actor MLXModelService: AIModelService, WorkspaceAuthorizing {
         let current = generation
         cancellation?.cancel()
         await current?.value
+    }
+}
+
+private extension MLXModelService {
+    static func loadContext(
+        modelID: String, progress: @escaping @Sendable (AIModelLoadPhase) -> Void
+    ) async throws -> sending ModelContext {
+        let downloader = CachedModelDownloader(client: HubClient(), phase: progress)
+        #if os(macOS)
+        if modelID == MLXModelProfile.gptOSSModelID {
+            return try await LLMModelFactory.shared.load(
+                from: downloader, using: #huggingFaceTokenizerLoader(),
+                configuration: .init(id: modelID, toolCallFormat: .gptOSS)
+            )
+        }
+        #endif
+        return try await loadModel(
+            from: downloader, using: #huggingFaceTokenizerLoader(), id: modelID
+        )
     }
 }
