@@ -2,6 +2,7 @@
 
 import Foundation
 import MLXLMCommon
+import NoctisAgent
 import Testing
 @testable import Noctis
 @testable import NoctisCLI
