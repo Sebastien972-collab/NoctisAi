@@ -1,5 +1,6 @@
 // Created by Sébastien DAGUIN
 
+import Darwin
 import Foundation
 import MLXLMCommon
 import NoctisAgent
@@ -30,22 +31,21 @@ struct CLIResponseProgressIntegrationTests {
     }
 
     @Test func actualToolCompletionRestartsWaitingAndKeepsPrivateAnalysisHidden() async throws {
-        let result = try await #require(processExitsWith: .success,
+        // A distinctive exit code retains diagnostics even if the child traps before completing the scenario.
+        let result = try await #require(processExitsWith: .failure,
                                        observing: [\.standardOutputContent, \.standardErrorContent]) {
-            let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-            defer { try? FileManager.default.removeItem(at: directory) }
-            let workspace = try AuthorizedWorkspace(authorizing: directory.resolvingSymlinksInPath())
-            let probe = ScriptProbe([
-                [.call("listFiles", "list00001", ["path": .string(".")])],
-                [.generation(.reasoning("PRIVATE_ANALYSIS")), .text("FINAL_ANSWER")]
-            ])
-            let model = MLXModelService(sessionFactory: { _ in ScriptSession(probe, profile: .gptOSS) })
-            try await model.authorizeWorkspace(workspace)
-            #expect(await NoctisApplication(modelService: model, workspace: workspace).runOnce(prompt: "Liste"))
+            do {
+                try await runToolProgressScenario()
+                exit(73)
+            } catch {
+                let message = "CLI scenario failed: \(String(reflecting: error))\n"
+                FileHandle.standardError.write(Data(message.utf8))
+                exit(74)
+            }
         }
         let output = try #require(String(bytes: result.standardOutputContent, encoding: .utf8))
         let errors = try #require(String(bytes: result.standardErrorContent, encoding: .utf8))
+        #expect(result.exitStatus == .exitCode(73), "CLI subprocess diagnostics:\n\(errors)")
         #expect(output.contains("Liste des fichiers…"))
         #expect(output.contains("FINAL_ANSWER"))
         #expect(errors.components(separatedBy: localizedCLI("console.progress.waiting")).count == 3)
@@ -65,6 +65,21 @@ struct CLIResponseProgressIntegrationTests {
         #expect(pending.lowerBound < cleanup.lowerBound)
         #expect(cleanup.lowerBound < completed.lowerBound)
     }
+}
+
+private func runToolProgressScenario() async throws {
+    let directory = URL(fileURLWithPath: "/private/tmp").appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let workspace = try AuthorizedWorkspace(authorizing: directory)
+    let probe = ScriptProbe([
+        [.call("listFiles", "list00001", ["path": .string(".")])],
+        [.generation(.reasoning("PRIVATE_ANALYSIS")), .text("FINAL_ANSWER")]
+    ])
+    let model = MLXModelService(sessionFactory: { _ in ScriptSession(probe, profile: .gptOSS) })
+    try await model.authorizeWorkspace(workspace)
+    let succeeded = await NoctisApplication(modelService: model, workspace: workspace).runOnce(prompt: "Liste")
+    try #require(succeeded)
 }
 
 private struct DelayedProgressService: AIModelService {

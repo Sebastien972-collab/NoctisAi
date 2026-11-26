@@ -11,7 +11,10 @@ struct GenerationCancellationTests {
             [.pause], [.text("After cancellation")]
         ], workspaceEnabled: false, profile: .gptOSS)
         defer { fixture.cleanup() }
-        let consumer = Task { try await fixture.run("First") }
+        let consumer = Task {
+            _ = try await fixture.run("First")
+            try Task.checkCancellation()
+        }
         defer { consumer.cancel() }
         let startupDeadline = ContinuousClock.now.advanced(by: .seconds(5))
         while fixture.probe.state.withLock({ $0.active }) == 0 && ContinuousClock.now < startupDeadline {

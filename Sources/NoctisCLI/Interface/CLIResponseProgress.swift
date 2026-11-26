@@ -115,7 +115,7 @@ final class CLIResponseProgress: @unchecked Sendable {
         let frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
         let elapsed = max(0, started.duration(to: now()).components.seconds)
         var size = winsize()
-        let width = ioctl(STDERR_FILENO, TIOCGWINSZ, &size) == 0 ? Int(size.ws_col) : 80
+        let width = ioctl(STDERR_FILENO, TIOCGWINSZ, &size) == 0 && size.ws_col > 0 ? Int(size.ws_col) : 80
         let line = "\(frames[frame % frames.count]) \(phase.title) · \(elapsed)s"
         output("\r\u{1B}[2K" + String(line.prefix(max(1, width - 1))))
         frame += 1
