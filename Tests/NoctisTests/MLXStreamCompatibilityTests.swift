@@ -186,7 +186,8 @@ struct MLXStreamCompatibilityTests {
         }
     }
 
-    private func makeClient(events: [Generation], profile: MLXModelProfile = .standard) async throws -> NoctisLLMClient {
+    private func makeClient(events: [Generation], profile: MLXModelProfile = .standard)
+    async throws -> NoctisLLMClient {
         let probe = ScriptProbe([events.map(ScriptStep.generation)])
         let worker = try await ModelSessionWorker.load(
             factory: { _ in ScriptSession(probe, profile: profile) }, progress: { _ in }

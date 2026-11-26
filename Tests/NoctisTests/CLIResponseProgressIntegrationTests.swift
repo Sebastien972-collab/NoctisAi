@@ -23,7 +23,7 @@ struct CLIResponseProgressIntegrationTests {
             progress.tick()
             #expect(capture.read() == complete)
         }
-        let output = String(decoding: result.standardOutputContent, as: UTF8.self)
+        let output = try #require(String(bytes: result.standardOutputContent, encoding: .utf8))
         #expect(output.contains("FIRST_VISIBLE_TEXT"))
         #expect(!output.contains(localizedCLI("console.progress.waiting")))
     }
@@ -43,8 +43,8 @@ struct CLIResponseProgressIntegrationTests {
             try await model.authorizeWorkspace(workspace)
             #expect(await NoctisApplication(modelService: model, workspace: workspace).runOnce(prompt: "Liste"))
         }
-        let output = String(decoding: result.standardOutputContent, as: UTF8.self)
-        let errors = String(decoding: result.standardErrorContent, as: UTF8.self)
+        let output = try #require(String(bytes: result.standardOutputContent, encoding: .utf8))
+        let errors = try #require(String(bytes: result.standardErrorContent, encoding: .utf8))
         #expect(output.contains("Liste des fichiers…"))
         #expect(output.contains("FINAL_ANSWER"))
         #expect(errors.components(separatedBy: localizedCLI("console.progress.waiting")).count == 3)
@@ -57,7 +57,7 @@ struct CLIResponseProgressIntegrationTests {
             let service = DelayedProgressService(cancelBeforeText: true, inspectBeforeText: {})
             #expect(await NoctisApplication(modelService: service).runOnce(prompt: "Bonjour") == false)
         }
-        let output = String(decoding: result.standardOutputContent, as: UTF8.self)
+        let output = try #require(String(bytes: result.standardOutputContent, encoding: .utf8))
         let pending = try #require(output.range(of: localizedCLI("console.progress.cancelling")))
         let cleanup = try #require(output.range(of: "CLEANUP_STARTED"))
         let completed = try #require(output.range(of: localizedCLI("console.status.cancelled")))
