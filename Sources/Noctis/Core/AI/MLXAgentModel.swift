@@ -119,12 +119,12 @@ extension MLXModelService: AgentModel {
         presentation: NoctisPresentationInstructions = .markdown
     ) async throws -> AgentResponse {
         let registry = NoctisToolRegistry(agentTools: tools)
-        let isBonsai = await model.perform { $0.model is PrismHadamardQwen35 }
+        let profile = await MLXModelProfile.resolve(model: model)
         let session = ChatSession(
             model,
             instructions: NoctisSystemPromptBuilder.build(registry: registry, presentation: presentation),
-            generateParameters: isBonsai ? BonsaiModelConfiguration.generationParameters : .init(maxTokens: 2_048),
-            additionalContext: isBonsai ? BonsaiModelConfiguration.additionalContext : nil,
+            generateParameters: profile.generationParameters,
+            additionalContext: profile.additionalContext,
             tools: registry.schemas
         )
         let cancellation = GenerationCancellation()

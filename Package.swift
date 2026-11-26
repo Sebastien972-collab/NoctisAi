@@ -91,6 +91,11 @@ let package = Package(
                     package: "mlx-swift-lm"
                 ),
                 .product(
+                    name: "MLXLLM",
+                    package: "mlx-swift-lm",
+                    condition: .when(platforms: [.macOS])
+                ),
+                .product(
                     name: "MLXHuggingFace",
                     package: "mlx-swift-lm"
                 ),

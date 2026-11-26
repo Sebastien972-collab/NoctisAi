@@ -31,7 +31,11 @@ struct IOSModelSelectionTests {
         #expect(selected.provider == .mlx)
         #expect(selected.fallbackReason == nil)
         #expect(IOSModelConfiguration.mlxModelID == "prism-ml/Ternary-Bonsai-2-4B-mlx-2bit")
+        #if os(macOS)
+        #expect(NoctisConfiguration.modelID != IOSModelConfiguration.mlxModelID)
+        #else
         #expect(NoctisConfiguration.modelID == IOSModelConfiguration.mlxModelID)
+        #endif
     }
 
     @Test func compactedProviderContextDoesNotDeleteHostHistory() {

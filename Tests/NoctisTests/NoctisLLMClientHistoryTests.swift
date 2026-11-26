@@ -56,4 +56,23 @@ struct NoctisLLMClientHistoryTests {
         #expect(secondMLX.map(\.role) == [.user, .assistant, .user])
         #expect(Array(secondMLX.dropLast()).map(\.content) == firstMLX.map(\.content))
     }
+
+    @Test func coldHarmonyHistoryKeepsToolMetadataWithoutPrivateAnalysis() throws {
+        let id = "call_0123456789abcdef0123456789abcdef"
+        let messages: [ChatMessage] = [
+            .user("Recherche Swift"),
+            .assistant(AssistantMessage(content: "Je vérifie.", toolCalls: [
+                ToolCall(id: id, name: "web_search", arguments: "{\"query\":\"Swift\"}")
+            ], reasoning: ReasoningContent(content: "PRIVATE_REASONING"))),
+            .tool(id: id, name: "web_search", content: "SOURCE_1")
+        ]
+        let replay = try NoctisLLMClient.messages(messages).map { DefaultMessageGenerator().generate(message: $0) }
+        let calls = replay[1]["tool_calls"] as? [[String: any Sendable]]
+        #expect(calls?.first?["id"] as? String == id)
+        #expect(replay[1]["content"] as? String == "Je vérifie.")
+        #expect(replay[1]["reasoning_content"] == nil)
+        #expect(replay[2]["tool_call_id"] as? String == id)
+        #expect(replay[2]["name"] as? String == "web_search")
+        #expect(replay[2]["content"] as? String == "SOURCE_1")
+    }
 }

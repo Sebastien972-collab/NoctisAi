@@ -61,7 +61,7 @@ public enum IOSModelServiceError: LocalizedError, Equatable, Sendable {
 
 /// Pure selection policy; only IOSModelService performs runtime availability checks and loading.
 public enum IOSModelConfiguration {
-    public static let mlxModelID = NoctisConfiguration.modelID
+    public static let mlxModelID = BonsaiModelConfiguration.modelID
 
     public static func select(
         preference: IOSModelPreference,
