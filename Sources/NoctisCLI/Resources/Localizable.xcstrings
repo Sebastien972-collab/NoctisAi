@@ -1305,6 +1305,74 @@
           }
         }
       }
+    },
+    "console.progress.downloading": {
+      "comment": "État réel de la CLI, affiché sur stderr pendant l’attente.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Downloading the model…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Téléchargement du modèle…"
+          }
+        }
+      }
+    },
+    "console.progress.loading": {
+      "comment": "État réel de la CLI, affiché sur stderr pendant l’attente.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loading the model…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chargement du modèle…"
+          }
+        }
+      }
+    },
+    "console.progress.waiting": {
+      "comment": "État réel de la CLI, affiché sur stderr pendant l’attente.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preparing the response…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Préparation de la réponse…"
+          }
+        }
+      }
+    },
+    "console.progress.cancelling": {
+      "comment": "État de la CLI pendant la synchronisation après une interruption.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancelling…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Interruption en cours…"
+          }
+        }
+      }
     }
   },
   "version": "1.3"

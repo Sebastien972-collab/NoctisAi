@@ -8,6 +8,7 @@ public enum MLXModelServiceError: LocalizedError, Equatable {
     case contextLimit
     case sessionInvalidated
     case responseLimit
+    case emptyResponse
     case toolLimit
     case generationInProgress
 
@@ -27,6 +28,10 @@ public enum MLXModelServiceError: LocalizedError, Equatable {
         case .responseLimit:
             return String(localized: "error.model.response_limit", defaultValue:
                             "La réponse a atteint la limite de génération et reste incomplète.", bundle: .module)
+        case .emptyResponse:
+            return String(localized: "error.model.empty_response", defaultValue:
+                "Le modèle a terminé sans produire de réponse. Réessaie ou commence une nouvelle conversation.",
+                bundle: .module)
         case .toolLimit:
             return String(localized: "error.model.tool_limit", defaultValue:
                             "La limite d’outils a été atteinte. La tâche reste incomplète.", bundle: .module)

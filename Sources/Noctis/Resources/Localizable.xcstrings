@@ -1,6 +1,24 @@
 {
   "sourceLanguage" : "fr",
   "strings" : {
+    "error.model.empty_response" : {
+      "comment" : "Génération terminée sans texte de réponse ni appel d’outil.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le modèle a terminé sans produire de réponse. Réessaie ou commence une nouvelle conversation."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The model finished without producing an answer. Try again or start a new conversation."
+          }
+        }
+      }
+    },
     "error.model.generation_in_progress" : {
       "comment" : "Description d’une erreur affichée à l’utilisateur.",
       "localizations" : {

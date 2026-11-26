@@ -190,7 +190,8 @@ In an interactive terminal, use ↑/↓ for session history, backspace to edit t
 and Ctrl+U to clear it. Long input scrolls horizontally to fit the terminal. End a line with
 `\` to continue the same message on the next line. Ctrl+C discards the current input or cancels
 an active model load/generation and permits the next turn. Cancellation joins the existing
-MLX cleanup path; an in-progress load/prefill may take time to finish safely.
+MLX cleanup path. During generation, the cancellation request reaches MLX even before the first
+model event; an in-progress GPU operation or model load may still take time to finish safely.
 
 Input is limited to 64 KiB per message. Input history is in memory only, capped at 100 entries
 and 256 KiB; it is discarded on exit or `/clear`. Conversation context stays in the running MLX
@@ -201,6 +202,17 @@ code and fenced code blocks; other Markdown stays readable as text. Lines wrap n
 terminal width. `NO_COLOR`, `TERM=dumb` and redirected output disable styling. Model-generated
 terminal controls are filtered. Redirected input accepts newline-separated prompts and the same
 backslash continuation convention; it never accepts interactive permission grants.
+
+Loading, downloading and first-response waiting are reported on standard error. Capable interactive
+terminals show an animated wait indicator with elapsed time; redirected output, `NO_COLOR`,
+`TERM=dumb` and CI use stable phase messages. The indicator clears before answer text and returns
+after tool execution while the model prepares the next part. It reports waiting time, not model
+completion percentage; GPT-OSS analysis remains internal.
+
+To investigate a slow first answer, run `noctis --version`, `noctis doctor`, then
+`time noctis ask "Réponds uniquement : Bonjour."`. The doctor checks installation resources but
+does not validate inference. A completed generation with no answer or tool call reports an explicit
+empty-answer error. `noctis update --rollback` restores the previous verified installation if needed.
 
 ### System instructions and Web page access
 

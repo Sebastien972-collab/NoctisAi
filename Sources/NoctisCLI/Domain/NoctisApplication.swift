@@ -14,15 +14,18 @@ import os
 final class NoctisApplication {
     private let console = ConsoleInterface()
     private let modelService: any AIModelService
+    private let progressFactory: @Sendable () -> CLIResponseProgress
     private var input = ConsoleInput()
     private var workspace: AuthorizedWorkspace?
     private var loaded = false
     private var agentHistory: [ChatMessage] = []
     private var cliAgent: NoctisCLIAgent?
 
-    init(modelService: any AIModelService, workspace: AuthorizedWorkspace? = nil) {
+    init(modelService: any AIModelService, workspace: AuthorizedWorkspace? = nil,
+         progressFactory: @escaping @Sendable () -> CLIResponseProgress = { CLIResponseProgress() }) {
         self.modelService = modelService
         self.workspace = workspace
+        self.progressFactory = progressFactory
     }
 
     /// Execute one task and return to the shell without opening an input loop.
@@ -53,28 +56,34 @@ final class NoctisApplication {
     @discardableResult
     private func respond(to prompt: String, interrupts: ConsoleInterrupts) async -> Bool {
         defer { interrupts.install(nil) }
+        let progress = progressFactory()
         do {
-            try await prepareModel(interrupts: interrupts)
-            let model = modelService
-            let console = console
-            let currentAgent = cliAgent
-            let currentHistory = agentHistory
-            let generation = Task {
-                if let agent = currentAgent {
-                    return try await Self.renderAgent(agent, prompt: prompt, history: currentHistory, console: console)
+            let history = try await progress.track {
+                try await prepareModel(interrupts: interrupts, progress: progress)
+                let model = modelService
+                let console = console
+                let currentAgent = cliAgent
+                let currentHistory = agentHistory
+                let generation = Task {
+                    if let agent = currentAgent {
+                        return try await Self.renderAgent(agent, prompt: prompt, history: currentHistory,
+                                                          console: console, progress: progress)
+                    }
+                    try await Self.renderPlainResponse(model: model, prompt: prompt,
+                                                       console: console, progress: progress)
+                    return nil
                 }
-                try await Self.renderPlainResponse(model: model, prompt: prompt, console: console)
-                return nil
+                interrupts.install { generation.cancel() }
+                return try await generation.value
             }
-            interrupts.install { generation.cancel() }
-            if let history = try await generation.value {
-                agentHistory = history
-            }
+            if let history { agentHistory = history }
             return true
         } catch is CancellationError {
+            print()
+            console.displayStatus(String(localized: "console.progress.cancelling",
+                                         defaultValue: "Interruption en cours…", bundle: .module))
             if let history = await cliAgent?.settledHistory() { agentHistory = history }
             await modelService.cancelGeneration()
-            print()
             console.displayStatus(String(localized: "console.status.cancelled",
                                          defaultValue: "Réponse interrompue. On peut continuer.", bundle: .module))
             return false
@@ -91,12 +100,11 @@ final class NoctisApplication {
         }
     }
 
-    private func prepareModel(interrupts: ConsoleInterrupts) async throws {
+    private func prepareModel(interrupts: ConsoleInterrupts, progress: CLIResponseProgress) async throws {
         if !loaded {
-            console.displayStatus(String(localized: "console.status.loading_model",
-                                         defaultValue: "Je me prépare pour notre conversation…", bundle: .module))
+            progress.update(.loading)
             let model = modelService
-            let load = Task { try await model.load() }
+            let load = Task { try await model.load(progress: { progress.loading($0) }) }
             interrupts.install { load.cancel() }
             try await load.value
             loaded = true
@@ -111,9 +119,11 @@ final class NoctisApplication {
         _ agent: NoctisCLIAgent,
         prompt: String,
         history: [ChatMessage],
-        console: ConsoleInterface
+        console: ConsoleInterface,
+        progress: CLIResponseProgress
     ) async throws -> [ChatMessage]? {
         console.beginResponse()
+        progress.update(.waiting)
         var renderer = TerminalMarkdown(styled: console.usesColor)
         var nextHistory: [ChatMessage]?
         var streamedText = ""
@@ -123,41 +133,34 @@ final class NoctisApplication {
                 switch event.kind {
                 case .delta(let text):
                     streamedText += text
-                    console.displayResponse(renderer.append(text))
+                    let rendered = renderer.append(text)
+                    if !rendered.isEmpty { progress.pause(); console.displayResponse(rendered) }
                 case .toolCallStarted(let name, _) where name != "finish":
+                    progress.pause()
                     streamedText = ""
                     console.displayResponse(renderer.finish())
                     renderer = TerminalMarkdown(styled: console.usesColor)
                     print()
                     console.displayStatus(toolAction(name))
-                case .toolCallCompleted(_, _, let result) where result.isError:
-                    print()
-                    console.displayStatus(result.content == "Action refusée : permission insuffisante"
-                                            ? "Action refusée : permission insuffisante" : "Action échouée")
+                case .toolCallCompleted(_, let name, let result) where name != "finish":
+                    presentToolCompletion(result, console: console, progress: progress)
                 case .finished(_, let content, let reason, let history):
+                    progress.pause()
                     nextHistory = presentCompletion(content: content, reason: reason, history: history,
                                                     renderer: &renderer, streamed: streamedText, console: console)
                 default:
                     continue
                 }
             }
+            progress.pause()
             console.displayResponse(renderer.finish())
             print("\n")
             try Task.checkCancellation()
             return nextHistory
         } catch {
+            progress.pause()
             console.displayResponse(renderer.finish())
             throw error
-        }
-    }
-
-    private static func toolAction(_ name: String) -> String {
-        switch name {
-        case "web_search": "Recherche Web…"
-        case "web_open": "Lecture de la page Web…"
-        case "readFile": "Lecture du fichier…"
-        case "listFiles": "Liste des fichiers…"
-        default: "Recherche dans les fichiers…"
         }
     }
 
@@ -270,19 +273,45 @@ final class NoctisApplication {
 }
 
 private extension NoctisApplication {
-    static func renderPlainResponse(model: any AIModelService, prompt: String, console: ConsoleInterface) async throws {
+    static func toolAction(_ name: String) -> String {
+        switch name {
+        case "web_search": "Recherche Web…"
+        case "web_open": "Lecture de la page Web…"
+        case "readFile": "Lecture du fichier…"
+        case "listFiles": "Liste des fichiers…"
+        default: "Recherche dans les fichiers…"
+        }
+    }
+
+    static func presentToolCompletion(_ result: ToolResult, console: ConsoleInterface,
+                                      progress: CLIResponseProgress) {
+        progress.pause()
+        if result.isError {
+            print()
+            console.displayStatus(result.content == "Action refusée : permission insuffisante"
+                                    ? "Action refusée : permission insuffisante" : "Action échouée")
+        }
+        progress.update(.waiting)
+    }
+
+    static func renderPlainResponse(model: any AIModelService, prompt: String, console: ConsoleInterface,
+                                    progress: CLIResponseProgress) async throws {
         console.beginResponse()
+        progress.update(.waiting)
         try await model.withResponse(prompt: prompt) { stream in
             var renderer = TerminalMarkdown(styled: console.usesColor)
             do {
                 for try await chunk in stream {
                     try Task.checkCancellation()
-                    console.displayResponse(renderer.append(chunk))
+                    let rendered = renderer.append(chunk)
+                    if !rendered.isEmpty { progress.pause(); console.displayResponse(rendered) }
                 }
             } catch {
+                progress.pause()
                 console.displayResponse(renderer.finish())
                 throw error
             }
+            progress.pause()
             console.displayResponse(renderer.finish())
         }
         try Task.checkCancellation()

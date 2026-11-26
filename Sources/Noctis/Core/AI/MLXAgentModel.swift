@@ -132,8 +132,8 @@ extension MLXModelService: AgentModel {
         let reader = Task {
             try await collectAgentResponse(upstream, cancellation: cancellation, limits: limits)
         }
-        // The same cancellation handshake as chat prevents synchronize() from overtaking prefill.
         // GenerationCancellation accepts a Void reader, so join the typed reader through a bridge.
+        // synchronize() joins MLX's registered runner even before the first token.
         let bridge = Task<Void, Error> {
             try await withTaskCancellationHandler {
                 _ = try await reader.value
@@ -157,7 +157,6 @@ extension MLXModelService: AgentModel {
         var calls: [AgentToolCall] = []
         var failure: (any Error)?
         for try await event in upstream {
-            cancellation.arm()
             if cancellation.isCancelled || failure != nil { continue }
             do {
                 try consumeAgentEvent(event, text: &text, calls: &calls, limits: limits)
