@@ -181,7 +181,8 @@ struct NoctisContextReductionTests {
     }
 
     private func json(_ value: [String: Any]) throws -> String {
-        String(decoding: try JSONSerialization.data(withJSONObject: value, options: [.sortedKeys]), as: UTF8.self)
+        let data = try JSONSerialization.data(withJSONObject: value, options: [.sortedKeys])
+        return try #require(String(data: data, encoding: .utf8))
     }
 
     private func toolContent(_ messages: [ChatMessage]) throws -> String {
