@@ -110,6 +110,12 @@ struct NoctisLLMClientContextTests {
         task.cancel()
         await #expect(throws: CancellationError.self) { try await task.value }
         _ = await fixture.agent.settledHistory()
+        let deadline = ContinuousClock.now.advanced(by: .seconds(5))
+        while !fixture.agent.traceRecorder.events().contains(where: { $0.kind == .generationCancelled })
+                && ContinuousClock.now < deadline {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(fixture.agent.traceRecorder.events().contains { $0.kind == .generationCancelled })
         #expect(await search.calls == 1)
         #expect(fixture.probe.state.withLock { $0.histories.count } == 3)
         #expect(fixture.probe.state.withLock { $0.active } == 0)
