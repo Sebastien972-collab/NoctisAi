@@ -22,8 +22,9 @@ Never move an existing tag. Publish a new compatible SemVer tag only after all g
 
 ## Real model protocol
 
-Use Release builds. Keep the configured Ministral 14B Mac / 3B iOS models. Run the fixed twenty scenarios
-in `RealModelQualificationTests`, then thirty sequential short exchanges and three cancel/resume cycles.
+Use Release builds and keep the model configured for the tested platform. Run the fixed twenty-one scenarios
+and controlled multi-step Web task in `RealModelQualificationTests`, then thirty sequential short exchanges
+and three cancel/resume cycles. Check that greetings are plain text and explicitly requested JSON stays intact.
 Reaching the context limit must be reported clearly; it is not permission to erase the previous history.
 Check natural answers and source grounding manually in addition to observing successful tool execution.
 

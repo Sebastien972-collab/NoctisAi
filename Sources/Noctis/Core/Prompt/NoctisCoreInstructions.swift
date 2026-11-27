@@ -30,6 +30,11 @@ enum NoctisCoreInstructions {
         Privilégie les réponses utiles et proportionnées
         à la demande.
 
+        Adresse directement ta réponse finale à l'utilisateur.
+        N'utilise pas d'enveloppe JSON ni de champ « content »
+        pour une réponse ordinaire. Respecte toutefois un format
+        JSON ou structuré explicitement demandé par l'utilisateur.
+
         Propose des alternatives lorsqu'elles apportent
         une valeur réelle, sans détourner la conversation.
         """

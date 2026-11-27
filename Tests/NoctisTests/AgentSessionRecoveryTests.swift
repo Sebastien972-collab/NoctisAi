@@ -9,10 +9,10 @@ import os
 @testable import Noctis
 
 extension AgentReliabilityTests {
-    @Test func finishDisplaysAndRemembersTheAnswerOnce() async throws {
+    @Test func contentChunksDisplayAndRememberTheAnswerOnce() async throws {
         for prefix in ["", "Par", "Paris"] {
             let fixture = try await ReliabilityFixture([
-                [.text(prefix), .call("finish", "answer001", ["content": .string("Paris")])], [.text("Suite")]
+                [.text(prefix), .text(String("Paris".dropFirst(prefix.count)))], [.text("Suite")]
             ])
             defer { fixture.cleanup() }
             let events = try await fixture.run("Capitale ?")

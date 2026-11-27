@@ -283,9 +283,9 @@ extension AgentReliabilityTests {
             let result) = $0.kind { result.isError } else { false } })
     }
 
-    @Test func finishPreservesTheActualAnswerInMultiturnHistory() async throws {
+    @Test func finalContentPreservesTheActualAnswerInMultiturnHistory() async throws {
         let fixture = try await ReliabilityFixture([
-            [.call("finish", "fin000001", ["content": .string("Réponse finale")])], [.text("Suite")]
+            [.text("Réponse"), .text(" finale")], [.text("Suite")]
         ])
         defer { fixture.cleanup() }
         let events = try await fixture.run()
@@ -298,7 +298,7 @@ extension AgentReliabilityTests {
     }
 
     @Test func refusedContextDoesNotAlterAcceptedHistory() async throws {
-        let fixture = try await ReliabilityFixture([[.contextLimit]])
+        let fixture = try await ReliabilityFixture(Array(repeating: [.contextLimit], count: 4))
         defer { fixture.cleanup() }
         let history: [ChatMessage] = [.user("Avant"), .assistant(AssistantMessage(content: "Conservé"))]
         await #expect(throws: MLXModelServiceError.contextLimit) {
