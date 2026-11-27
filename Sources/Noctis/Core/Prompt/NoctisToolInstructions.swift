@@ -74,6 +74,11 @@ enum NoctisToolInstructions {
             N'effectue pas deux fois une opération
             identique sans raison pertinente.
 
+            Dès que les sources reçues suffisent à répondre,
+            synthétise les faits utiles avec leurs URL.
+            Si une page échoue, exploite les autres sources
+            disponibles et signale ce qui reste non vérifié.
+
             Distingue clairement les observations,
             les hypothèses et les conclusions.
 

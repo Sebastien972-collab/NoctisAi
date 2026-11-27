@@ -791,26 +791,33 @@ xcodebuild -scheme Noctis-Package -destination 'platform=macOS' -skipMacroValida
 The beta retains the existing three execution paths and public `AIModelService` signatures.
 All loaded MLX models use a bounded processor before every prefill, including continuations after tools:
 256 KiB serialized input (instructions, messages, tool arguments and schemas), at most 6,144 input tokens,
-and 2,048 generated tokens. A smaller model window lowers the input budget. Context overflow is an
-explicit error; no automatic summarization or history pruning is enabled in the standard CLI.
+and the profile's output limit (4,096 tokens for GPT-OSS, 2,048 otherwise). A smaller model window lowers
+the input budget. If the processor rejects an AgentLoop request before generation, the MLX client tries
+up to three smaller provider requests: shorter Web excerpts, then fewer complete older user turns.
+Source URLs, trust labels, the latest question and its tool-call/result pairs are preserved. Saved
+conversation history is unchanged. The same rendered-token guard checks every attempt; irreducible
+requests still fail explicitly. No model-generated summary or already-started response is retried.
 
 A shared generation lease prevents concurrent use of the same weights through chat, AgentLoop and
 workspace task APIs. Permission changes invalidate existing model clients and task runtimes. Completed
-tool exchanges remain inspectable after interruption. The CLI displays terminal `finish` content once
-and reports incomplete runs explicitly. Web URLs supplied in the current question are authorized for
+tool exchanges remain inspectable after interruption. Local clients return natural final text without
+an advertised synthetic `finish` schema; deliberately requested JSON is preserved. Clients requiring
+explicit terminal calls still receive `finish`, and its answer is displayed once. The CLI reports
+incomplete runs explicitly. Web URLs supplied in the current question are authorized for
 that response only; page content cannot grant access to another URL. A search returning no sources
 ends the response with the typed `noSearchResults` outcome. The model cannot retry that empty result;
 accepted history is retained so the caller can start a new request.
 
-Ordinary tests do not load model weights. The opt-in qualification suite runs twenty fixed scenarios,
-a conversation of up to thirty turns and three cancellation/recovery cycles. It reports timings,
+Ordinary tests do not load model weights. The opt-in qualification suite runs twenty-one fixed scenarios,
+a controlled multi-step Web task, a conversation of up to thirty turns and three cancellation/recovery cycles.
+It checks plain greetings and deliberately requested JSON separately, and reports timings,
 observed tool outcomes, token counts and MLX peak allocation without recording prompt or result bodies:
 
 ```sh
 NOCTIS_REAL_MODEL_TESTS=1 swift test -c release --filter RealModelQualificationTests
 ```
 
-This suite uses a controlled empty search provider; it does not certify live SearXNG. Its explicit
+This suite uses controlled empty and nonempty search providers; it does not certify live SearXNG. Its explicit
 public page scenario needs a network connection. Successful completion is not a semantic quality audit.
 Device tests, signed distribution tests, license notices and at least seven days of private beta
 observation remain separate release gates. Do not interpret source availability or a successful

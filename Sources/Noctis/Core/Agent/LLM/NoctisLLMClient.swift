@@ -85,16 +85,8 @@ public final class NoctisLLMClient: ToolCallSurfacingClient, ContentOnlyTerminat
             acquired = true
             trace?.record(.generationStarted)
             try Task.checkCancellation()
-            var state = GenerationState(identifiers: Set(messages.flatMap { message -> [String] in
-                if case .assistant(let assistant) = message { return assistant.toolCalls.map(\.id) }
-                return []
-            }))
-            let upstream = worker.streamDetails(messages: try Self.messages(messages), tools: tools.map(Self.tool),
-                                                instructions: instructions?() ?? systemPrompt)
-            for try await event in upstream {
-                try Task.checkCancellation()
-                try forward(event, tools: tools, state: &state, output: output, trace: trace)
-            }
+            let state = try await generateWithContextRecovery(messages: messages, tools: tools,
+                                                              output: output, trace: trace)
             try Task.checkCancellation()
             guard state.hasContent || state.nextCallIndex > 0 else { throw MLXModelServiceError.emptyResponse }
             trace?.record(.generationCompleted)
@@ -109,6 +101,44 @@ public final class NoctisLLMClient: ToolCallSurfacingClient, ContentOnlyTerminat
             if let lease { access.release(lease) }
             output.finish(throwing: error)
         }
+    }
+
+    private func generateWithContextRecovery(
+        messages: [ChatMessage], tools: [ToolDefinition],
+        output: AsyncThrowingStream<StreamDelta, Error>.Continuation, trace: AgentTraceScope?
+    ) async throws -> GenerationState {
+        let identifiers = Set(messages.flatMap { message -> [String] in
+            if case .assistant(let assistant) = message { return assistant.toolCalls.map(\.id) }
+            return []
+        })
+        let prompt = instructions?() ?? systemPrompt
+        var previous: [ChatMessage]?
+        for level in 0...NoctisContextReduction.maximumLevel {
+            try Task.checkCancellation()
+            let candidate = level == 0 ? messages : NoctisContextReduction.reduce(messages, level: level)
+            guard candidate != previous else { continue }
+            previous = candidate
+            var state = GenerationState(identifiers: identifiers)
+            var receivedEvent = false
+            do {
+                let upstream = worker.streamDetails(messages: try Self.messages(candidate),
+                                                    tools: tools.map(Self.tool), instructions: prompt)
+                for try await event in upstream {
+                    receivedEvent = true
+                    try Task.checkCancellation()
+                    try forward(event, tools: tools, state: &state, output: output, trace: trace)
+                }
+                try Task.checkCancellation()
+                return state
+            } catch {
+                // The installed processor rejects the complete rendered input before
+                // generation. Never replay a response or a tool call already surfaced.
+                guard error as? MLXModelServiceError == .contextLimit, !receivedEvent else { throw error }
+                await worker.synchronize()
+                try Task.checkCancellation()
+            }
+        }
+        throw MLXModelServiceError.contextLimit
     }
 
     private func forward(_ event: Generation, tools: [ToolDefinition], state: inout GenerationState,
@@ -154,7 +184,9 @@ public final class NoctisLLMClient: ToolCallSurfacingClient, ContentOnlyTerminat
         guard let json = String(data: data, encoding: .utf8) else { throw AgentError.invalidArguments }
         output.yield(.toolCallDelta(index: index, arguments: json))
     }
+}
 
+extension NoctisLLMClient {
     static func makeCallID() -> String {
         String(UUID().uuidString.replacingOccurrences(of: "-", with: "").prefix(9))
     }

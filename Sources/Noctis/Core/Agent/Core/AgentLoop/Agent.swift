@@ -12,7 +12,8 @@ public final class Agent<C: ToolContext>: Sendable {
     let completionPolicy: AgentCompletionPolicy
     let completionTool: (any AnyTool<C>)?
 
-    /// Creates an agent that finishes through the built-in finish tool.
+    /// Creates an agent that accepts a final answer from content-capable clients,
+    /// or uses the built-in finish tool for other clients.
     public convenience init(
         client: any LLMClient,
         tools: [any AnyTool<C>],
@@ -54,7 +55,9 @@ public final class Agent<C: ToolContext>: Sendable {
         self.client = client
         self.tools = executableTools
         var defs = executableTools.map { ToolDefinition($0) }
-        if completionTool == nil {
+        // Content-capable clients already finish naturally. A second terminal schema
+        // can make the model return its JSON arguments as the visible answer instead.
+        if completionTool == nil, !(client is any ContentOnlyTerminatingClient) {
             defs.append(reservedFinishToolDefinition)
         }
         if configuration.contextBudget?.enablePruneTool == true {
